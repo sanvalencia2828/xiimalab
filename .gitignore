@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────
+# Secrets — NUNCA subir al repo
+# ─────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets/
+
+# ─────────────────────────────────────────────
+# Node / Next.js
+# ─────────────────────────────────────────────
+node_modules/
+.next/
+out/
+build/
+dist/
+services/automation/node_modules/
+services/automation/snapshots/
+
+# ─────────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ─────────────────────────────────────────────
+# Docker
+# ─────────────────────────────────────────────
+docker-compose.override.yml
+
+# ─────────────────────────────────────────────
+# IDE / OS
+# ─────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─────────────────────────────────────────────
+# Logs & temporales
+# ─────────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+snapshots/
+tsconfig.tsbuildinfo

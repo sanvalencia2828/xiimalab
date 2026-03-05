@@ -1,0 +1,19 @@
+{
+  "name": "xiima-automation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Xiima Snap Engine — Puppeteer screenshot + RedimensionAI optimization",
+  "main": "snap_engine.js",
+  "scripts": {
+    "snap": "node snap_engine.js",
+    "snap:dev": "DASHBOARD_URL=http://localhost:3000 node snap_engine.js"
+  },
+  "dependencies": {
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
