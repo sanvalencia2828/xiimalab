@@ -130,6 +130,33 @@ services:
       - xiima-net
 
   # ─────────────────────────────────────────────
+  # Payout Oracle — Única pieza con acceso a Hot Wallet
+  # Escucha Supabase Realtime + polling de respaldo
+  # ─────────────────────────────────────────────
+  payout-oracle:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: always          # 24/7 — critical service
+    command: python payout_manager.py
+    environment:
+      DATABASE_URL:             postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_PLATFORM_SECRET:  ${STELLAR_PLATFORM_SECRET}   # Hot wallet — SECRETO
+      STELLAR_NETWORK:          ${STELLAR_NETWORK:-testnet}
+      SUPABASE_URL:             ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY:     ${SUPABASE_SERVICE_KEY:-}     # Service Role Key
+      MAX_RETRIES:              ${MAX_RETRIES:-3}
+      POLL_INTERVAL_SEC:        ${POLL_INTERVAL_SEC:-30}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Solo este contenedor tiene la secret key — aislamiento explícito
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
   # ML Matcher — Embeddings + MarketMatch con pgvector
   # ─────────────────────────────────────────────
   ml-matcher:

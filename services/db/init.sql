@@ -101,6 +101,10 @@ CREATE TABLE IF NOT EXISTS educational_escrows (
     status                  VARCHAR(32)    NOT NULL DEFAULT 'pending',
     milestone_type          VARCHAR(64),
     milestone_reached_at    TIMESTAMPTZ,
+    -- Payout Oracle: auditoría de la transacción Stellar
+    transaction_hash        VARCHAR(128),
+    payout_error            TEXT,
+    retry_count             INT            NOT NULL DEFAULT 0,
     created_at              TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );

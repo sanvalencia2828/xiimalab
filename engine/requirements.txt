@@ -21,6 +21,11 @@ sentence-transformers>=3.0.0
 numpy>=1.26.0
 
 # ─────────────────────────────────────────────
+# Payout Oracle (payout_manager.py)
+# ─────────────────────────────────────────────
+supabase>=2.4.0       # Incluye Realtime WebSocket + async client
+
+# ─────────────────────────────────────────────
 # Scraper (snap_engine.py)
 # ─────────────────────────────────────────────
 playwright>=1.44.0
