@@ -14,8 +14,8 @@ import { supabase, type ActiveHackathon } from "@/lib/supabase";
 import HackatonesClient  from "@/components/HackatonesClient";
 import EcommerceLoading  from "../ecommerce/loading"; // reusar skeleton base
 
-// Revalidar cada 5 minutos (ISR) — el SNAP Engine corre cada 12h
-export const revalidate = 300;
+// force-dynamic: evita fetch a localhost:8000 durante el build de Vercel
+export const dynamic = "force-dynamic";
 
 // ── Fetch de datos ────────────────────────────────────────
 async function fetchHackathons(): Promise<ActiveHackathon[]> {
