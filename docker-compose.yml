@@ -106,6 +106,28 @@ services:
       - xiima-net
 
   # ─────────────────────────────────────────────
+  # Devfolio MCP Scraper — Tiempo real vía MCP
+  # ─────────────────────────────────────────────
+  devfolio:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python devfolio_mcp.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      REDIS_URL: redis://redis:6379
+      DEVFOLIO_MCP_API_KEY: ${DEVFOLIO_MCP_API_KEY}
+      DEVFOLIO_INTERVAL_MINUTES: ${DEVFOLIO_INTERVAL_MINUTES:-15}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
   # Next.js Frontend
   # ─────────────────────────────────────────────
   frontend:

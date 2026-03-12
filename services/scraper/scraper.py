@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
 import asyncpg
+import redis.asyncio as aioredis
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from playwright.async_api import async_playwright
 from playwright_stealth import stealth_async
@@ -29,9 +30,11 @@ from parser import parse_hackathon_cards
 DATABASE_URL: str = os.environ.get(
     "DATABASE_URL", "postgresql://xiima:secret@localhost:5432/xiimalab"
 )
+REDIS_URL: str = os.environ.get("REDIS_URL", "redis://localhost:6379")
 SCRAPER_INTERVAL_MINUTES: int = int(os.environ.get("SCRAPER_INTERVAL_MINUTES", 30))
 HEADLESS: bool = os.environ.get("HEADLESS", "true").lower() == "true"
 DORAHACKS_URL = "https://dorahacks.io/hackathon"
+REDIS_HACKATHONS_CHANNEL = "hackathons:new"
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -137,29 +140,58 @@ async def upsert_hackathons(parsed: list) -> None:
         return
 
     conn = await asyncpg.connect(DATABASE_URL)
+    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    new_count = 0
+
     try:
-        records = [
-            (h.id, h.title, h.prize_pool, h.tags, h.deadline, h.match_score, h.source_url)
-            for h in parsed
-        ]
-        await conn.executemany(
-            """
-            INSERT INTO hackathons (id, title, prize_pool, tags, deadline, match_score, source_url)
-            VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
-            ON CONFLICT (id) DO UPDATE SET
-                title = EXCLUDED.title,
-                prize_pool = EXCLUDED.prize_pool,
-                tags = EXCLUDED.tags,
-                deadline = EXCLUDED.deadline,
-                match_score = EXCLUDED.match_score,
-                source_url = EXCLUDED.source_url,
-                updated_at = NOW()
-            """,
-            [(r[0], r[1], r[2], str(r[3]).replace("'", '"'), r[4], r[5], r[6]) for r in records],
-        )
-        log.info(f"✅ Upserted {len(parsed)} hackathons to PostgreSQL")
+        for h in parsed:
+            # Detectar si es nuevo para publicar en Redis
+            existing = await conn.fetchval(
+                "SELECT id FROM hackathons WHERE id = $1", h.id
+            )
+            is_new = existing is None
+
+            await conn.execute(
+                """
+                INSERT INTO hackathons (id, title, prize_pool, tags, deadline, match_score, source_url, source)
+                VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, 'dorahacks')
+                ON CONFLICT (id) DO UPDATE SET
+                    title       = EXCLUDED.title,
+                    prize_pool  = EXCLUDED.prize_pool,
+                    tags        = EXCLUDED.tags,
+                    deadline    = EXCLUDED.deadline,
+                    match_score = EXCLUDED.match_score,
+                    source_url  = EXCLUDED.source_url,
+                    updated_at  = NOW()
+                """,
+                h.id, h.title, h.prize_pool,
+                str(h.tags).replace("'", '"'),
+                h.deadline, h.match_score, h.source_url,
+            )
+
+            if is_new:
+                new_count += 1
+                import json as _json
+                from datetime import datetime, timezone
+                await redis_client.publish(
+                    REDIS_HACKATHONS_CHANNEL,
+                    _json.dumps({
+                        "id": h.id,
+                        "title": h.title,
+                        "prize_pool": h.prize_pool,
+                        "tags": h.tags,
+                        "deadline": h.deadline,
+                        "match_score": h.match_score,
+                        "source_url": h.source_url,
+                        "source": "dorahacks",
+                        "scraped_at": datetime.now(timezone.utc).isoformat(),
+                    }),
+                )
+
+        log.info(f"✅ Upserted {len(parsed)} hackathons — {new_count} new published to Redis")
     finally:
         await conn.close()
+        await redis_client.close()
 
 
 # ─────────────────────────────────────────────
