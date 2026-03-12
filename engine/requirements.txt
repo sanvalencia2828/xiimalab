@@ -1,3 +1,28 @@
-stellar-sdk>=10.0.0
+# ─────────────────────────────────────────────
+# Core async
+# ─────────────────────────────────────────────
 asyncpg>=0.29.0
 python-dotenv>=1.0.0
+apscheduler>=3.10.0
+
+# ─────────────────────────────────────────────
+# Stellar SDK
+# ─────────────────────────────────────────────
+stellar-sdk>=10.0.0
+httpx>=0.27.0           # usado por _extract_balance_id en hotmart_bridge
+
+# ─────────────────────────────────────────────
+# ML — MarketMatch (ml_matcher.py)
+# ─────────────────────────────────────────────
+# sentence-transformers instala torch automáticamente.
+# En CPU (~80MB modelo) es suficiente para producción low-traffic.
+# Para GPU: pip install torch --index-url https://download.pytorch.org/whl/cu118
+sentence-transformers>=3.0.0
+numpy>=1.26.0
+
+# ─────────────────────────────────────────────
+# Scraper (snap_engine.py)
+# ─────────────────────────────────────────────
+playwright>=1.44.0
+playwright-stealth>=1.0.6
+redis[asyncio]>=5.0.0

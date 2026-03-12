@@ -1,43 +1,83 @@
-"use client";
+/**
+ * app/hackatones/page.tsx — SERVER COMPONENT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Arquitectura de hidratación:
+ *   • Este archivo NO tiene "use client" — se ejecuta en el servidor.
+ *   • Fetcha active_hackathons desde Supabase en build/request time.
+ *   • Pasa initialData a <HackatonesClient> que maneja filtros + SSE.
+ *   • Si Supabase no responde → fallback a /api/hackathons (FastAPI).
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+import { Suspense }      from "react";
+import { Zap, Database } from "lucide-react";
+import { supabase, type ActiveHackathon } from "@/lib/supabase";
+import HackatonesClient  from "@/components/HackatonesClient";
+import EcommerceLoading  from "../ecommerce/loading"; // reusar skeleton base
 
-import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Globe, Bot, Radio, RefreshCw } from "lucide-react";
-import DoraHacksFeed, { type Hackathon } from "@/components/DoraHacksFeed";
+// Revalidar cada 5 minutos (ISR) — el SNAP Engine corre cada 12h
+export const revalidate = 300;
 
-// ─────────────────────────────────────────────
-// Tipos y constantes
-// ─────────────────────────────────────────────
-type Source = "all" | "dorahacks" | "devfolio";
+// ── Fetch de datos ────────────────────────────────────────
+async function fetchHackathons(): Promise<ActiveHackathon[]> {
+    // 1. Intentar Supabase directamente
+    if (supabase) {
+        const { data, error } = await supabase
+            .from("active_hackathons")
+            .select("id, title, prize_pool, tags, deadline, match_score, source_url, source, last_seen_at")
+            .order("last_seen_at", { ascending: false })
+            .limit(50);
 
-const TABS: { id: Source; label: string; icon: typeof Zap; color: string }[] = [
-    { id: "all",       label: "Todos",     icon: Zap,    color: "text-accent border-accent/40 bg-accent/10" },
-    { id: "dorahacks", label: "DoraHacks", icon: Bot,    color: "text-purple-400 border-purple-400/40 bg-purple-400/10" },
-    { id: "devfolio",  label: "Devfolio",  icon: Globe,  color: "text-sky-400 border-sky-400/40 bg-sky-400/10" },
-];
+        if (!error && data && data.length > 0) {
+            return data as ActiveHackathon[];
+        }
+        if (error) {
+            console.error("[hackatones/page] Supabase error:", error.message);
+        }
+    } else {
+        console.info("[hackatones/page] Supabase no configurada — usando fallback API");
+    }
 
-// ─────────────────────────────────────────────
-// Skeleton loader
-// ─────────────────────────────────────────────
-function HackathonSkeleton() {
+    // 2. Fallback → API route interna (proxy al FastAPI)
+    try {
+        const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+        const res  = await fetch(`${base}/api/hackathons?limit=50`, {
+            next: { revalidate: 300 },
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) return data as ActiveHackathon[];
+        }
+    } catch (err) {
+        console.warn("[hackatones/page] Fallback API error:", err);
+    }
+
+    // 3. Sin datos — el cliente mostrará "Buscando nuevas oportunidades..."
+    return [];
+}
+
+// ── Componente de carga inline para el Suspense ─────────
+function HackatonSkeleton() {
     return (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden animate-pulse">
-            <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-muted" />
-                <div className="h-4 w-48 rounded bg-muted" />
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="px-5 py-4 border-b border-border last:border-0">
-                    <div className="h-4 w-3/4 rounded bg-muted mb-3" />
-                    <div className="flex gap-3 mb-2">
-                        <div className="h-3 w-24 rounded bg-muted" />
+                <div key={i} className="bg-card border border-border rounded-2xl p-5 animate-pulse">
+                    <div className="flex items-start gap-3 mb-3">
+                        <div className="h-4 w-4 rounded bg-muted shrink-0" />
+                        <div className="flex-1 space-y-2">
+                            <div className="h-4 w-3/4 rounded bg-muted" />
+                            <div className="h-3 w-16 rounded bg-muted" />
+                        </div>
+                    </div>
+                    <div className="flex gap-4 mb-3">
+                        <div className="h-3 w-20 rounded bg-muted" />
                         <div className="h-3 w-16 rounded bg-muted" />
                         <div className="h-3 w-20 rounded bg-muted ml-auto" />
                     </div>
-                    <div className="flex gap-2">
-                        <div className="h-5 w-16 rounded-md bg-muted" />
-                        <div className="h-5 w-14 rounded-md bg-muted" />
-                        <div className="h-5 w-12 rounded-md bg-muted" />
+                    <div className="flex gap-2 mb-3">
+                        {[1, 2, 3].map((j) => <div key={j} className="h-5 w-14 rounded-md bg-muted" />)}
+                    </div>
+                    <div className="flex justify-end">
+                        <div className="h-7 w-20 rounded-lg bg-muted" />
                     </div>
                 </div>
             ))}
@@ -45,217 +85,49 @@ function HackathonSkeleton() {
     );
 }
 
-// ─────────────────────────────────────────────
-// Normalizar hackathon (snake_case → camelCase)
-// ─────────────────────────────────────────────
-function normalize(h: any): Hackathon {
-    return {
-        id:         h.id,
-        title:      h.title,
-        prizePool:  h.prize_pool  ?? h.prizePool  ?? 0,
-        tags:       Array.isArray(h.tags) ? h.tags : [],
-        deadline:   h.deadline    ?? "",
-        matchScore: h.match_score ?? h.matchScore ?? 0,
-        source:     h.source,
-    };
-}
-
-// ─────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────
-export default function HackatonesPage() {
-    const [activeTab, setActiveTab]       = useState<Source>("all");
-    const [hackathons, setHackathons]     = useState<Hackathon[]>([]);
-    const [loading, setLoading]           = useState(true);
-    const [refreshing, setRefreshing]     = useState(false);
-    const [liveCount, setLiveCount]       = useState(0);
-    const [isLive, setIsLive]             = useState(false);
-    const esRef = useRef<EventSource | null>(null);
-
-    // ── Fetch al cambiar de tab ──────────────────
-    useEffect(() => {
-        setLoading(true);
-        // Tab Devfolio → ruta directa al MCP (sin FastAPI)
-        const url = activeTab === "devfolio"
-            ? "/api/hackathons/devfolio"
-            : activeTab === "all"
-                ? "/api/hackathons"
-                : `/api/hackathons?source=${activeTab}`;
-
-        fetch(url)
-            .then((r) => r.json())
-            .then((data: any[]) => Array.isArray(data) ? setHackathons(data.map(normalize)) : null)
-            .catch(() => {})
-            .finally(() => { setLoading(false); setRefreshing(false); });
-    }, [activeTab, refreshing]); // eslint-disable-line
-
-    // ── SSE para tiempo real ─────────────────────
-    useEffect(() => {
-        // Cerrar conexión anterior si existe
-        esRef.current?.close();
-
-        const es = new EventSource("/stream/hackathons");
-        esRef.current = es;
-
-        es.addEventListener("ping", () => setIsLive(true));
-
-        es.addEventListener("hackathon", (e) => {
-            try {
-                const newH = normalize(JSON.parse(e.data));
-                // Solo agregar si coincide con el tab activo
-                if (activeTab === "all" || newH.source === activeTab) {
-                    setHackathons((prev) => {
-                        if (prev.some((h) => h.id === newH.id)) return prev;
-                        setLiveCount((c) => c + 1);
-                        return [newH, ...prev];
-                    });
-                }
-            } catch {}
-        });
-
-        es.onerror = () => setIsLive(false);
-
-        return () => {
-            es.close();
-            setIsLive(false);
-        };
-    }, [activeTab]);
-
-    const currentTab = TABS.find((t) => t.id === activeTab)!;
+// ── Page ─────────────────────────────────────────────────
+export default async function HackatonesPage() {
+    const initialData = await fetchHackathons();
 
     return (
         <div className="p-6 min-h-screen">
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="mb-8"
-            >
+            {/* Header — Server rendered, sin datos dinámicos */}
+            <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-accent" />
                     <span className="text-xs font-medium text-accent uppercase tracking-widest">
                         Intelligence Feed
                     </span>
                 </div>
-
                 <div className="flex items-start justify-between flex-wrap gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-white mb-1">
                             Hacka<span className="gradient-text">tones</span>
                         </h1>
                         <p className="text-slate-400 text-sm">
-                            DoraHacks + Devfolio · Scrapers activos · Match con IA
+                            Devpost · DoraHacks · Devfolio · SNAP Engine activo
                         </p>
                     </div>
 
-                    {/* Live indicator + refresh */}
-                    <div className="flex items-center gap-3">
-                        {liveCount > 0 && (
-                            <motion.span
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="text-xs font-medium px-2.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            >
-                                +{liveCount} nueva{liveCount !== 1 ? "s" : ""} hoy
-                            </motion.span>
-                        )}
-                        <span className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
-                            isLive
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : "bg-slate-700/30 text-slate-500 border-slate-600/20"
-                        }`}>
-                            <Radio className={`w-3 h-3 ${isLive ? "animate-pulse" : ""}`} />
-                            {isLive ? "En vivo" : "Conectando..."}
+                    {/* Contador — renderizado en servidor */}
+                    <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+                            <Database className="w-3.5 h-3.5" />
+                            {initialData.length} en base de datos
                         </span>
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => { setLoading(true); setRefreshing(true); }}
-                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-slate-600/40 text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-colors"
-                        >
-                            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
-                            Actualizar
-                        </motion.button>
+                        <span className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <Zap className="w-3.5 h-3.5" />
+                            Live Feed
+                        </span>
                     </div>
                 </div>
-            </motion.div>
+            </div>
 
-            {/* Source filter tabs */}
-            <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="flex items-center gap-2 mb-6"
-            >
-                {TABS.map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
-                    return (
-                        <motion.button
-                            key={tab.id}
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                                isActive
-                                    ? tab.color
-                                    : "text-slate-500 border-slate-700/50 bg-transparent hover:text-slate-300 hover:border-slate-600"
-                            }`}
-                        >
-                            <Icon className="w-3.5 h-3.5" />
-                            {tab.label}
-                            {isActive && hackathons.length > 0 && (
-                                <span className="text-xs opacity-70">
-                                    ({hackathons.length})
-                                </span>
-                            )}
-                        </motion.button>
-                    );
-                })}
-            </motion.div>
-
-            {/* Feed */}
-            <AnimatePresence mode="wait">
-                {loading ? (
-                    <motion.div
-                        key="skeleton"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                    >
-                        <HackathonSkeleton />
-                    </motion.div>
-                ) : hackathons.length === 0 ? (
-                    <motion.div
-                        key="empty"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="bg-card border border-border rounded-2xl p-12 text-center"
-                    >
-                        <currentTab.icon className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-                        <p className="text-slate-400 text-sm">
-                            No hay hackatones de{" "}
-                            <span className="text-white font-medium">{currentTab.label}</span>{" "}
-                            por ahora.
-                        </p>
-                        <p className="text-slate-600 text-xs mt-1">
-                            El scraper actualizará en unos minutos.
-                        </p>
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <DoraHacksFeed hackathons={hackathons} showSource />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* HackatonesClient recibe los datos del servidor.
+                Suspense garantiza que el fallback se muestra si el fetch tarda. */}
+            <Suspense fallback={<HackatonSkeleton />}>
+                <HackatonesClient initialData={initialData} />
+            </Suspense>
         </div>
     );
 }

@@ -456,6 +456,19 @@ async def snap_job(redis_client: aioredis.Redis) -> None:
 
     new_count = await upsert_active_hackathons(unique, redis_client)
 
+    # Generar embeddings para las hackatones nuevas (ML Matcher)
+    if new_count > 0:
+        try:
+            import sys, pathlib
+            sys.path.insert(0, str(pathlib.Path(__file__).parents[2] / "engine"))
+            from ml_matcher import embed_hackathon
+            for row in unique:
+                await embed_hackathon(row["id"])
+        except ImportError:
+            log.debug("ml_matcher no disponible en este entorno — embeddings omitidos")
+        except Exception as exc:
+            log.warning(f"embed_hackathon batch error: {exc}")
+
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     log.info(
         f"✅ SNAP job completado en {elapsed:.1f}s — "

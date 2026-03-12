@@ -119,6 +119,11 @@ CREATE TABLE IF NOT EXISTS user_skills_progress (
     last_activity_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     created_at                  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at                  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    -- Campo clave para el skill_validator: el frontend lo pone en TRUE
+    -- cuando el estudiante aplica a una hackatón o completa el milestone AURA
+    is_completed            BOOLEAN      NOT NULL DEFAULT false,
+    -- Timestamp cuando el skill_validator procesó este registro
+    validator_processed_at  TIMESTAMPTZ,
     CONSTRAINT uq_user_skills_progress UNIQUE (user_id)
 );
 
