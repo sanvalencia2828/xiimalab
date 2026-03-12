@@ -60,27 +60,35 @@ log = logging.getLogger("xiima.devfolio_mcp")
 # ─────────────────────────────────────────────
 class DevfolioMCPClient:
     """
-    Cliente ligero para el servidor MCP de Devfolio.
-    Soporta el flujo: initialize → tools/list → tools/call
+    Cliente para el servidor MCP de Devfolio (MCP 2024-11-05 streamable HTTP).
+
+    Flujo correcto:
+      1. POST initialize  → captura Mcp-Session-Id del response header
+      2. POST tools/list  → con header Mcp-Session-Id
+      3. POST tools/call  → con header Mcp-Session-Id
     """
 
     def __init__(self, api_key: str):
         self.url = f"https://mcp.devfolio.co/mcp?apiKey={api_key}"
         self._request_id = 0
-        self._client = httpx.AsyncClient(
-            timeout=30.0,
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream",
-            },
-        )
+        self._session_id: str | None = None
+        self._client = httpx.AsyncClient(timeout=30.0)
 
     def _next_id(self) -> int:
         self._request_id += 1
         return self._request_id
 
+    def _build_headers(self) -> dict:
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
+        return headers
+
     async def _rpc(self, method: str, params: dict | None = None) -> Any:
-        """Envía una petición JSON-RPC 2.0 y devuelve el resultado."""
+        """Envía una petición JSON-RPC 2.0, mantiene el session ID."""
         payload = {
             "jsonrpc": "2.0",
             "method": method,
@@ -89,18 +97,39 @@ class DevfolioMCPClient:
         if params:
             payload["params"] = params
 
-        response = await self._client.post(self.url, json=payload)
+        response = await self._client.post(
+            self.url,
+            json=payload,
+            headers=self._build_headers(),
+        )
         response.raise_for_status()
 
-        # El servidor puede responder con JSON directo o SSE
+        # Capturar session ID si el servidor lo devuelve
+        session_header = (
+            response.headers.get("Mcp-Session-Id")
+            or response.headers.get("mcp-session-id")
+        )
+        if session_header:
+            self._session_id = session_header
+            log.debug(f"Session ID capturado: {self._session_id[:16]}...")
+
+        # Parsear respuesta SSE o JSON directo
         content_type = response.headers.get("content-type", "")
         if "text/event-stream" in content_type:
             return self._parse_sse(response.text)
-        else:
+
+        text = response.text.strip()
+        # A veces viene como SSE aunque el content-type diga JSON
+        if text.startswith("event:") or text.startswith("data:"):
+            return self._parse_sse(text)
+
+        try:
             data = response.json()
             if "error" in data:
                 raise RuntimeError(f"MCP error: {data['error']}")
             return data.get("result")
+        except Exception:
+            return self._parse_sse(text)
 
     def _parse_sse(self, text: str) -> Any:
         """Parsea respuesta SSE y extrae el JSON del último evento 'data:'."""
@@ -113,13 +142,15 @@ class DevfolioMCPClient:
                         parsed = json.loads(raw)
                         if "result" in parsed:
                             result = parsed["result"]
+                        elif "error" in parsed:
+                            raise RuntimeError(f"MCP error: {parsed['error']}")
                     except json.JSONDecodeError:
                         pass
         return result
 
     async def initialize(self) -> dict:
-        """Negociación inicial con el servidor MCP."""
-        return await self._rpc(
+        """Negociación inicial — establece la sesión MCP."""
+        result = await self._rpc(
             "initialize",
             {
                 "protocolVersion": "2024-11-05",
@@ -127,11 +158,23 @@ class DevfolioMCPClient:
                 "clientInfo": {"name": "xiimalab-scraper", "version": "1.0.0"},
             },
         )
+        # Enviar initialized notification (requerido por el spec MCP)
+        try:
+            await self._client.post(
+                self.url,
+                json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+                headers=self._build_headers(),
+            )
+        except Exception:
+            pass  # Notificación opcional
+        return result or {}
 
     async def list_tools(self) -> list[dict]:
         """Lista todas las herramientas disponibles en el servidor MCP."""
         result = await self._rpc("tools/list")
-        return result.get("tools", []) if result else []
+        if isinstance(result, dict):
+            return result.get("tools", [])
+        return []
 
     async def call_tool(self, tool_name: str, arguments: dict | None = None) -> Any:
         """Llama a una herramienta específica del servidor MCP."""
@@ -146,36 +189,48 @@ class DevfolioMCPClient:
     async def get_hackathons(self, status: str = "open") -> list[dict]:
         """
         Obtiene la lista de hackatones de Devfolio.
-        Intenta múltiples nombres de herramienta según lo que exponga el servidor.
+        Primero lista las herramientas disponibles para usar el nombre correcto.
         """
-        tool_candidates = [
-            ("get_hackathons", {"status": status}),
-            ("list_hackathons", {"filter": status}),
-            ("search_hackathons", {"query": "", "status": status}),
-            ("get_hackathons", {}),
-        ]
+        # Descubrir herramientas disponibles
+        tools = await self.list_tools()
+        tool_names = [t.get("name", "") for t in tools]
+        log.info(f"Herramientas MCP disponibles: {tool_names}")
 
-        for tool_name, args in tool_candidates:
+        # Candidatos en orden de preferencia
+        tool_candidates = []
+        for name in tool_names:
+            name_lower = name.lower()
+            if "hackathon" in name_lower:
+                tool_candidates.append(name)
+
+        # Si no encontramos por nombre, intentar los comunes
+        if not tool_candidates:
+            tool_candidates = [
+                "get_hackathons", "list_hackathons",
+                "search_hackathons", "getHackathons",
+            ]
+
+        for tool_name in tool_candidates:
             try:
-                result = await self.call_tool(tool_name, args)
+                result = await self.call_tool(tool_name, {"status": status})
                 if result:
                     hackathons = self._extract_hackathons(result)
                     if hackathons:
-                        log.info(f"Herramienta '{tool_name}' devolvió {len(hackathons)} hackatones")
+                        log.info(f"✅ '{tool_name}' → {len(hackathons)} hackatones")
                         return hackathons
             except Exception as exc:
-                log.debug(f"Herramienta '{tool_name}' no disponible: {exc}")
+                log.debug(f"Tool '{tool_name}' falló: {exc}")
 
-        log.warning("Ninguna herramienta MCP devolvió hackatones. Verifica tu API key y las herramientas disponibles.")
+        log.warning("Ninguna herramienta MCP devolvió hackatones.")
         return []
 
     def _extract_hackathons(self, result: Any) -> list[dict]:
-        """Extrae la lista de hackatones de la respuesta MCP (puede venir en varias formas)."""
+        """Extrae la lista de hackatones de la respuesta MCP."""
         if isinstance(result, list):
             return result
 
-        # Respuesta tipo: {"content": [{"type": "text", "text": "[{...}]"}]}
         if isinstance(result, dict):
+            # Respuesta tipo: {"content": [{"type": "text", "text": "[{...}]"}]}
             content = result.get("content", [])
             for item in content:
                 if item.get("type") == "text":
@@ -183,12 +238,13 @@ class DevfolioMCPClient:
                         parsed = json.loads(item["text"])
                         if isinstance(parsed, list):
                             return parsed
-                        if isinstance(parsed, dict) and "hackathons" in parsed:
-                            return parsed["hackathons"]
+                        if isinstance(parsed, dict):
+                            for key in ("hackathons", "data", "results", "items"):
+                                if key in parsed and isinstance(parsed[key], list):
+                                    return parsed[key]
                     except (json.JSONDecodeError, KeyError):
                         pass
 
-            # Intento directo de campos comunes
             for key in ("hackathons", "data", "results", "items"):
                 if key in result and isinstance(result[key], list):
                     return result[key]
