@@ -2,12 +2,12 @@
 
 import { motion } from "framer-motion";
 import { FolderKanban, Layers } from "lucide-react";
-import ProjectCard from "@/components/ProjectCard";
+import ProjectCard, { type ProjectCardProps } from "@/components/ProjectCard";
 
 // ─────────────────────────────────────────────
 // Datos estáticos de proyectos
 // ─────────────────────────────────────────────
-const projects = [
+const projects: ProjectCardProps[] = [
     {
         title: "AURA",
         description:
