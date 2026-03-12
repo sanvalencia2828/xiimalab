@@ -51,6 +51,27 @@ CREATE INDEX IF NOT EXISTS idx_achievements_issuer   ON user_achievements(issuer
 CREATE INDEX IF NOT EXISTS idx_achievements_category ON user_achievements(category);
 
 -- ─────────────────────────────────────────────
+-- SNAP Engine — Hackatones activas (multi-fuente)
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS active_hackathons (
+    id            VARCHAR(64)   PRIMARY KEY,
+    title         VARCHAR(256)  NOT NULL,
+    prize_pool    INTEGER       NOT NULL DEFAULT 0,
+    tags          JSONB         NOT NULL DEFAULT '[]',
+    deadline      VARCHAR(32)   NOT NULL DEFAULT '',
+    match_score   INTEGER       NOT NULL DEFAULT 0,
+    source_url    TEXT,
+    source        VARCHAR(32)   NOT NULL DEFAULT 'unknown',
+    last_seen_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_active_hackathons_source      ON active_hackathons(source);
+CREATE INDEX IF NOT EXISTS idx_active_hackathons_match_score ON active_hackathons(match_score DESC);
+CREATE INDEX IF NOT EXISTS idx_active_hackathons_last_seen   ON active_hackathons(last_seen_at DESC);
+
+-- ─────────────────────────────────────────────
 -- Proof of Skill — Motor de Recompensas
 -- ─────────────────────────────────────────────
 

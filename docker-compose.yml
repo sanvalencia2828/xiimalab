@@ -106,6 +106,30 @@ services:
       - xiima-net
 
   # ─────────────────────────────────────────────
+  # SNAP Engine — Scraper multi-fuente (Devpost + DoraHacks + Devfolio)
+  # ─────────────────────────────────────────────
+  snap-engine:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python snap_engine.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      REDIS_URL: redis://redis:6379
+      DEVFOLIO_MCP_API_KEY: ${DEVFOLIO_MCP_API_KEY}
+      SNAP_INTERVAL_HOURS: ${SNAP_INTERVAL_HOURS:-12}
+      HEADLESS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    shm_size: '256m'
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
   # Staking Monitor — libera escrows automáticamente
   # ─────────────────────────────────────────────
   staking-monitor:
