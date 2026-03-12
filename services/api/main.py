@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base
-from routes import hackathons, skills, analyze
+from routes import hackathons, skills, analyze, staking
 
 
 # ─────────────────────────────────────────────
@@ -52,6 +52,7 @@ app.add_middleware(
 app.include_router(hackathons.router, prefix="/hackathons", tags=["hackathons"])
 app.include_router(skills.router, prefix="/skills", tags=["skills"])
 app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
+app.include_router(staking.router, prefix="/staking", tags=["staking"])
 
 
 # ─────────────────────────────────────────────

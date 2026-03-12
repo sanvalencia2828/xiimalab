@@ -50,6 +50,59 @@ CREATE TABLE IF NOT EXISTS user_achievements (
 CREATE INDEX IF NOT EXISTS idx_achievements_issuer   ON user_achievements(issuer);
 CREATE INDEX IF NOT EXISTS idx_achievements_category ON user_achievements(category);
 
+-- ─────────────────────────────────────────────
+-- Proof of Skill — Motor de Recompensas
+-- ─────────────────────────────────────────────
+
+-- Infoproductos / cursos de Hotmart
+CREATE TABLE IF NOT EXISTS courses_metadata (
+    id                      VARCHAR(64)    PRIMARY KEY,
+    title                   VARCHAR(256)   NOT NULL,
+    hotmart_product_id      VARCHAR(64),
+    price_xlm               NUMERIC(20, 7) NOT NULL DEFAULT 0,
+    skill_tags              JSONB          NOT NULL DEFAULT '[]',
+    aura_images_required    INT            NOT NULL DEFAULT 10,
+    is_active               BOOLEAN        NOT NULL DEFAULT true,
+    created_at              TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+
+-- Claimable Balances de Stellar por compra en Hotmart
+-- status: pending → active → released | refunded
+CREATE TABLE IF NOT EXISTS educational_escrows (
+    id                      SERIAL         PRIMARY KEY,
+    user_id                 VARCHAR(128)   NOT NULL,
+    user_stellar_pubkey     VARCHAR(58)    NOT NULL,
+    hotmart_order_id        VARCHAR(128)   NOT NULL UNIQUE,
+    course_id               VARCHAR(64)    REFERENCES courses_metadata(id),
+    amount_xlm              NUMERIC(20, 7) NOT NULL,
+    stellar_balance_id      VARCHAR(128),
+    status                  VARCHAR(32)    NOT NULL DEFAULT 'pending',
+    milestone_type          VARCHAR(64),
+    milestone_reached_at    TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_escrows_user_id    ON educational_escrows(user_id);
+CREATE INDEX IF NOT EXISTS idx_escrows_status     ON educational_escrows(status);
+CREATE INDEX IF NOT EXISTS idx_escrows_order_id   ON educational_escrows(hotmart_order_id);
+
+-- Progreso de habilidades: imágenes en AURA + hackatones aplicados
+CREATE TABLE IF NOT EXISTS user_skills_progress (
+    id                          SERIAL       PRIMARY KEY,
+    user_id                     VARCHAR(128) NOT NULL,
+    aura_images_processed       INT          NOT NULL DEFAULT 0,
+    hackathon_applications      JSONB        NOT NULL DEFAULT '[]',
+    total_milestones_reached    INT          NOT NULL DEFAULT 0,
+    last_activity_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    created_at                  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_user_skills_progress UNIQUE (user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_progress_user ON user_skills_progress(user_id);
+
 -- Auto-update updated_at on any row change
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -76,6 +129,24 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_achievements_updated_at') THEN
         CREATE TRIGGER set_achievements_updated_at
         BEFORE UPDATE ON user_achievements
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_courses_updated_at') THEN
+        CREATE TRIGGER set_courses_updated_at
+        BEFORE UPDATE ON courses_metadata
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_escrows_updated_at') THEN
+        CREATE TRIGGER set_escrows_updated_at
+        BEFORE UPDATE ON educational_escrows
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_skills_progress_updated_at') THEN
+        CREATE TRIGGER set_skills_progress_updated_at
+        BEFORE UPDATE ON user_skills_progress
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END;
