@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { Trophy, Tag, Clock, TrendingUp, ExternalLink, Bot } from "lucide-react";
+import { Trophy, Tag, Clock, TrendingUp, ExternalLink, Bot, Globe } from "lucide-react";
 
 // -------------------------------------------------------
 // TYPES
@@ -13,10 +13,12 @@ export interface Hackathon {
     tags: string[];
     deadline: string;
     matchScore: number;
+    source?: "dorahacks" | "devfolio" | string;
 }
 
 interface DoraHacksFeedProps {
     hackathons: Hackathon[];
+    showSource?: boolean;
 }
 
 // -------------------------------------------------------
@@ -61,7 +63,7 @@ const itemVariants: Variants = {
     visible: { opacity: 1, x: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-export default function DoraHacksFeed({ hackathons }: DoraHacksFeedProps) {
+export default function DoraHacksFeed({ hackathons, showSource = false }: DoraHacksFeedProps) {
     return (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
             {/* Feed header */}
@@ -108,6 +110,20 @@ export default function DoraHacksFeed({ hackathons }: DoraHacksFeedProps) {
                                         <h3 className="text-sm font-semibold text-slate-100 group-hover:text-white transition-colors">
                                             {h.title}
                                         </h3>
+                                        {/* Source badge */}
+                                        {showSource && h.source && (
+                                            h.source === "devfolio" ? (
+                                                <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+                                                    <Globe className="w-2.5 h-2.5" />
+                                                    Devfolio
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
+                                                    <Bot className="w-2.5 h-2.5" />
+                                                    DoraHacks
+                                                </span>
+                                            )
+                                        )}
                                     </div>
                                 </div>
                                 <motion.div
@@ -131,9 +147,15 @@ export default function DoraHacksFeed({ hackathons }: DoraHacksFeedProps) {
                                 {/* Deadline */}
                                 <div className="flex items-center gap-1 text-muted-text">
                                     <Clock className="w-3 h-3" />
-                                    <span className={daysLeft <= 14 ? "text-red-400" : "text-muted-text"}>
-                                        {daysLeft}d restantes
-                                    </span>
+                                    {daysLeft < 0 ? (
+                                        <span className="text-slate-500">Cerrado</span>
+                                    ) : daysLeft === 0 ? (
+                                        <span className="text-red-400">Hoy</span>
+                                    ) : (
+                                        <span className={daysLeft <= 14 ? "text-red-400" : "text-muted-text"}>
+                                            {daysLeft}d restantes
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Match score */}

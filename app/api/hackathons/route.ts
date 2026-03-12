@@ -5,10 +5,16 @@ export const dynamic = "force-dynamic";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export async function GET() {
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const source = searchParams.get("source") ?? "all";
+    const limit = searchParams.get("limit") ?? "30";
+
+    const params = new URLSearchParams({ limit });
+    if (source !== "all") params.set("source", source);
+
     try {
-        const res = await fetch(`${API_URL}/hackathons/?limit=20`, {
-            // ISR: revalidate every 5 minutes — stale data served instantly, refresh in background
+        const res = await fetch(`${API_URL}/hackathons/?${params}`, {
             next: { revalidate: 300 },
         });
 

@@ -1,22 +1,28 @@
 """
 engine/staking_manager.py
 ─────────────────────────────────────────────────────────────────────────────
-Motor de Proof of Skill — DeEd / Xiimalab
-Integra Stellar Blockchain con el backend de Supabase/PostgreSQL para:
+Motor de Proof of Skill — Liberación automática de escrows
 
-  1. Crear un Claimable Balance en Stellar cuando se detecta una compra en Hotmart.
-  2. Liberar automáticamente los fondos al estudiante cuando alcanza 10 imágenes
-     procesadas en AURA o aplica a una hackatón.
-  3. Registrar todo en PostgreSQL para auditoría.
+Responsabilidades:
+  1. Monitorear user_skills_progress para detectar milestones completados
+  2. Liberar automáticamente el Claimable Balance (payment a estudiante)
+  3. Actualizar educational_escrows con milestone_type y released status
+  4. Exponerse como módulo importable por FastAPI y como proceso standalone
 
 Flujo de vida del escrow:
-  pending  → Orden de Hotmart recibida, aún sin balance en Stellar
-  active   → Claimable Balance creado en Stellar (balance_id asignado)
-  released → Milestone alcanzado, fondos enviados al estudiante
-  refunded → Reembolso por inactividad (>180 días)
+  pending  → orden Hotmart recibida, sin balance en Stellar
+  active   → Claimable Balance creado en Stellar
+  released → milestone alcanzado, pago enviado al estudiante
+  refunded → inactividad > ESCROW_TIMEOUT_DAYS días
+
+Milestones válidos:
+  - aura_images:             procesó >= AURA_IMAGES_MILESTONE imágenes en AURA
+  - hackathon_application:   aplicó a al menos 1 hackatón
 
 Dependencias:
-  pip install stellar-sdk asyncpg python-dotenv
+  asyncpg >= 0.29.0
+  stellar-sdk >= 10.0.0
+  apscheduler >= 3.10.0
 ─────────────────────────────────────────────────────────────────────────────
 """
 from __future__ import annotations
@@ -30,85 +36,58 @@ from decimal import Decimal
 from typing import Optional
 
 import asyncpg
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 
-# Stellar SDK
-from stellar_sdk import (
-    Asset,
-    Claimant,
-    Keypair,
-    Network,
-    Server,
-    TransactionBuilder,
-)
-from stellar_sdk.operation import (
-    ClaimClaimableBalance,
-    CreateClaimableBalance,
-    Payment,
-)
-from stellar_sdk.exceptions import NotFoundError
+from stellar_sdk import Asset, Keypair, Network, Server, TransactionBuilder
 
 load_dotenv()
 
 # ─────────────────────────────────────────────
-# Configuración de entorno
+# Config
 # ─────────────────────────────────────────────
-DATABASE_URL: str = os.environ.get(
-    "DATABASE_URL", "postgresql://xiima:secret@localhost:5432/xiimalab"
-)
+DATABASE_URL         = os.environ.get("DATABASE_URL", "postgresql://xiima:secret@db:5432/xiimalab")
+STELLAR_NETWORK      = os.environ.get("STELLAR_NETWORK", "testnet")
+STELLAR_SECRET_KEY   = os.environ.get("STELLAR_SECRET_KEY", "")
+AURA_IMAGES_MILESTONE = int(os.environ.get("AURA_IMAGES_MILESTONE", "10"))
+ESCROW_TIMEOUT_DAYS  = int(os.environ.get("ESCROW_TIMEOUT_DAYS", "180"))
+MONITOR_INTERVAL_SEC = int(os.environ.get("STAKING_MONITOR_INTERVAL_SEC", "60"))
 
-# Stellar Testnet por defecto; cambiar a STELLAR_NETWORK=mainnet en producción
-STELLAR_NETWORK: str = os.environ.get("STELLAR_NETWORK", "testnet")
-STELLAR_HORIZON_URL: str = (
+HORIZON_URL = (
     "https://horizon-testnet.stellar.org"
     if STELLAR_NETWORK == "testnet"
     else "https://horizon.stellar.org"
 )
-NETWORK_PASSPHRASE: str = (
+NETWORK_PASSPHRASE = (
     Network.TESTNET_NETWORK_PASSPHRASE
     if STELLAR_NETWORK == "testnet"
     else Network.PUBLIC_NETWORK_PASSPHRASE
 )
 
-# Keypair de la plataforma (distribuidor de fondos)
-PLATFORM_SECRET_KEY: str = os.environ.get("STELLAR_SECRET_KEY", "")
-PLATFORM_KEYPAIR: Optional[Keypair] = (
-    Keypair.from_secret(PLATFORM_SECRET_KEY) if PLATFORM_SECRET_KEY else None
-)
-
-# Días de gracia antes de reembolso automático
-ESCROW_TIMEOUT_DAYS: int = int(os.environ.get("ESCROW_TIMEOUT_DAYS", "180"))
-
-# Imágenes AURA requeridas para liberar el escrow
-AURA_IMAGES_MILESTONE: int = int(os.environ.get("AURA_IMAGES_MILESTONE", "10"))
-
+log = logging.getLogger("xiima.staking")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
-log = logging.getLogger("xiima.staking")
 
 
 # ─────────────────────────────────────────────
-# Helpers de base de datos
+# DB helpers
 # ─────────────────────────────────────────────
-async def _get_conn() -> asyncpg.Connection:
-    """Devuelve una conexión asyncpg al pool."""
+async def _connect() -> asyncpg.Connection:
     return await asyncpg.connect(DATABASE_URL)
 
 
-async def get_or_create_skills_progress(conn: asyncpg.Connection, user_id: str) -> asyncpg.Record:
-    """Devuelve (o crea) el registro de progreso del usuario."""
+async def get_or_create_skills_progress(
+    conn: asyncpg.Connection, user_id: str
+) -> asyncpg.Record:
+    """Devuelve o crea el registro de progreso del usuario."""
     row = await conn.fetchrow(
         "SELECT * FROM user_skills_progress WHERE user_id = $1", user_id
     )
     if not row:
         await conn.execute(
-            """
-            INSERT INTO user_skills_progress (user_id)
-            VALUES ($1)
-            ON CONFLICT (user_id) DO NOTHING
-            """,
+            "INSERT INTO user_skills_progress (user_id) VALUES ($1) ON CONFLICT DO NOTHING",
             user_id,
         )
         row = await conn.fetchrow(
@@ -118,266 +97,63 @@ async def get_or_create_skills_progress(conn: asyncpg.Connection, user_id: str) 
 
 
 # ─────────────────────────────────────────────
-# Stellar helpers
+# Stellar: pago directo al estudiante
 # ─────────────────────────────────────────────
-def _get_server() -> Server:
-    return Server(horizon_url=STELLAR_HORIZON_URL)
-
-
-def _assert_platform_keypair() -> Keypair:
-    if not PLATFORM_KEYPAIR:
-        raise EnvironmentError(
-            "STELLAR_SECRET_KEY no está configurado. "
-            "Agrega la clave secreta de la cuenta de la plataforma al .env"
-        )
-    return PLATFORM_KEYPAIR
-
-
-def _load_platform_account(server: Server, keypair: Keypair):
-    """Carga la cuenta de la plataforma desde Horizon."""
-    return server.load_account(keypair.public_key)
-
-
-# ─────────────────────────────────────────────
-# 1. Crear Claimable Balance (cuando llega orden de Hotmart)
-# ─────────────────────────────────────────────
-async def create_staking_escrow(
-    user_id: str,
-    user_stellar_pubkey: str,
-    hotmart_order_id: str,
+async def _send_payment(
+    destination: str,
     amount_xlm: Decimal,
-    course_id: Optional[str] = None,
+    memo: str = "DeEd Proof of Skill",
 ) -> dict:
     """
-    Crea un Claimable Balance en Stellar y registra el escrow en PostgreSQL.
-
-    El estudiante es claimant incondicional (puede reclamar una vez que el
-    API confirme el milestone). La plataforma es claimant de respaldo con
-    un predicado temporal de ESCROW_TIMEOUT_DAYS días.
-
-    Returns:
-        dict con balance_id, escrow_id y status.
+    Envía XLM desde la cuenta de la plataforma al estudiante.
+    Más simple que hacer claim del Claimable Balance (evita requerir firma del estudiante).
     """
-    kp = _assert_platform_keypair()
-    server = _get_server()
-    asset = Asset.native()  # XLM
+    if not STELLAR_SECRET_KEY:
+        return {"success": False, "error": "STELLAR_SECRET_KEY no configurada"}
 
-    log.info(
-        f"Creando escrow — user={user_id} order={hotmart_order_id} "
-        f"amount={amount_xlm} XLM pubkey={user_stellar_pubkey[:8]}..."
-    )
+    try:
+        kp      = Keypair.from_secret(STELLAR_SECRET_KEY)
+        server  = Server(horizon_url=HORIZON_URL)
+        account = server.load_account(kp.public_key)
 
-    # Claimants:
-    # - Estudiante: incondicional (la API controla el acceso al balance_id)
-    # - Plataforma: reclamable si el estudiante no completa en X días
-    student_claimant = Claimant(destination=user_stellar_pubkey)
-    platform_claimant = Claimant(
-        destination=kp.public_key,
-        predicate=Claimant.predicate_not(
-            Claimant.predicate_before_relative_time(
-                seconds=ESCROW_TIMEOUT_DAYS * 24 * 3600
+        tx = (
+            TransactionBuilder(
+                source_account=account,
+                network_passphrase=NETWORK_PASSPHRASE,
+                base_fee=100,
             )
-        ),
-    )
-
-    platform_account = _load_platform_account(server, kp)
-
-    tx = (
-        TransactionBuilder(
-            source_account=platform_account,
-            network_passphrase=NETWORK_PASSPHRASE,
-            base_fee=100,
-        )
-        .append_operation(
-            CreateClaimableBalance(
-                asset=asset,
+            .append_payment_op(
+                destination=destination,
+                asset=Asset.native(),
                 amount=str(amount_xlm),
-                claimants=[student_claimant, platform_claimant],
             )
+            .add_text_memo(memo[:28])
+            .set_timeout(30)
+            .build()
         )
-        .set_timeout(30)
-        .build()
-    )
-    tx.sign(kp)
+        tx.sign(kp)
+        response = server.submit_transaction(tx)
+        return {"success": True, "tx_hash": response.get("hash")}
 
-    response = server.submit_transaction(tx)
-    balance_id: str = response["id"] if "id" in response else _extract_balance_id(response)
-
-    log.info(f"✅ Claimable Balance creado — balance_id={balance_id}")
-
-    # Persistir en base de datos
-    conn = await _get_conn()
-    try:
-        row = await conn.fetchrow(
-            """
-            INSERT INTO educational_escrows
-                (user_id, user_stellar_pubkey, hotmart_order_id, course_id,
-                 amount_xlm, stellar_balance_id, status)
-            VALUES ($1, $2, $3, $4, $5, $6, 'active')
-            ON CONFLICT (hotmart_order_id) DO UPDATE SET
-                stellar_balance_id = EXCLUDED.stellar_balance_id,
-                status             = 'active',
-                updated_at         = NOW()
-            RETURNING id, stellar_balance_id, status
-            """,
-            user_id,
-            user_stellar_pubkey,
-            hotmart_order_id,
-            course_id,
-            amount_xlm,
-            balance_id,
-        )
-    finally:
-        await conn.close()
-
-    return {
-        "escrow_id": row["id"],
-        "balance_id": row["stellar_balance_id"],
-        "status": row["status"],
-        "amount_xlm": float(amount_xlm),
-        "network": STELLAR_NETWORK,
-    }
-
-
-def _extract_balance_id(response: dict) -> str:
-    """Extrae el balance_id del resultado de la transacción Stellar."""
-    try:
-        effects = response.get("_embedded", {}).get("records", [])
-        for effect in effects:
-            if effect.get("type") == "claimable_balance_created":
-                return effect["balance_id"]
-    except Exception:
-        pass
-    # Fallback: hash de la transacción
-    return response.get("hash", "unknown")
+    except Exception as exc:
+        log.error(f"Error pago Stellar → {destination[:8]}...: {exc}")
+        return {"success": False, "error": str(exc)}
 
 
 # ─────────────────────────────────────────────
-# 2. Registrar imagen procesada en AURA
+# Core: liberar escrows para un usuario
 # ─────────────────────────────────────────────
-async def record_aura_image(user_id: str, image_count: int = 1) -> dict:
-    """
-    Incrementa el contador de imágenes AURA del usuario.
-    Si alcanza el milestone, dispara la liberación del escrow.
-
-    Returns:
-        dict con progreso actualizado y si se liberó el escrow.
-    """
-    conn = await _get_conn()
-    try:
-        progress = await get_or_create_skills_progress(conn, user_id)
-        new_count = progress["aura_images_processed"] + image_count
-
-        await conn.execute(
-            """
-            UPDATE user_skills_progress
-            SET aura_images_processed = $2,
-                last_activity_at      = NOW()
-            WHERE user_id = $1
-            """,
-            user_id,
-            new_count,
-        )
-
-        log.info(
-            f"AURA update — user={user_id} images={new_count}/{AURA_IMAGES_MILESTONE}"
-        )
-
-        milestone_reached = new_count >= AURA_IMAGES_MILESTONE
-        released_escrows: list[dict] = []
-
-        if milestone_reached:
-            released_escrows = await _release_escrows_for_user(
-                conn, user_id, milestone_type="aura_images"
-            )
-
-        return {
-            "user_id": user_id,
-            "aura_images_processed": new_count,
-            "milestone_required": AURA_IMAGES_MILESTONE,
-            "milestone_reached": milestone_reached,
-            "released_escrows": released_escrows,
-        }
-    finally:
-        await conn.close()
-
-
-# ─────────────────────────────────────────────
-# 3. Registrar aplicación a hackatón (portfolio milestone)
-# ─────────────────────────────────────────────
-async def record_hackathon_application(
-    user_id: str,
-    hackathon_id: str,
-    hackathon_title: str,
-    source: str = "dorahacks",
-) -> dict:
-    """
-    Registra que el usuario aplicó a una hackatón.
-    Esto cuenta como milestone válido para liberar el staking.
-
-    Returns:
-        dict con progreso actualizado y escrows liberados.
-    """
-    conn = await _get_conn()
-    try:
-        progress = await get_or_create_skills_progress(conn, user_id)
-
-        # Verificar que no haya aplicado ya a esta misma hackatón
-        applications: list = json.loads(progress["hackathon_applications"] or "[]")
-        already_applied = any(a.get("hackathon_id") == hackathon_id for a in applications)
-
-        if not already_applied:
-            applications.append(
-                {
-                    "hackathon_id": hackathon_id,
-                    "title": hackathon_title,
-                    "source": source,
-                    "applied_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-
-            await conn.execute(
-                """
-                UPDATE user_skills_progress
-                SET hackathon_applications = $2::jsonb,
-                    last_activity_at       = NOW()
-                WHERE user_id = $1
-                """,
-                user_id,
-                json.dumps(applications),
-            )
-
-            log.info(
-                f"Hackathon application — user={user_id} hackathon={hackathon_id} ({hackathon_title})"
-            )
-
-        # Cualquier aplicación a hackatón libera el escrow (Proof of Skill)
-        released_escrows = await _release_escrows_for_user(
-            conn, user_id, milestone_type="hackathon_application"
-        )
-
-        return {
-            "user_id": user_id,
-            "hackathon_applied": hackathon_id,
-            "total_applications": len(applications),
-            "already_registered": already_applied,
-            "released_escrows": released_escrows,
-        }
-    finally:
-        await conn.close()
-
-
-# ─────────────────────────────────────────────
-# 4. Lógica interna de liberación de fondos
-# ─────────────────────────────────────────────
-async def _release_escrows_for_user(
+async def release_escrows_for_user(
     conn: asyncpg.Connection,
     user_id: str,
     milestone_type: str,
 ) -> list[dict]:
     """
-    Busca todos los escrows 'active' del usuario y los libera en Stellar.
-    Registra milestone_type y milestone_reached_at en la BD.
+    Busca todos los escrows 'active' del usuario, envía el pago Stellar
+    y actualiza el estado a 'released'.
+
+    Returns:
+        Lista de escrows liberados con tx_hash.
     """
     escrows = await conn.fetch(
         """
@@ -389,15 +165,14 @@ async def _release_escrows_for_user(
     )
 
     if not escrows:
-        log.info(f"No hay escrows activos para user={user_id}")
         return []
 
     released = []
     for escrow in escrows:
-        result = await _send_payment_to_student(
+        result = await _send_payment(
             destination=escrow["user_stellar_pubkey"],
             amount_xlm=Decimal(str(escrow["amount_xlm"])),
-            memo=f"DeEd PoS milestone:{milestone_type}",
+            memo=f"PoS:{milestone_type[:20]}",
         )
 
         if result["success"]:
@@ -413,8 +188,6 @@ async def _release_escrows_for_user(
                 escrow["id"],
                 milestone_type,
             )
-
-            # Incrementar contador de milestones en progreso
             await conn.execute(
                 """
                 UPDATE user_skills_progress
@@ -423,75 +196,119 @@ async def _release_escrows_for_user(
                 """,
                 user_id,
             )
-
             log.info(
-                f"✅ Escrow liberado — escrow_id={escrow['id']} "
+                f"✅ Escrow #{escrow['id']} liberado — "
                 f"tx={result.get('tx_hash', 'N/A')} milestone={milestone_type}"
             )
-            released.append(
-                {
-                    "escrow_id": escrow["id"],
-                    "amount_xlm": float(escrow["amount_xlm"]),
-                    "tx_hash": result.get("tx_hash"),
-                    "milestone_type": milestone_type,
-                }
-            )
+            released.append({
+                "escrow_id":     escrow["id"],
+                "amount_xlm":    float(escrow["amount_xlm"]),
+                "tx_hash":       result.get("tx_hash"),
+                "milestone_type": milestone_type,
+            })
         else:
-            log.error(
-                f"❌ Error liberando escrow {escrow['id']}: {result.get('error')}"
-            )
+            log.error(f"❌ Error liberando escrow #{escrow['id']}: {result.get('error')}")
 
     return released
 
 
-async def _send_payment_to_student(
-    destination: str,
-    amount_xlm: Decimal,
-    memo: str = "DeEd Proof of Skill",
+# ─────────────────────────────────────────────
+# Registro de actividad AURA
+# ─────────────────────────────────────────────
+async def record_aura_image(user_id: str, image_count: int = 1) -> dict:
+    """
+    Incrementa el contador de imágenes AURA.
+    Si alcanza AURA_IMAGES_MILESTONE, libera automáticamente el escrow.
+    """
+    conn = await _connect()
+    try:
+        progress  = await get_or_create_skills_progress(conn, user_id)
+        new_count = progress["aura_images_processed"] + image_count
+
+        await conn.execute(
+            """
+            UPDATE user_skills_progress
+            SET aura_images_processed = $2,
+                last_activity_at      = NOW()
+            WHERE user_id = $1
+            """,
+            user_id, new_count,
+        )
+
+        milestone_reached = new_count >= AURA_IMAGES_MILESTONE
+        released: list[dict] = []
+
+        if milestone_reached:
+            released = await release_escrows_for_user(conn, user_id, "aura_images")
+
+        return {
+            "user_id":              user_id,
+            "aura_images_processed": new_count,
+            "milestone_required":   AURA_IMAGES_MILESTONE,
+            "milestone_reached":    milestone_reached,
+            "released_escrows":     released,
+        }
+    finally:
+        await conn.close()
+
+
+# ─────────────────────────────────────────────
+# Registro de aplicación a hackatón
+# ─────────────────────────────────────────────
+async def record_hackathon_application(
+    user_id: str,
+    hackathon_id: str,
+    hackathon_title: str,
+    source: str = "dorahacks",
 ) -> dict:
     """
-    Envía un pago directo desde la cuenta de la plataforma al estudiante.
-    Alternativa más simple al Claimable Balance claim (evita que el estudiante
-    necesite firmar la transacción de claim).
+    Registra la aplicación del usuario a una hackatón y libera el escrow.
+    Cualquier aplicación cuenta como Proof of Skill de portafolio.
     """
+    conn = await _connect()
     try:
-        kp = _assert_platform_keypair()
-        server = _get_server()
-        platform_account = _load_platform_account(server, kp)
+        progress     = await get_or_create_skills_progress(conn, user_id)
+        applications = json.loads(progress["hackathon_applications"] or "[]")
 
-        tx = (
-            TransactionBuilder(
-                source_account=platform_account,
-                network_passphrase=NETWORK_PASSPHRASE,
-                base_fee=100,
+        already = any(a.get("hackathon_id") == hackathon_id for a in applications)
+        if not already:
+            applications.append({
+                "hackathon_id":  hackathon_id,
+                "title":         hackathon_title,
+                "source":        source,
+                "applied_at":    datetime.now(timezone.utc).isoformat(),
+            })
+            await conn.execute(
+                """
+                UPDATE user_skills_progress
+                SET hackathon_applications = $2::jsonb,
+                    last_activity_at       = NOW()
+                WHERE user_id = $1
+                """,
+                user_id, json.dumps(applications),
             )
-            .append_payment_op(
-                destination=destination,
-                asset=Asset.native(),
-                amount=str(amount_xlm),
-            )
-            .add_text_memo(memo[:28])  # Stellar memo máx 28 bytes
-            .set_timeout(30)
-            .build()
-        )
-        tx.sign(kp)
-        response = server.submit_transaction(tx)
 
-        return {"success": True, "tx_hash": response.get("hash")}
+        released = await release_escrows_for_user(conn, user_id, "hackathon_application")
 
-    except Exception as exc:
-        log.error(f"Error en pago Stellar: {exc}")
-        return {"success": False, "error": str(exc)}
+        return {
+            "user_id":              user_id,
+            "hackathon_applied":    hackathon_id,
+            "total_applications":   len(applications),
+            "already_registered":   already,
+            "released_escrows":     released,
+        }
+    finally:
+        await conn.close()
 
 
 # ─────────────────────────────────────────────
-# 5. Consultas de estado
+# Estado del usuario
 # ─────────────────────────────────────────────
 async def get_user_escrow_status(user_id: str) -> dict:
-    """Devuelve todos los escrows y el progreso de habilidades del usuario."""
-    conn = await _get_conn()
+    """Devuelve escrows y progreso de habilidades del usuario."""
+    conn = await _connect()
     try:
-        escrows = await conn.fetch(
+        escrows  = await conn.fetch(
             """
             SELECT id, hotmart_order_id, course_id, amount_xlm,
                    stellar_balance_id, status, milestone_type,
@@ -502,24 +319,16 @@ async def get_user_escrow_status(user_id: str) -> dict:
             """,
             user_id,
         )
-
         progress = await get_or_create_skills_progress(conn, user_id)
 
         return {
             "user_id": user_id,
             "escrows": [dict(e) for e in escrows],
             "skills_progress": {
-                "aura_images_processed": progress["aura_images_processed"],
-                "hackathon_applications": json.loads(
-                    progress["hackathon_applications"] or "[]"
-                ),
+                "aura_images_processed":   progress["aura_images_processed"],
+                "hackathon_applications":  json.loads(progress["hackathon_applications"] or "[]"),
                 "total_milestones_reached": progress["total_milestones_reached"],
                 "aura_milestone_required": AURA_IMAGES_MILESTONE,
-                "last_activity_at": (
-                    progress["last_activity_at"].isoformat()
-                    if progress["last_activity_at"]
-                    else None
-                ),
             },
         }
     finally:
@@ -527,38 +336,78 @@ async def get_user_escrow_status(user_id: str) -> dict:
 
 
 # ─────────────────────────────────────────────
-# CLI de prueba rápida
+# Monitor automático — job periódico
 # ─────────────────────────────────────────────
-async def _demo():
-    """Ejemplo de uso en Testnet."""
-    log.info("=== Demo Staking Manager — Stellar Testnet ===")
+async def _monitor_job() -> None:
+    """
+    Revisa periódicamente todos los usuarios con escrows 'active'
+    y comprueba si alguno ya alcanzó el milestone pero el escrow
+    no se liberó (por ejemplo, si el webhook falló).
 
-    user_id = "user_santiago_demo"
-    # Genera un keypair temporal para el demo
-    student_kp = Keypair.random()
-    log.info(f"Student keypair: {student_kp.public_key}")
+    Condición de liberación automática:
+      - aura_images_processed >= AURA_IMAGES_MILESTONE, o
+      - hackathon_applications contiene al menos 1 entrada
+    """
+    conn = await _connect()
+    try:
+        # Usuarios con escrows activos
+        users = await conn.fetch(
+            """
+            SELECT DISTINCT user_id
+            FROM educational_escrows
+            WHERE status = 'active'
+            """
+        )
 
-    # 1. Simular compra en Hotmart
-    result = await create_staking_escrow(
-        user_id=user_id,
-        user_stellar_pubkey=student_kp.public_key,
-        hotmart_order_id="HOTMART-TEST-001",
-        amount_xlm=Decimal("50"),
-        course_id=None,
+        for row in users:
+            uid      = row["user_id"]
+            progress = await get_or_create_skills_progress(conn, uid)
+
+            images   = progress["aura_images_processed"]
+            hackathons = json.loads(progress["hackathon_applications"] or "[]")
+
+            if images >= AURA_IMAGES_MILESTONE:
+                released = await release_escrows_for_user(conn, uid, "aura_images")
+                if released:
+                    log.info(f"[monitor] {uid} — AURA milestone alcanzado, {len(released)} escrow(s) liberado(s)")
+
+            elif len(hackathons) >= 1:
+                released = await release_escrows_for_user(conn, uid, "hackathon_application")
+                if released:
+                    log.info(f"[monitor] {uid} — Hackathon milestone, {len(released)} escrow(s) liberado(s)")
+
+    except Exception as exc:
+        log.error(f"[monitor] Error: {exc}", exc_info=True)
+    finally:
+        await conn.close()
+
+
+# ─────────────────────────────────────────────
+# Entry point standalone (Docker service)
+# ─────────────────────────────────────────────
+async def main() -> None:
+    """Corre el monitor como proceso independiente con APScheduler."""
+    log.info(f"🔍 Staking Monitor iniciado — intervalo: {MONITOR_INTERVAL_SEC}s")
+
+    # Ejecución inmediata al arrancar
+    await _monitor_job()
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        _monitor_job,
+        "interval",
+        seconds=MONITOR_INTERVAL_SEC,
+        id="staking_monitor",
+        max_instances=1,
     )
-    log.info(f"Escrow creado: {result}")
+    scheduler.start()
 
-    # 2. Simular 10 imágenes en AURA
-    for i in range(1, 11):
-        aura_result = await record_aura_image(user_id=user_id, image_count=1)
-        log.info(f"AURA imagen #{i}: {aura_result}")
-        if aura_result["milestone_reached"]:
-            log.info("🎉 ¡Milestone AURA alcanzado! Fondos liberados.")
-            break
-
-    status = await get_user_escrow_status(user_id)
-    log.info(f"Estado final: {json.dumps(status, default=str, indent=2)}")
+    try:
+        await asyncio.Event().wait()
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+        log.info("Staking Monitor detenido")
 
 
 if __name__ == "__main__":
-    asyncio.run(_demo())
+    asyncio.run(main())

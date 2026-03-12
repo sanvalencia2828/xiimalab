@@ -104,6 +104,7 @@ export default function SidebarNav() {
                         {[
                             { label: "AURA Engine", status: "online" },
                             { label: "DoraHacks Bot", status: "online" },
+                            { label: "Devfolio MCP", status: "online" },
                             { label: "Match API", status: "online" },
                         ].map(({ label, status }) => (
                             <div key={label} className="flex items-center justify-between">

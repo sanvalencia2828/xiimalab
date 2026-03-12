@@ -106,6 +106,28 @@ services:
       - xiima-net
 
   # ─────────────────────────────────────────────
+  # Staking Monitor — libera escrows automáticamente
+  # ─────────────────────────────────────────────
+  staking-monitor:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python staking_manager.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY}
+      AURA_IMAGES_MILESTONE: ${AURA_IMAGES_MILESTONE:-10}
+      ESCROW_TIMEOUT_DAYS: ${ESCROW_TIMEOUT_DAYS:-180}
+      STAKING_MONITOR_INTERVAL_SEC: 60
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
   # Devfolio MCP Scraper — Tiempo real vía MCP
   # ─────────────────────────────────────────────
   devfolio:
