@@ -88,15 +88,16 @@ async def scrape_devpost(client: httpx.AsyncClient) -> list[HackathonRow]:
     rows: list[HackathonRow] = []
 
     try:
-        for page in range(1, 4):  # máx 3 páginas = 60 hackatones
+        for page in range(1, 5):  # máx 4 páginas = ~160 hackatones
             resp = await client.get(
                 "https://devpost.com/api/hackathons",
                 params={
-                    "status":   "upcoming",
+                    "status[]": "open",
                     "page":     page,
-                    "per_page": 20,
+                    "per_page": 50,
                     "order_by": "prize-amount",
                 },
+                headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
                 timeout=15.0,
             )
             resp.raise_for_status()
@@ -239,13 +240,83 @@ async def scrape_dorahacks() -> list[HackathonRow]:
 # ─────────────────────────────────────────────
 # 3. Devfolio — MCP JSON-RPC 2.0
 # ─────────────────────────────────────────────
+async def _scrape_devfolio_public_api(client: httpx.AsyncClient) -> list[HackathonRow]:
+    """
+    API REST pública de Devfolio — no requiere autenticación.
+    Endpoint: https://api.devfolio.co/api/hackathons/?status=open
+    """
+    rows: list[HackathonRow] = []
+    try:
+        for page in range(1, 4):  # hasta 150 hackatones
+            resp = await client.get(
+                "https://api.devfolio.co/api/hackathons/",
+                params={"page": page, "page_size": 50, "status": "open"},
+                headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                timeout=25.0,
+            )
+            resp.raise_for_status()
+            data     = resp.json()
+            hacks    = data.get("result", []) if isinstance(data, dict) else data
+            if not hacks:
+                break
+
+            for h in hacks:
+                title = (h.get("name") or h.get("title") or "").strip()
+                if not title:
+                    continue
+                slug  = h.get("slug") or title.lower().replace(" ", "-")[:32]
+                prize_raw = str(h.get("prize_pool") or h.get("total_prizes") or "0")
+                try:
+                    import re as _re
+                    prize = int(_re.sub(r"[^\d]", "", prize_raw)) or 0
+                except Exception:
+                    prize = 0
+                tags_raw = h.get("tags") or []
+                if isinstance(tags_raw, str):
+                    try:
+                        tags_raw = json.loads(tags_raw)
+                    except Exception:
+                        tags_raw = []
+                tags = [
+                    t.get("label", "") if isinstance(t, dict) else str(t)
+                    for t in tags_raw if t
+                ][:8]
+                deadline = str(h.get("ends_at") or h.get("end_date") or "")[:32]
+                rows.append({
+                    "id":          f"devfolio-{slug[:40]}",
+                    "title":       title[:256],
+                    "prize_pool":  prize,
+                    "tags":        tags,
+                    "deadline":    deadline,
+                    "match_score": _match_score(tags),
+                    "source_url":  f"https://devfolio.co/hackathons/{slug}",
+                    "source":      "devfolio",
+                })
+            log.info(f"Devfolio public API page {page}: {len(hacks)} hackatones")
+
+        log.info(f"Devfolio public API total → {len(rows)}")
+    except Exception as exc:
+        log.warning(f"Devfolio public API error: {exc}")
+
+    return rows
+
+
 async def scrape_devfolio(client: httpx.AsyncClient) -> list[HackathonRow]:
-    """Cliente MCP directo para Devfolio (reutiliza lógica de devfolio_mcp.py)."""
+    """
+    Fuente 1: API REST pública de Devfolio (no requiere API key).
+    Fuente 2: MCP de Devfolio como fallback (solo si hay API key).
+    """
+    # ── API pública primero ──────────────────────────────────────
+    rows_public = await _scrape_devfolio_public_api(client)
+    if rows_public:
+        return rows_public
+
+    # ── MCP como fallback ────────────────────────────────────────
     if not DEVFOLIO_API_KEY:
-        log.warning("DEVFOLIO_MCP_API_KEY no configurada — omitiendo Devfolio")
+        log.warning("DEVFOLIO: API pública y MCP key no disponibles")
         return []
 
-    log.info("Devfolio MCP — iniciando...")
+    log.info("Devfolio MCP — fallback iniciando...")
     url     = f"https://mcp.devfolio.co/mcp?apiKey={DEVFOLIO_API_KEY}"
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
     rows: list[HackathonRow] = []
