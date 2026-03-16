@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { FolderKanban, Layers } from "lucide-react";
 import ProjectCard, { type ProjectCardProps } from "@/components/ProjectCard";
+import AgentInsights from "@/components/AgentInsights";
 
 // ─────────────────────────────────────────────
 // Datos estáticos de proyectos
@@ -143,11 +144,14 @@ export default function ProjectsPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.7 }}
-                className="mt-10 flex items-center gap-2 text-xs text-muted-foreground"
+                className="mt-6 flex items-center gap-2 text-xs text-muted-foreground"
             >
                 <FolderKanban className="w-3.5 h-3.5" />
                 <span>Más proyectos en camino — conecta GitHub para importarlos automáticamente</span>
             </motion.div>
+
+            {/* Agent Crew — oportunidades detectadas */}
+            <AgentInsights />
         </div>
     );
 }

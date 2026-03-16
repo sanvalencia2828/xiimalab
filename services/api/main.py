@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base
 from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge
+from routes.agents import agents_router
 
 
 # ─────────────────────────────────────────────
@@ -55,6 +56,7 @@ app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
 app.include_router(staking.router, prefix="/staking", tags=["staking"])
 app.include_router(stream.router, prefix="/stream", tags=["realtime"])
 app.include_router(hotmart_bridge.router, prefix="/hotmart", tags=["hotmart"])
+app.include_router(agents_router, prefix="/agents", tags=["agents"])
 
 
 # ─────────────────────────────────────────────
