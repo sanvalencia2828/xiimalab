@@ -90,10 +90,14 @@ def _hackathon_to_text(row: dict[str, Any]) -> str:
     return " | ".join(p for p in parts if p).strip()
 
 
-def _user_to_text(row: dict[str, Any]) -> str:
+def _user_to_text(row: dict[str, Any], projects: list[dict[str, Any]] | None = None) -> str:
     """
     Construye el texto del perfil del estudiante.
-    Combina imágenes AURA, hackatones y milestones alcanzados.
+    Combina imágenes AURA, hackatones, milestones y proyectos del portafolio.
+
+    Args:
+        row:      Fila de user_skills_progress.
+        projects: Lista de filas de user_projects (opcional, enriquece el perfil).
     """
     hackathon_apps = row.get("hackathon_applications") or []
     if isinstance(hackathon_apps, str):
@@ -107,11 +111,34 @@ def _user_to_text(row: dict[str, Any]) -> str:
         if isinstance(a, dict) and a.get("title")
     ]
 
+    # Extraer tecnologías y descripciones de los proyectos del portafolio
+    project_stacks: list[str] = []
+    project_descriptions: list[str] = []
+    project_titles: list[str] = []
+
+    for proj in (projects or []):
+        stack = proj.get("stack") or []
+        if isinstance(stack, str):
+            try:
+                stack = json.loads(stack)
+            except json.JSONDecodeError:
+                stack = [stack]
+        project_stacks.extend([s for s in stack if isinstance(s, str)])
+        if proj.get("title"):
+            project_titles.append(proj["title"])
+        if proj.get("description"):
+            project_descriptions.append(proj["description"])
+
+    # Deduplicar stack
+    unique_stack = list(dict.fromkeys(project_stacks))
+
     parts = [
-        f"Desarrollador con {row.get('aura_images_processed', 0)} imágenes procesadas en AURA (IA)",
-        f"Milestones completados: {row.get('total_milestones_reached', 0)}",
+        f"Desarrollador con {row.get('aura_images_processed', 0)} imágenes procesadas en AURA (IA generativa)",
+        f"Milestones de habilidades completados: {row.get('total_milestones_reached', 0)}",
         "Experiencia en hackatones: " + ", ".join(hackathon_titles) if hackathon_titles else "",
-        "Habilidades: Python, Docker, Blockchain, Stellar, AI, Machine Learning",
+        "Proyectos en portafolio: " + ", ".join(project_titles) if project_titles else "",
+        "Stack tecnológico demostrado: " + ", ".join(unique_stack) if unique_stack else "",
+        "Descripción de proyectos: " + " | ".join(project_descriptions[:3]) if project_descriptions else "",
     ]
     return " | ".join(p for p in parts if p).strip()
 
@@ -186,6 +213,9 @@ async def embed_user_profile(user_id: str) -> bool:
     Genera el embedding del perfil del estudiante y lo guarda en
     user_skills_progress.profile_embedding.
 
+    Enriquece el perfil con datos de user_projects para mayor precisión
+    semántica y scores de matching > 90%.
+
     Llamado cuando:
       - El usuario actualiza sus skills en /settings
       - Se completa un nuevo milestone (skill_validator lo puede invocar)
@@ -206,7 +236,22 @@ async def embed_user_profile(user_id: str) -> bool:
             log.warning(f"embed_user_profile: {user_id} no encontrado en DB")
             return False
 
-        text   = _user_to_text(dict(row))
+        # Enriquecer con proyectos del portafolio del usuario
+        # Busca por owner_id (puede ser username) o por user_id directo
+        projects = await conn.fetch(
+            """
+            SELECT title, description, stack, status, github_url
+            FROM user_projects
+            WHERE owner_id = $1 OR owner_id = (
+                SELECT username FROM auth.users WHERE id::text = $1 LIMIT 1
+            )
+            ORDER BY created_at DESC
+            LIMIT 10
+            """,
+            user_id,
+        )
+
+        text   = _user_to_text(dict(row), projects=[dict(p) for p in projects])
         vector = embed_text(text)
         vector_str = "[" + ",".join(f"{v:.8f}" for v in vector) + "]"
 
@@ -220,7 +265,10 @@ async def embed_user_profile(user_id: str) -> bool:
             vector_str,
             user_id,
         )
-        log.info(f"✓ Perfil embebido: {user_id} — texto: {text[:60]}...")
+        log.info(
+            f"✓ Perfil embebido: {user_id} "
+            f"({len(projects)} proyectos incluidos) — texto: {text[:80]}..."
+        )
         return True
 
     except Exception as exc:

@@ -174,12 +174,44 @@ class ProjectAnalyzer:
         return self._model
 
     def _project_to_text(self, p: ProjectItem) -> str:
+        """
+        Genera texto semánticamente rico para el embedding del proyecto.
+        Incluye sinónimos y contexto de dominio para maximizar la similitud
+        coseno con los embeddings de hackatones (objetivo > 90%).
+        """
         stack = ", ".join(p.stack) if p.stack else ""
-        return (
-            f"{p.title} — {p.description} | "
-            f"Tecnologías: {stack} | "
-            f"Estado: {p.status}"
-        )
+
+        # Mapa de tecnologías a descripciones de dominio
+        domain_map = {
+            "ai": "inteligencia artificial machine learning",
+            "ml": "machine learning model training inference",
+            "blockchain": "blockchain onchain smart contracts web3",
+            "stellar": "stellar xlm blockchain payments decentralized",
+            "python": "python backend automation scripting",
+            "react": "react frontend web UI components",
+            "nextjs": "next.js react full-stack web",
+            "docker": "docker containers deployment devops",
+            "supabase": "supabase postgresql database backend",
+            "fastapi": "fastapi python rest api backend",
+            "autonomy": "autonomous agent decision loop execution",
+            "agent": "AI agent autonomous system orchestration",
+        }
+        domain_context = []
+        for tech in (p.stack or []):
+            key = tech.lower().replace(".", "").replace("-", "")
+            if key in domain_map:
+                domain_context.append(domain_map[key])
+
+        parts = [
+            f"{p.title}",
+            p.description if p.description else "",
+            f"Stack: {stack}",
+            f"Estado del proyecto: {p.status}",
+        ]
+        if domain_context:
+            parts.append("Contexto técnico: " + " | ".join(domain_context))
+
+        return " | ".join(p for p in parts if p).strip()
 
     async def run(self, conn: asyncpg.Connection, ctx: CrewContext) -> None:
         log.info(f"[{self.name}] Analizando proyectos...")
@@ -250,13 +282,42 @@ class MatchOracle:
         return dot / (na * nb)
 
     def _tag_overlap_score(self, project: ProjectItem, hack: HackathonItem) -> int:
-        """Fallback: % de tags del proyecto que aparecen en la hackatón."""
+        """
+        Fallback cuando no hay embeddings.
+        Usa solapamiento de tags + sinónimos de dominio para mejorar el score.
+        """
+        # Grupos de sinónimos — tecnologías relacionadas se consideran compatibles
+        synonyms: list[set[str]] = [
+            {"ai", "ml", "machine learning", "llm", "gpt", "nlp", "neural"},
+            {"blockchain", "web3", "onchain", "smart contract", "defi", "stellar", "ethereum"},
+            {"agent", "autonomous", "automation", "bot", "orchestration"},
+            {"python", "fastapi", "django", "flask"},
+            {"react", "nextjs", "vue", "frontend", "ui"},
+            {"docker", "kubernetes", "devops", "container"},
+            {"supabase", "postgresql", "database", "db"},
+        ]
+
+        def expand(tags: set[str]) -> set[str]:
+            expanded = set(tags)
+            for group in synonyms:
+                if tags & group:          # si hay al menos un tag del grupo
+                    expanded |= group     # añadir todo el grupo
+            return expanded
+
         p_tags = {t.lower() for t in project.stack}
         h_tags = {t.lower() for t in hack.tags}
-        if not p_tags:
-            return 30
-        overlap = len(p_tags & h_tags)
-        return min(30 + int(overlap / len(p_tags) * 70), 100)
+
+        if not p_tags and not h_tags:
+            return 40   # ambos sin tags — desempate neutro
+
+        p_exp = expand(p_tags)
+        h_exp = expand(h_tags)
+
+        union    = p_exp | h_exp
+        overlap  = p_exp & h_exp
+        jaccard  = len(overlap) / len(union) if union else 0
+
+        return min(40 + int(jaccard * 60), 100)
 
     def _build_reasoning(
         self, project: ProjectItem, hack: HackathonItem, score: int
