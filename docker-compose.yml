@@ -199,6 +199,29 @@ services:
       - xiima-net
 
   # ─────────────────────────────────────────────
+  # Crew Monitor — Monitoreo de colaboración multi-agente
+  # Dispara agent-crew cada MONITOR_INTERVAL segundos
+  # y genera reportes de cómo colaboran los agentes
+  # ─────────────────────────────────────────────
+  crew-monitor:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python crew_monitor.py --interval 300
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      ML_MODEL: all-MiniLM-L6-v2
+      MONITOR_INTERVAL: ${MONITOR_INTERVAL:-300}
+    depends_on:
+      db:
+        condition: service_healthy
+      agent-crew:
+        condition: service_started
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
   # Skill Validator — El Vigilante de Proof of Skill
   # Vigila is_completed=TRUE y ejecuta ClaimCB + Payment en Stellar
   # ─────────────────────────────────────────────
