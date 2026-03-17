@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
+import ProjectInsightCard from "./ProjectInsightCard";
 
 // -------------------------------------------------------
 // TYPE DEFINITIONS
@@ -164,7 +165,7 @@ export default function ProjectCard({
 
             {/* Metrics row (optional) */}
             {metrics && (
-                <div className="pt-4 border-t border-border grid grid-cols-3 gap-2">
+                <div className="pt-4 border-t border-border grid grid-cols-3 gap-2 mb-1">
                     {Object.entries(metrics).map(([key, value]) => (
                         <div key={key} className="text-center">
                             <p className="text-sm font-bold text-white">{value}</p>
@@ -173,6 +174,13 @@ export default function ProjectCard({
                     ))}
                 </div>
             )}
+
+            {/* Project Insight Card — top match del Agent Crew */}
+            <ProjectInsightCard
+                projectId={title.toLowerCase().replace(/\s+/g, "-")}
+                projectTitle={title}
+                compact
+            />
         </motion.div>
     );
 }

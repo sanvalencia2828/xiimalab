@@ -392,12 +392,17 @@ class MatchOracle:
 # ══════════════════════════════════════════════════════════════════
 class OpportunityWriter:
     """
-    Responsabilidad: convertir matches en insights legibles
-    y persistirlos en agent_insights.
-    Evita duplicados: no inserta si el mismo (project_id, hackathon_id)
-    ya tiene un insight 'new' o 'read' reciente.
+    Responsabilidad: convertir matches en insights legibles y persistirlos.
+    Escribe en DOS tablas:
+      1. agent_insights — feed de texto legible para el UI
+      2. project_hackathon_matches — datos estructurados para Project Insight Card
     """
     name = "OpportunityWriter"
+
+    def _shared_tags(self, project: ProjectItem, hack: HackathonItem) -> list[str]:
+        p_tags = {t.lower() for t in project.stack}
+        h_tags = {t.lower() for t in hack.tags}
+        return [t for t in hack.tags if t.lower() in p_tags]
 
     async def run(self, conn: asyncpg.Connection, ctx: CrewContext) -> None:
         log.info(f"[{self.name}] Escribiendo {len(ctx.matches)} oportunidades...")
@@ -406,7 +411,34 @@ class OpportunityWriter:
         expires  = datetime.now(timezone.utc) + timedelta(days=INSIGHT_TTL)
 
         for m in ctx.matches:
-            # Verificar duplicado reciente
+            shared = self._shared_tags(m.project, m.hackathon)
+
+            # ── 1. project_hackathon_matches (upsert) ────────────
+            try:
+                await conn.execute(
+                    """
+                    INSERT INTO project_hackathon_matches (
+                        project_id, hackathon_id, match_pct, shared_tags,
+                        reasoning, prize_pool, source, source_url,
+                        hackathon_title, status, computed_at
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'new',NOW())
+                    ON CONFLICT (project_id, hackathon_id) DO UPDATE SET
+                        match_pct       = EXCLUDED.match_pct,
+                        shared_tags     = EXCLUDED.shared_tags,
+                        reasoning       = EXCLUDED.reasoning,
+                        prize_pool      = EXCLUDED.prize_pool,
+                        hackathon_title = EXCLUDED.hackathon_title,
+                        computed_at     = NOW()
+                    """,
+                    m.project.id, m.hackathon.id, m.match_pct,
+                    json.dumps(shared), m.reasoning,
+                    m.hackathon.prize_pool, m.hackathon.source,
+                    m.hackathon.source_url, m.hackathon.title,
+                )
+            except asyncpg.UndefinedTableError:
+                log.warning(f"[{self.name}] project_hackathon_matches no existe — ejecuta migración 005")
+
+            # ── 2. agent_insights (sin duplicados recientes) ─────
             existing = await conn.fetchval(
                 """
                 SELECT id FROM agent_insights
@@ -418,35 +450,20 @@ class OpportunityWriter:
                 m.project.id, m.hackathon.id,
             )
             if existing:
-                log.debug(
-                    f"[{self.name}] Duplicado omitido: "
-                    f"{m.project.title} × {m.hackathon.title[:30]}"
-                )
                 continue
 
-            # Generar título del insight
+            shared_str = ", ".join(shared[:4]) if shared else "stack complementario"
             title = (
                 f"💡 {m.project.title} encaja con «{m.hackathon.title[:50]}»"
                 if m.match_pct >= 70
                 else f"🎯 Oportunidad para {m.project.title}: «{m.hackathon.title[:50]}»"
             )
-
             summary = (
-                f"{m.project.title} ({m.project.status}) tiene un {m.match_pct}% de afinidad "
-                f"con la hackatón **{m.hackathon.title}** "
-                f"(fuente: {m.hackathon.source.capitalize()}, "
-                f"premio: ${m.hackathon.prize_pool:,}). "
+                f"Match del {m.match_pct}% con {m.project.title}: "
+                f"Esta hackatón premia {shared_str}, tu fuerte. "
+                f"Premio: ${m.hackathon.prize_pool:,} · {m.hackathon.source.capitalize()}. "
                 f"{m.reasoning}"
             )
-
-            metadata = {
-                "run_id":       ctx.run_id,
-                "project_stack": m.project.stack[:5],
-                "hack_tags":    m.hackathon.tags[:5],
-                "prize_pool":   m.hackathon.prize_pool,
-                "source":       m.hackathon.source,
-                "deadline":     m.hackathon.deadline,
-            }
 
             await conn.execute(
                 """
@@ -461,12 +478,20 @@ class OpportunityWriter:
                 title, summary, m.reasoning,
                 m.hackathon.source_url,
                 m.match_pct, m.match_pct,
-                json.dumps(metadata), expires,
+                json.dumps({
+                    "run_id": ctx.run_id,
+                    "project_stack": m.project.stack[:5],
+                    "hack_tags": m.hackathon.tags[:5],
+                    "shared_tags": shared,
+                    "prize_pool": m.hackathon.prize_pool,
+                    "source": m.hackathon.source,
+                }),
+                expires,
             )
             inserted += 1
 
         ctx.insights_created = inserted
-        log.info(f"[{self.name}] {inserted} insights guardados ✓")
+        log.info(f"[{self.name}] {inserted} nuevos insights, matches upserted ✓")
 
 
 # ══════════════════════════════════════════════════════════════════

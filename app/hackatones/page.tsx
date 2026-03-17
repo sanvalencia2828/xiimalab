@@ -11,8 +11,9 @@
 import { Suspense }      from "react";
 import { Zap, Database } from "lucide-react";
 import { supabase, type ActiveHackathon } from "@/lib/supabase";
-import HackatonesClient  from "@/components/HackatonesClient";
-import EcommerceLoading  from "../ecommerce/loading"; // reusar skeleton base
+import HackatonesClient        from "@/components/HackatonesClient";
+import WalletOnboardingModal   from "@/components/WalletOnboardingModal";
+import EcommerceLoading        from "../ecommerce/loading";
 
 // force-dynamic: evita fetch a localhost:8000 durante el build de Vercel
 export const dynamic = "force-dynamic";
@@ -125,6 +126,9 @@ export default async function HackatonesPage() {
 
             {/* HackatonesClient recibe los datos del servidor.
                 Suspense garantiza que el fallback se muestra si el fetch tarda. */}
+            {/* Modal Wallet-First — solo aparece si no hay wallet configurada */}
+            <WalletOnboardingModal />
+
             <Suspense fallback={<HackatonSkeleton />}>
                 <HackatonesClient initialData={initialData} />
             </Suspense>

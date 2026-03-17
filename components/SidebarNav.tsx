@@ -12,7 +12,10 @@ import {
     Settings,
     Cpu,
     ChevronRight,
+    Wallet,
+    CheckCircle2,
 } from "lucide-react";
+import { useWallet } from "@/lib/WalletContext";
 
 // -------------------------------------------------------
 // NAV ITEMS CONFIG
@@ -30,7 +33,8 @@ const navItems = [
 // SIDEBAR NAV
 // -------------------------------------------------------
 export default function SidebarNav() {
-    const pathname = usePathname();
+    const pathname   = usePathname();
+    const { isConnected, publicKey, displayName } = useWallet();
 
     return (
         <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden">
@@ -115,16 +119,40 @@ export default function SidebarNav() {
                     </div>
                 </div>
 
-                {/* User pill */}
-                <div className="mt-3 flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent/60 to-accent-dim/60 flex items-center justify-center text-xs font-bold text-background">
-                        X
+                {/* Wallet pill */}
+                <Link href="/settings">
+                    <div className={`mt-3 flex items-center gap-2.5 px-2 py-2 rounded-xl transition-colors cursor-pointer ${
+                        isConnected ? "hover:bg-emerald-500/5" : "hover:bg-amber-500/5"
+                    }`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                            isConnected
+                                ? "bg-emerald-500/15 border border-emerald-500/30"
+                                : "bg-amber-500/10 border border-amber-500/25"
+                        }`}>
+                            {isConnected
+                                ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                : <Wallet className="w-3.5 h-3.5 text-amber-400" />
+                            }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            {isConnected ? (
+                                <>
+                                    <p className="text-xs font-semibold text-emerald-400 truncate">
+                                        {displayName ?? "Wallet conectada"}
+                                    </p>
+                                    <p className="text-xs text-muted-text font-mono truncate">
+                                        {publicKey?.slice(0, 8)}…{publicKey?.slice(-4)}
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-xs font-semibold text-amber-400">Sin wallet</p>
+                                    <p className="text-xs text-muted-text">Conectar en Ajustes</p>
+                                </>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-200 truncate">Xiimalab Dev</p>
-                        <p className="text-xs text-muted-text truncate">Administrador</p>
-                    </div>
-                </div>
+                </Link>
             </div>
         </aside>
     );
