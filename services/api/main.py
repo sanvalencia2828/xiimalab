@@ -8,6 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base
 from routes import hackathons, skills, analyze
+from hotmart_bridge import router as hotmart_router
+from skill_validator import router as skill_validator_router
+from integrations.aura_client import router as aura_router
+from scrapers.hackathon_tracker import router as hackathon_tracker_router
+from routes.agents import router as agents_router
+from routes.projects import router as projects_router
+from routes.profile import router as profile_router
+from routes.github import router as github_router
 
 
 # ─────────────────────────────────────────────
@@ -52,6 +60,14 @@ app.add_middleware(
 app.include_router(hackathons.router, prefix="/hackathons", tags=["hackathons"])
 app.include_router(skills.router, prefix="/skills", tags=["skills"])
 app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
+app.include_router(hotmart_router)              # POST /webhooks/hotmart
+app.include_router(skill_validator_router)      # GET/POST /skills/escrow, /skills/progress
+app.include_router(aura_router)                 # GET /aura/progress/{address}, POST /aura/progress/{address}/force-sync
+app.include_router(hackathon_tracker_router)    # GET /hackathon-tracker/applications/{address}
+app.include_router(agents_router, prefix="/api/agents", tags=["agents"])
+app.include_router(projects_router, prefix="/api/projects", tags=["projects"])
+app.include_router(profile_router, prefix="/api", tags=["profile"])
+app.include_router(github_router, prefix="/api", tags=["github"])
 
 
 # ─────────────────────────────────────────────

@@ -53,11 +53,16 @@ DEVELOPER_PROFILE = """
 - Blockchain: Stellar (SDK, Horizon API), Avalanche (EVM, Fuji testnet)
 - DevOps: Docker, GitHub Actions (basic), Linux
 
-**Main project:**
+**Main projects:**
 - **RedimensionAI** (https://github.com/sanvalencia2828/RedimensionAI):
   AI-powered image resizing & optimization engine for social media.
   Stack: Python, FastAPI, OpenCV, Docker.
   Features: Neural style transfer, smart content-awareness, multi-platform export.
+
+- **regen-buddy** (https://github.com/sanvalencia2828/regen-buddy):
+  A regenerative finance (ReFi) tool focusing on ecological impact and community coordination.
+  Stack: Likely Web3, Stellar/Avalanche, Python/Next.js.
+  Goal: Connect regenerative actions with decentralized rewards.
 
 **Gaps / growth areas:**
 - Advanced ML model training (mostly uses pre-trained models)
@@ -92,11 +97,33 @@ async def _fetch_achievements() -> str:
         return ""
 
 
+async def _fetch_projects() -> str:
+    """Return a formatted string of user projects from user_projects table."""
+    raw_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    try:
+        conn = await asyncpg.connect(raw_url)
+        rows = await conn.fetch(
+            "SELECT title, repo_url, description, stack FROM user_projects WHERE is_public = true"
+        )
+        await conn.close()
+        if not rows:
+            return ""
+        lines = ["**Active Projects (from DB):**"]
+        for r in rows:
+            stack_str = ", ".join(r["stack"]) if isinstance(r["stack"], list) else r["stack"]
+            lines.append(f"- **{r['title']}** ({r['repo_url'] or 'no url'}): {r['description']} (Stack: {stack_str})")
+        return "\n".join(lines)
+    except Exception as exc:
+        log.warning(f"Could not fetch projects from DB: {exc}")
+        return ""
+
+
 # ─────────────────────────────────────────────
 # Prompt builder
 # ─────────────────────────────────────────────
 async def _build_prompt(opportunity: dict[str, Any]) -> str:
     achievements_section = await _fetch_achievements()
+    projects_section = await _fetch_projects()
     opp_str = json.dumps(opportunity, ensure_ascii=False, indent=2)
     return f"""You are a career coach specialized in hackathons and tech job applications.
 
@@ -105,6 +132,8 @@ Analyze the following opportunity and evaluate how competitive the developer bel
 {DEVELOPER_PROFILE}
 
 {achievements_section}
+
+{projects_section}
 
 ## Opportunity to Analyze
 ```json
@@ -116,21 +145,23 @@ Return ONLY a valid JSON object — no markdown, no explanation, no extra text �
 - "match_score": integer 0-100 (100 = perfect fit, 0 = no overlap)
 - "missing_skills": array of strings (top 3 specific skills/tools they're missing to WIN this opportunity)
 - "project_highlight": string (1-2 sentences: exactly HOW to use RedimensionAI to stand out in this specific application)
+- "strategic_category": string (one of: "Skill Builder", "Strategic Prize", "Network Opportunity" - classify based on prize size, networking potential, and learning value)
 
 Example format:
-{{"match_score": 78, "missing_skills": ["Solidity", "Hardhat", "IPFS"], "project_highlight": "Showcase RedimensionAI as an AI utility layer for NFT metadata image optimization on Avalanche, demonstrating cross-chain image processing at scale."}}
+{{"match_score": 78, "missing_skills": ["Solidity", "Hardhat", "IPFS"], "project_highlight": "Showcase RedimensionAI as an AI utility layer for NFT metadata image optimization on Avalanche, demonstrating cross-chain image processing at scale.", "strategic_category": "Strategic Prize"}}
 """
 
 
 # ─────────────────────────────────────────────
 # Core analysis function
 # ─────────────────────────────────────────────
-async def analyze_competitiveness(opportunity: dict[str, Any]) -> dict[str, Any]:
+async def analyze_competitiveness(opportunity: dict[str, Any], aura_context: dict = None) -> dict[str, Any]:
     """
     Analyze a hackathon/job opportunity against the developer profile.
 
     Args:
         opportunity: dict with keys like title, tags, prize_pool, description, etc.
+        aura_context: optional dict with AURA engagement kit context for enriched analysis
 
     Returns:
         {
@@ -139,13 +170,18 @@ async def analyze_competitiveness(opportunity: dict[str, Any]) -> dict[str, Any]
             project_highlight: str,
         }
     """
-    _fallback = {"match_score": 0, "missing_skills": [], "project_highlight": ""}
+    _fallback = {"match_score": 0, "missing_skills": [], "project_highlight": "", "strategic_category": "Skill Builder"}
 
     if not ANTHROPIC_API_KEY:
         log.error("ANTHROPIC_API_KEY not set — cannot run analysis")
         return _fallback
 
-    prompt = await _build_prompt(opportunity)
+    # Enrich prompt with AURA context if available
+    enriched_opportunity = {**opportunity}
+    if aura_context:
+        enriched_opportunity["_aura_insights"] = aura_context
+        
+    prompt = await _build_prompt(enriched_opportunity)
 
     try:
         import asyncio
@@ -171,6 +207,7 @@ async def analyze_competitiveness(opportunity: dict[str, Any]) -> dict[str, Any]
             "match_score": max(0, min(100, int(result.get("match_score", 0)))),
             "missing_skills": [str(s) for s in result.get("missing_skills", [])[:5]],
             "project_highlight": str(result.get("project_highlight", "")),
+            "strategic_category": str(result.get("strategic_category", "Skill Builder")),  # Default to Skill Builder
         }
 
     except json.JSONDecodeError as exc:

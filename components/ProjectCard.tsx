@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle2, Circle, Clock } from "lucide-react";
+import { CheckCircle2, Circle, Clock, ExternalLink, Github } from "lucide-react";
 
 // -------------------------------------------------------
 // TYPE DEFINITIONS
@@ -15,6 +15,8 @@ export interface ProjectCardProps {
     stack: string[];
     dockerActive?: boolean;
     metrics?: Record<string, string | number>;
+    url?: string;
+    repo?: string;
     accentColor?: string;
     className?: string;
 }
@@ -84,6 +86,8 @@ export default function ProjectCard({
     stack,
     dockerActive = false,
     metrics,
+    url,
+    repo,
     accentColor = "#7dd3fc",
     className = "",
 }: ProjectCardProps) {
@@ -164,13 +168,41 @@ export default function ProjectCard({
 
             {/* Metrics row (optional) */}
             {metrics && (
-                <div className="pt-4 border-t border-border grid grid-cols-3 gap-2">
+                <div className="pt-4 border-t border-border grid grid-cols-3 gap-2 mb-4">
                     {Object.entries(metrics).map(([key, value]) => (
                         <div key={key} className="text-center">
                             <p className="text-sm font-bold text-white">{value}</p>
                             <p className="text-xs text-muted-text capitalize">{key}</p>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Actions (Links) */}
+            {(url || repo) && (
+                <div className="flex items-center gap-3 pt-4 border-t border-border/50">
+                    {url && (
+                        <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all duration-300 text-sm font-semibold group/link"
+                        >
+                            <span>Live Project</span>
+                            <ExternalLink className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
+                        </a>
+                    )}
+                    {repo && (
+                        <a
+                            href={repo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-300"
+                            title="Ver Código"
+                        >
+                            <Github className="w-4 h-4" />
+                        </a>
+                    )}
                 </div>
             )}
         </motion.div>

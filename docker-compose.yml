@@ -1,134 +1,73 @@
+version: '3.8'
+
 services:
-  # ─────────────────────────────────────────────
-  # PostgreSQL 16 — Primary database
-  # ─────────────────────────────────────────────
+  # Base de Datos (Solo para entorno local si no se usa Supabase)
   db:
-    image: postgres:16-alpine
-    restart: unless-stopped
+    image: postgres:15
+    container_name: xiima_db
+    restart: always
     environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xiima_pass}
       POSTGRES_DB: xiimalab
-      POSTGRES_USER: xiima
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./services/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U xiima -d xiimalab" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - xiima-net
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
 
-  # ─────────────────────────────────────────────
-  # Redis — Job queue / caching
-  # ─────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-    networks:
-      - xiima-net
-
-  # ─────────────────────────────────────────────
-  # FastAPI — REST backend
-  # ─────────────────────────────────────────────
+  # Backend - Cerebro y Match Engine
   api:
-    build:
-      context: ./services/api
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+asyncpg://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
-      REDIS_URL: redis://redis:6379
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      ENVIRONMENT: production
+    build: ./services/api
+    container_name: xiima_api
+    restart: always
+    env_file: .env
+    depends_on:
+      - db
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    networks:
-      - xiima-net
-
-  # ─────────────────────────────────────────────
-  # DoraHacks Scraper — Background bot
-  # ─────────────────────────────────────────────
-  scraper:
-    build:
-      context: ./services/scraper
-      dockerfile: Dockerfile
-    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
-      REDIS_URL: redis://redis:6379
-      SCRAPER_INTERVAL_MINUTES: ${SCRAPER_INTERVAL_MINUTES:-30}
-      HEADLESS: "true"
-    depends_on:
-      db:
-        condition: service_healthy
-      api:
-        condition: service_healthy
-    # Allocate shared memory for Chromium
-    shm_size: '256m'
-    networks:
-      - xiima-net
+      - SCRAPER_URL=http://scraper:9000
 
-  # ─────────────────────────────────────────────
-  # Devpost Scraper — Antigravity engine
-  # ─────────────────────────────────────────────
-  devpost:
-    build:
-      context: ./services/scraper
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    command: python devpost_engine.py
-    environment:
-      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
-      HEADLESS: "true"
-    depends_on:
-      db:
-        condition: service_healthy
-    shm_size: '256m'
-    networks:
-      - xiima-net
-
-  # ─────────────────────────────────────────────
-  # Next.js Frontend
-  # ─────────────────────────────────────────────
+  # Frontend - Dashboard de Next.js
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    restart: unless-stopped
-    environment:
-      NEXT_PUBLIC_API_URL: http://api:8000
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+    build: ./frontend
+    container_name: xiima_frontend
+    restart: always
     ports:
       - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+
+  # Automatizacion - Snap Engine (Puppeteer)
+  automation:
+    build: ./services/automation
+    container_name: xiima_automation
+    volumes:
+      - ./snapshots:/app/snapshots
+    env_file: .env
     depends_on:
-      api:
-        condition: service_healthy
-    networks:
-      - xiima-net
+      - frontend
+      - api
+
+  # Scraper - Motor de recolección de Hackatones
+  scraper:
+    build: ./services/scraper
+    container_name: xiima_scraper
+    restart: always
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - SCRAPER_URL=http://scraper:9000
+      - NEXT_PUBLIC_API_URL=http://api:8000
+
+  # Microservicio Externo - RedimensionAI
+  redimension_ai:
+    image: sanvalencia2828/redimension-ai:latest
+    container_name: redimension_engine
+    ports:
+      - "8001:8001"
+    restart: always
 
 volumes:
-  pgdata:
-
-
-networks:
-  xiima-net:
-    driver: bridge
+  postgres_data:

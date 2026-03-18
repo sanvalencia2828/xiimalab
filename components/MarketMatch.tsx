@@ -7,6 +7,15 @@ import { BarChart3, BrainCircuit, Loader2, Target, TrendingUp, X } from "lucide-
 // -------------------------------------------------------
 // TYPES
 // -------------------------------------------------------
+interface DevfolioHackathon {
+    id: string;
+    title: string;
+    prizePool: number;
+    tags: string[];
+    deadline: string;
+    url: string;
+}
+
 interface Skill {
     label: string;
     sublabel: string;
@@ -18,10 +27,11 @@ interface Skill {
     matchScore?: number;
     missingSkills?: string[];
     projectHighlight?: string;
+    strategicCategory?: string;
 }
 
 // -------------------------------------------------------
-// STATIC BASE DATA (scores updated by AI analysis)
+// STATIC BASE DATA
 // -------------------------------------------------------
 const BASE_SKILLS: Skill[] = [
     {
@@ -57,34 +67,6 @@ const BASE_SKILLS: Skill[] = [
         icon: BarChart3,
     },
 ];
-
-// Fake "hackathon" opportunity per skill to send to Claude
-const SKILL_OPPORTUNITIES: Record<string, object> = {
-    "Data Analytics": {
-        title: "Data Analytics & BI Hackathon",
-        tags: ["Python", "Pandas", "SQL", "Tableau", "dbt"],
-        prize_pool_usd: 30000,
-        description: "Build a data pipeline and dashboard for real-time business intelligence.",
-    },
-    "Docker & DevOps": {
-        title: "Cloud-Native DevOps Challenge",
-        tags: ["Docker", "Kubernetes", "CI/CD", "GitHub Actions", "Terraform"],
-        prize_pool_usd: 50000,
-        description: "Design a fully automated cloud-native deployment pipeline.",
-    },
-    "Blockchain": {
-        title: "DeFi & Blockchain Innovation Sprint",
-        tags: ["Solidity", "EVM", "Stellar", "Avalanche", "Smart Contracts", "IPFS"],
-        prize_pool_usd: 75000,
-        description: "Create a decentralized financial product on Stellar or Avalanche.",
-    },
-    "AI / ML": {
-        title: "AI x Web3 Global Sprint",
-        tags: ["PyTorch", "LLMs", "Computer Vision", "FastAPI", "Python"],
-        prize_pool_usd: 100000,
-        description: "Build an AI-powered product that integrates with blockchain infrastructure.",
-    },
-};
 
 // -------------------------------------------------------
 // ANIMATED BAR
@@ -127,53 +109,71 @@ function GapBadge({ user, market }: { user: number; market: number }) {
 // -------------------------------------------------------
 // AI INSIGHTS MODAL
 // -------------------------------------------------------
-interface InsightsModal {
+interface InsightsModalProps {
     skill: Skill;
+    hackathonUrl?: string;
+    hackathonTitle?: string;
     onClose: () => void;
 }
 
-function AIInsightsModal({ skill, onClose }: InsightsModal) {
+function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: InsightsModalProps) {
     const [loading, setLoading] = useState(!skill.missingSkills);
     const [data, setData] = useState<{
         matchScore: number;
         missingSkills: string[];
         projectHighlight: string;
+        strategicCategory: string;
     } | null>(
         skill.missingSkills
             ? {
                 matchScore: skill.matchScore ?? 0,
                 missingSkills: skill.missingSkills,
                 projectHighlight: skill.projectHighlight ?? "",
+                strategicCategory: skill.strategicCategory ?? "Skill Builder",
             }
             : null
     );
 
     useEffect(() => {
         if (data) return;
-        const opp = SKILL_OPPORTUNITIES[skill.label] ?? { title: skill.label, tags: [], prize_pool_usd: 0 };
 
-        fetch("/api/analyze", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                id: `skill-${skill.label.toLowerCase().replace(/\s/g, "-")}`,
-                title: (opp as any).title,
-                tags: (opp as any).tags ?? [],
-                prize_pool: (opp as any).prize_pool_usd ?? 0,
-                description: (opp as any).description ?? "",
-            }),
-        })
+        // Use the new cached analysis endpoint if we have a hackathon ID, 
+        // otherwise fallback to the general simulation/analyze
+        const endpoint = hackathonTitle 
+            ? `/api/analyze/hackathon/${hackathonUrl?.split('/').pop()}` 
+            : `/api/analyze/hackathon/skill-${skill.label.toLowerCase().replace(/\s/g, "-")}`;
+
+        fetch(endpoint)
             .then((r) => r.json())
             .then((res) =>
                 setData({
                     matchScore: res.match_score ?? 0,
                     missingSkills: res.missing_skills ?? [],
                     projectHighlight: res.project_highlight ?? "",
+                    strategicCategory: res.strategic_category ?? "Skill Builder",
                 })
             )
-            .catch(() =>
-                setData({ matchScore: 0, missingSkills: [], projectHighlight: "Error al conectar con IA." })
-            )
+            .catch(() => {
+                // If GET fails (not analyzed yet), try to trigger a POST call
+                fetch("/api/analyze/hackathon", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        id: hackathonUrl?.split('/').pop() || `skill-${skill.label.toLowerCase().replace(/\s/g, "-")}`,
+                        title: hackathonTitle ?? skill.label,
+                        tags: [skill.label, skill.sublabel],
+                        prize_pool: 0,
+                        description: hackathonTitle ? `Hackathon: ${hackathonTitle}` : skill.label,
+                    }),
+                })
+                .then(r => r.json())
+                .then(res => setData({
+                    matchScore: res.match_score ?? 0,
+                    missingSkills: res.missing_skills ?? [],
+                    projectHighlight: res.project_highlight ?? "",
+                    strategicCategory: res.strategic_category ?? "Skill Builder",
+                }));
+            })
             .finally(() => setLoading(false));
     }, []);
 
@@ -230,7 +230,7 @@ function AIInsightsModal({ skill, onClose }: InsightsModal) {
                         {/* Match score ring */}
                         <div className="flex items-center gap-4 p-4 bg-background rounded-xl border border-border">
                             <div
-                                className="w-16 h-16 rounded-full flex items-center justify-center text-sm font-extrabold text-white shrink-0"
+                                className="w-16 h-16 rounded-full flex items-center justify-center shrink-0"
                                 style={{
                                     background: `conic-gradient(${skill.color} ${data.matchScore * 3.6}deg, #1f2937 0deg)`,
                                 }}
@@ -242,7 +242,7 @@ function AIInsightsModal({ skill, onClose }: InsightsModal) {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-xs text-muted-text mb-0.5">Match Score IA</p>
+                                <p className="text-xs text-muted-text mb-0.5">Match Score IA · {data.strategicCategory}</p>
                                 <p className="text-sm font-semibold text-slate-200">
                                     {data.matchScore >= 80
                                         ? "🔥 Alta competitividad"
@@ -283,6 +283,18 @@ function AIInsightsModal({ skill, onClose }: InsightsModal) {
                                 </p>
                             </div>
                         )}
+
+                        {/* Ver en Devfolio */}
+                        {hackathonUrl && (
+                            <a
+                                href={hackathonUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 mt-4 w-full py-2 rounded-xl bg-accent/10 border border-accent/20 text-xs font-medium text-accent hover:bg-accent/20 transition-colors"
+                            >
+                                Ver en Devfolio →
+                            </a>
+                        )}
                     </div>
                 ) : null}
             </motion.div>
@@ -295,11 +307,43 @@ function AIInsightsModal({ skill, onClose }: InsightsModal) {
 // -------------------------------------------------------
 export default function MarketMatch() {
     const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+    const [selectedHackathon, setSelectedHackathon] = useState<DevfolioHackathon | undefined>(undefined);
     const [skills] = useState<Skill[]>(BASE_SKILLS);
+    const [devfolioHackathons, setDevfolioHackathons] = useState<DevfolioHackathon[]>([]);
+
+    useEffect(() => {
+        fetch("/api/devfolio-hackathons")
+            .then((r) => r.json())
+            .then((data: DevfolioHackathon[]) => setDevfolioHackathons(data))
+            .catch(() => {});
+    }, []);
+
+    function findMatchingHackathon(skillLabel: string): DevfolioHackathon | undefined {
+        const labelLower = skillLabel.toLowerCase();
+        let best: DevfolioHackathon | undefined;
+        let bestScore = -1;
+        for (const h of devfolioHackathons) {
+            const score = h.tags.filter(
+                (tag) =>
+                    tag.toLowerCase().includes(labelLower) ||
+                    labelLower.includes(tag.toLowerCase())
+            ).length;
+            if (score > bestScore) {
+                bestScore = score;
+                best = h;
+            }
+        }
+        return best;
+    }
 
     const overallScore = Math.round(
         skills.reduce((acc, s) => acc + (s.userScore / s.marketDemand) * 100, 0) / skills.length
     );
+
+    function openModal(skill: Skill) {
+        setSelectedSkill(skill);
+        setSelectedHackathon(findMatchingHackathon(skill.label));
+    }
 
     return (
         <>
@@ -316,7 +360,7 @@ export default function MarketMatch() {
                     {/* Score ring */}
                     <div className="text-center">
                         <div
-                            className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-extrabold text-white"
+                            className="w-12 h-12 rounded-full flex items-center justify-center"
                             style={{ background: `conic-gradient(#7dd3fc ${overallScore * 3.6}deg, #1f2937 0deg)` }}
                         >
                             <div className="w-9 h-9 rounded-full bg-card flex items-center justify-center">
@@ -345,11 +389,10 @@ export default function MarketMatch() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <GapBadge user={userScore} market={marketDemand} />
-                                    {/* IA Insights button */}
                                     <motion.button
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
-                                        onClick={() => setSelectedSkill(skills[idx])}
+                                        onClick={() => openModal(skills[idx])}
                                         className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-500/10 hover:bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-500/20"
                                     >
                                         <BrainCircuit className="w-3 h-3" />
@@ -387,7 +430,7 @@ export default function MarketMatch() {
                         <span className="text-white font-medium">Blockchain</span> para maximizar tu match
                         con las próximas convocatorias.{" "}
                         <button
-                            onClick={() => setSelectedSkill(skills[3])}
+                            onClick={() => openModal(skills[3])}
                             className="text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
                         >
                             Ver análisis IA →
@@ -399,7 +442,15 @@ export default function MarketMatch() {
             {/* AI Insights Modal */}
             <AnimatePresence>
                 {selectedSkill && (
-                    <AIInsightsModal skill={selectedSkill} onClose={() => setSelectedSkill(null)} />
+                    <AIInsightsModal
+                        skill={selectedSkill}
+                        hackathonUrl={selectedHackathon?.url}
+                        hackathonTitle={selectedHackathon?.title}
+                        onClose={() => {
+                            setSelectedSkill(null);
+                            setSelectedHackathon(undefined);
+                        }}
+                    />
                 )}
             </AnimatePresence>
         </>

@@ -4,12 +4,13 @@ Runs Claude 3.5 Sonnet analysis and persists result back to DB.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_engine import analyze_competitiveness
 from db import get_db
 from models import Hackathon
+from agents.orchestrator import Orchestrator
+from agents.coach import CoachAgent
 
 router = APIRouter()
 
@@ -31,6 +32,8 @@ class AnalysisResult(BaseModel):
     match_score: int
     missing_skills: list[str]
     project_highlight: str
+    strategic_category: str = "Skill Builder"
+    agent_roadmap: dict | None = None
 
 
 # ─────────────────────────────────────────────
@@ -58,6 +61,7 @@ async def analyze_hackathon(
             match_score=hackathon.match_score,
             missing_skills=cached.get("missing_skills", []),
             project_highlight=cached.get("project_highlight", ""),
+            strategic_category=cached.get("strategic_category", "Skill Builder"),
         )
 
     # Call Claude only for new or forced hackathons
@@ -75,15 +79,35 @@ async def analyze_hackathon(
         hackathon.ai_analysis = {
             "missing_skills": result["missing_skills"],
             "project_highlight": result["project_highlight"],
+            "strategic_category": result["strategic_category"],
         }
         db.add(hackathon)
         await db.commit()
+
+    # --- AGENT COLLABORATION ---
+    orchestrator = Orchestrator(db)
+    # 1. Strategist signals analysis is ready
+    await orchestrator.emit_signal(
+        source="strategist",
+        signal_type="analysis_complete",
+        payload={"hackathon_id": payload.id, "strategic_category": result["strategic_category"]}
+    )
+
+    # 2. Trigger Coach Agent for roadmap
+    coach = CoachAgent(db)
+    roadmap = await coach.generate_roadmap(
+        hackathon_title=payload.title,
+        strategic_insight=result.get("project_highlight", ""),
+        missing_skills=result.get("missing_skills", [])
+    )
 
     return AnalysisResult(
         hackathon_id=payload.id,
         match_score=result["match_score"],
         missing_skills=result["missing_skills"],
         project_highlight=result["project_highlight"],
+        strategic_category=result["strategic_category"],
+        agent_roadmap=roadmap
     )
 
 
@@ -112,4 +136,5 @@ async def get_cached_analysis(
         match_score=hackathon.match_score,
         missing_skills=hackathon.ai_analysis.get("missing_skills", []),
         project_highlight=hackathon.ai_analysis.get("project_highlight", ""),
+        strategic_category=hackathon.ai_analysis.get("strategic_category", "Skill Builder"),
     )

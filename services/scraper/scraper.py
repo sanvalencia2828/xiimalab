@@ -1,27 +1,26 @@
 """
-DoraHacks scraper — Playwright + stealth, scheduled execution.
-Anti-detection techniques:
-  - playwright-stealth to mask WebDriver fingerprints
-  - Random User-Agent rotation
-  - Randomized delay between requests (3.5–8.2 s)
-  - Viewport randomization
-  - Scrolls page to simulate human behavior
-"""
-from __future__ import annotations
+Xiimalab Scraper — Modular Orchestrator
+Schedules and runs multiple hackathon scraper integrations:
+- Devfolio (MCP API)
+- DoraHacks (Playwright)
+- Devpost (Playwright)
 
+Autonomous ML Pipeline:
+- Automatically triggers AI analysis for all active hackathons after sync.
+"""
 import asyncio
+import json
 import logging
 import os
-import random
+import httpx
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
 import asyncpg
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from playwright.async_api import async_playwright
-from playwright_stealth import stealth_async
 
-from parser import parse_hackathon_cards
+# Import integrations
+from integrations import devfolio, dorahacks, devpost
 
 # ─────────────────────────────────────────────
 # Config
@@ -30,195 +29,183 @@ DATABASE_URL: str = os.environ.get(
     "DATABASE_URL", "postgresql://xiima:secret@localhost:5432/xiimalab"
 )
 SCRAPER_INTERVAL_MINUTES: int = int(os.environ.get("SCRAPER_INTERVAL_MINUTES", 30))
-HEADLESS: bool = os.environ.get("HEADLESS", "true").lower() == "true"
-DORAHACKS_URL = "https://dorahacks.io/hackathon"
+API_URL: str = os.environ.get("NEXT_PUBLIC_API_URL", "http://localhost:8000")
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
-]
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("xiima.scraper")
 
-
 # ─────────────────────────────────────────────
-# Human simulation helpers
+# DB Engine
 # ─────────────────────────────────────────────
-async def _random_delay(min_s: float = 3.5, max_s: float = 8.2) -> None:
-    delay = random.uniform(min_s, max_s)
-    log.debug(f"Sleeping {delay:.1f}s (human simulation)")
-    await asyncio.sleep(delay)
-
-
-async def _simulate_scroll(page) -> None:
-    """Scroll down the page in steps to trigger lazy loading."""
-    total_height = await page.evaluate("document.body.scrollHeight")
-    viewport_height = 800
-    current = 0
-    while current < total_height:
-        current += random.randint(200, 500)
-        await page.evaluate(f"window.scrollTo(0, {current})")
-        await asyncio.sleep(random.uniform(0.2, 0.6))
-
-
-# ─────────────────────────────────────────────
-# Core scrape function
-# ─────────────────────────────────────────────
-async def scrape_dorahacks() -> list[dict]:
-    log.info("Starting DoraHacks scrape run...")
-    raw_cards: list[dict] = []
-
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(
-            headless=HEADLESS,
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-blink-features=AutomationControlled",
-            ],
-        )
-
-        context = await browser.new_context(
-            user_agent=random.choice(USER_AGENTS),
-            viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)},
-            locale="en-US",
-            timezone_id="America/New_York",
-        )
-
-        page = await context.new_page()
-        await stealth_async(page)
-
-        try:
-            await page.goto(DORAHACKS_URL, wait_until="domcontentloaded", timeout=30_000)
-            await _random_delay(2.0, 4.0)
-            await _simulate_scroll(page)
-            await _random_delay()
-
-            # Extract hackathon card data from the page
-            raw_cards = await page.evaluate("""
-                () => {
-                    const cards = document.querySelectorAll('[class*="hackathon-card"], [class*="HackCard"], article');
-                    return Array.from(cards).map(card => {
-                        const titleEl = card.querySelector('h2, h3, [class*="title"]');
-                        const prizeEl = card.querySelector('[class*="prize"], [class*="reward"]');
-                        const deadlineEl = card.querySelector('[class*="deadline"], [class*="date"], time');
-                        const tagEls = card.querySelectorAll('[class*="tag"], [class*="badge"]');
-                        const linkEl = card.querySelector('a[href]');
-                        return {
-                            title: titleEl?.textContent?.trim() || '',
-                            prize: prizeEl?.textContent?.trim() || '0',
-                            deadline: deadlineEl?.getAttribute('datetime') || deadlineEl?.textContent?.trim() || '',
-                            tags: Array.from(tagEls).map(t => t.textContent?.trim()).filter(Boolean).join(','),
-                            url: linkEl?.href || '',
-                        };
-                    }).filter(c => c.title.length > 3);
-                }
-            """)
-
-            log.info(f"Extracted {len(raw_cards)} raw cards from DoraHacks")
-        except Exception as exc:
-            log.error(f"Scrape error: {exc}")
-        finally:
-            await browser.close()
-
-    return raw_cards
-
-
-# ─────────────────────────────────────────────
-# DB writer (asyncpg directly — faster than ORM for bulk upserts)
-# ─────────────────────────────────────────────
-async def upsert_hackathons(parsed: list) -> None:
-    if not parsed:
-        log.warning("No hackathons to upsert — skipping DB write")
+async def upsert_hackathons(items: list[dict]) -> None:
+    if not items:
         return
 
     conn = await asyncpg.connect(DATABASE_URL)
     try:
         records = [
-            (h.id, h.title, h.prize_pool, h.tags, h.deadline, h.match_score, h.source_url)
-            for h in parsed
+            (
+                item["id"],
+                item["title"],
+                item["prize_pool"],
+                json.dumps(item["tags"]),
+                item["deadline"],
+                item["match_score"],
+                item["source_url"],
+                item["source"],
+            )
+            for item in items
         ]
         await conn.executemany(
             """
-            INSERT INTO hackathons (id, title, prize_pool, tags, deadline, match_score, source_url)
-            VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+            INSERT INTO hackathons (id, title, prize_pool, tags, deadline, match_score, source_url, source)
+            VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
             ON CONFLICT (id) DO UPDATE SET
-                title = EXCLUDED.title,
-                prize_pool = EXCLUDED.prize_pool,
-                tags = EXCLUDED.tags,
-                deadline = EXCLUDED.deadline,
-                match_score = EXCLUDED.match_score,
-                source_url = EXCLUDED.source_url,
-                updated_at = NOW()
+                title       = EXCLUDED.title,
+                prize_pool  = EXCLUDED.prize_pool,
+                tags        = EXCLUDED.tags,
+                deadline    = EXCLUDED.deadline,
+                source_url  = EXCLUDED.source_url,
+                source      = EXCLUDED.source,
+                updated_at  = NOW()
             """,
-            [(r[0], r[1], r[2], str(r[3]).replace("'", '"'), r[4], r[5], r[6]) for r in records],
+            records,
         )
-        log.info(f"✅ Upserted {len(parsed)} hackathons to PostgreSQL")
+        log.info(f"✅ Successfully upserted {len(items)} hackathons to PostgreSQL")
+    except Exception as e:
+        log.error(f"❌ DB Upsert Error: {e}")
     finally:
         await conn.close()
 
+# ─────────────────────────────────────────────
+# ML Pipeline Automation
+# ─────────────────────────────────────────────
+async def trigger_ai_analysis(items: list[dict]):
+    """Call the API analyze endpoint for each newly found hackathon."""
+    if not items:
+        return
+    
+    log.info(f"🧠 Triggering AI analysis for {len(items)} items...")
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        for item in items:
+            try:
+                # We use the internal API URL
+                analyze_url = f"{API_URL}/analyze/hackathon"
+                payload = {
+                    "id": item["id"],
+                    "title": item["title"],
+                    "tags": item["tags"],
+                    "prize_pool": item["prize_pool"],
+                    "description": "" # description will be fetched by engine if needed or kept empty
+                }
+                resp = await client.post(analyze_url, json=payload)
+                if resp.status_code == 200:
+                    log.info(f"  ✅ Analysis synced for: {item['title'][:30]}...")
+                else:
+                    log.error(f"  ❌ Analysis failed for {item['id']}: {resp.status_code}")
+            except Exception as e:
+                log.error(f"  ⚠️ Error triggering analysis for {item['id']}: {e}")
 
 # ─────────────────────────────────────────────
-# Scheduled job
+# Core Job
 # ─────────────────────────────────────────────
-async def run_scrape_job() -> None:
-    log.info(f"🤖 Scrape job triggered (interval: {SCRAPER_INTERVAL_MINUTES}m)")
-    raw = await scrape_dorahacks()
-    parsed = parse_hackathon_cards(raw, DORAHACKS_URL)
-    await upsert_hackathons(parsed)
+async def run_all_scrapers():
+    log.info("🚀 Starting full scraper synchronization...")
+    
+    tasks = [
+        ("Devfolio", devfolio.run()),
+        ("DoraHacks", dorahacks.run()),
+        ("Devpost", devpost.run())
+    ]
+    
+    all_hackathons = []
+    
+    for name, coro in tasks:
+        try:
+            log.info(f"Running {name} integration...")
+            items = await coro
+            log.info(f"Found {len(items)} hackathons from {name}")
+            all_hackathons.extend(items)
+        except Exception as e:
+            log.error(f"Error in {name} integration: {e}")
 
+    if all_hackathons:
+        await upsert_hackathons(all_hackathons)
+        # Automate the ML analysis
+        await trigger_ai_analysis(all_hackathons)
+    else:
+        log.warning("No hackathons found in any integration.")
 
 # ─────────────────────────────────────────────
-# Minimal health HTTP server (for docker healthcheck)
+# Health & Sync Server
 # ─────────────────────────────────────────────
+_scheduler: AsyncIOScheduler | None = None
+_loop: asyncio.AbstractEventLoop | None = None
+
 class _HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'{"status":"ok","service":"xiima-scraper"}')
+        self.wfile.write(b'{"status":"ok","service":"xiima-scraper-modular"}')
 
-    def log_message(self, *_):
-        pass  # suppress access logs
+    def do_POST(self):
+        if self.path == "/sync":
+            log.info("📡 Manual sync requested via API...")
+            if _scheduler and _loop:
+                try:
+                    # Trigger the job immediately
+                    _loop.call_soon_threadsafe(lambda: _scheduler.get_job("full_sync").modify(next_run_time=None))
+                    self.send_response(202)
+                    self.end_headers()
+                    self.wfile.write(b'{"status":"sync_triggered"}')
+                except Exception as e:
+                    self.send_response(500)
+                    self.end_headers()
+                    self.wfile.write(f'{{"error":"{str(e)}"}}'.encode())
+            else:
+                self.send_response(503)
+                self.end_headers()
+                self.wfile.write(b'{"error":"scheduler_not_initialized"}')
+        else:
+            self.send_response(404)
+            self.end_headers()
 
+    def log_message(self, *_): pass
 
 def _start_health_server():
     server = HTTPServer(("0.0.0.0", 9000), _HealthHandler)
     Thread(target=server.serve_forever, daemon=True).start()
-    log.info("Health server listening on :9000")
-
+    log.info("Health & Sync server listening on port 9000")
 
 # ─────────────────────────────────────────────
-# Entry point
+# Main Entry Point
 # ─────────────────────────────────────────────
 async def main():
+    global _scheduler, _loop
+    _loop = asyncio.get_running_loop()
     _start_health_server()
 
-    # Run immediately on startup
-    await run_scrape_job()
+    # Initial run
+    await run_all_scrapers()
 
-    # Schedule recurring runs
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(
-        run_scrape_job,
+    # Scheduler
+    _scheduler = AsyncIOScheduler()
+    _scheduler.add_job(
+        run_all_scrapers,
         "interval",
         minutes=SCRAPER_INTERVAL_MINUTES,
-        id="dorahacks_scrape",
-        max_instances=1,  # prevent overlapping runs
+        id="full_sync",
+        max_instances=1
     )
-    scheduler.start()
-    log.info(f"Scheduler started — next run in {SCRAPER_INTERVAL_MINUTES} minutes")
+    _scheduler.start()
+    log.info(f"Scheduler active. Sync interval: {SCRAPER_INTERVAL_MINUTES} minutes.")
 
-    # Keep alive
     try:
         await asyncio.Event().wait()
     except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
-        log.info("Scraper shut down gracefully")
-
+        _scheduler.shutdown()
+        log.info("Scraper shutdown.")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Users\\\\santi\\\\OneDrive\\\\Documentos\\\\Xiimalab\" && npx tsc --noEmit --skipLibCheck 2>&1 | head -40)",
+      "Bash(cd \"C:\\\\Users\\\\santi\\\\OneDrive\\\\Documentos\\\\Xiimalab\" && npx tsc --noEmit --skipLibCheck 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\santi\\\\OneDrive\\\\Documentos\\\\Xiimalab\" && npm run build 2>&1)",
+      "Bash(npm list:*)"
+    ]
+  }
+}

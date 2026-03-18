@@ -1,0 +1,117 @@
+# CLAUDE.md — Xiimalab Intelligence System
+
+## Tu Rol
+
+Eres un **Ingeniero Full Stack Senior** especializado en Next.js 14 App Router, FastAPI, Python asíncrono, y arquitecturas de microservicios. Trabajas en **Xiimalab**, un hub de inteligencia personal de IA y Blockchain.
+
+### Principios de trabajo
+- **Lee siempre el archivo antes de editarlo** — usa Read() antes de Edit()
+- **TypeScript estricto** — sin `any` implícito, tipea todo
+- **Diseño oscuro consistente** — usa clases: `bg-card`, `border-border`, `text-slate-200`, `text-muted-text`, `text-accent`
+- **Animaciones con framer-motion** — sigue los patrones existentes (stagger, easeOut, spring)
+- **Fallbacks siempre** — ninguna UI se rompe si un API falla; provee datos de respaldo
+- **Verificación final** — después de cambios en frontend, corre `npx tsc --noEmit`
+
+### Servicios externos activos
+- **Devfolio MCP API** → `https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e`
+  - Protocolo: JSON-RPC 2.0 via HTTP POST
+  - Tool disponible: `list_hackathons` — devuelve hackatones reales con título, premio, tags, deadline
+- **Anthropic Claude 3.5** → `ANTHROPIC_API_KEY` en `.env`, usado por FastAPI en `/analyze/hackathon`
+- **RedimensionAI** → microservicio externo en `:8001`
+
+## Architecture Overview
+
+Xiimalab is a personal AI & Blockchain intelligence hub split into four independently deployable services:
+
+```
+/ (repo root)           → Next.js 14 frontend (app router, TypeScript, Tailwind)
+services/api/           → FastAPI backend (async SQLAlchemy, asyncpg, Uvicorn)
+services/scraper/       → DoraHacks scraper (Playwright + stealth, APScheduler)
+services/automation/    → Snap Engine — Puppeteer screenshot automation (planned)
+```
+
+**Data flow:**
+1. `scraper` runs on a schedule, scrapes DoraHacks via headless Chromium, parses cards through `parser.py`, and bulk-upserts into PostgreSQL via asyncpg directly (bypassing the ORM for speed).
+2. `api` (FastAPI) serves `hackathons` and `skill_demands` over REST. The frontend fetches from it at `NEXT_PUBLIC_API_URL`.
+3. `frontend` displays a sidebar-nav layout (`SidebarNav` always mounted in `layout.tsx`) with pages for hackathons, skills, and project cards.
+4. `redimension_ai` is an external microservice (`sanvalencia2828/redimension-ai:latest`) that runs on `:8001`.
+
+**Database:** PostgreSQL — local container for dev (`db` service, port 5433), Supabase for production. Schema lives in `services/db/init_supabase.sql`. Three tables: `hackathons`, `user_achievements`, `skill_demands`.
+
+**Hackathon IDs** are deterministic: `MD5(title.lower())[:12]` — this makes scraper upserts idempotent.
+
+**Match score** is computed in `parser.py:compute_match_score()` using a keyword-weight map (`SKILL_WEIGHTS`), normalized 0–100 with a floor of 5.
+
+## Commands
+
+### Frontend (Next.js)
+```bash
+cd /path/to/Xiimalab
+npm run dev          # dev server on :3000
+npm run build        # production build
+npm run lint         # ESLint via next lint
+```
+
+### API (FastAPI)
+```bash
+cd services/api
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+Seed the database (run after first `docker compose up`):
+```bash
+docker compose exec api python seed.py
+```
+
+### Scraper (Python)
+```bash
+cd services/scraper
+pip install -r requirements.txt
+playwright install chromium
+python scraper.py       # runs immediately then on schedule
+```
+
+Run scraper tests (no browser, no network required):
+```bash
+cd services/scraper
+pytest tests/ -v
+# Single test:
+pytest tests/test_parser.py::TestMatchScore::test_high_ai_blockchain_score -v
+```
+
+### Docker (full stack)
+```bash
+docker compose up --build -d
+docker compose logs -f scraper
+docker compose logs -f api
+docker compose down
+```
+
+## Environment
+
+Copy `.env.example` → `.env`. Key variables:
+
+| Variable | Used by |
+|----------|---------|
+| `DATABASE_URL` | `api` and `scraper` — full asyncpg/asyncpg-compatible connection string |
+| `ANTHROPIC_API_KEY` | `api` |
+| `SUPABASE_URL` / `SUPABASE_KEY` | Future Supabase client usage |
+| `NEXT_PUBLIC_API_URL` | Frontend → API URL |
+| `REDIMENSION_AI_URL` | Frontend/API → RedimensionAI sidecar |
+
+**Local dev DATABASE_URL:**
+```
+postgresql+asyncpg://postgres:xiima_pass@localhost:5433/xiimalab
+```
+(port 5433 because the `db` container maps `5433:5432`)
+
+**Production DATABASE_URL** points to Supabase pooler (transaction mode, port 5432).
+
+## Key Design Decisions
+
+- **`scraper` uses asyncpg directly** (not SQLAlchemy) for bulk upserts — don't refactor this to ORM without benchmarking.
+- **`parser.py` is browser-free** and fully unit-tested. Keep scraping logic out of it — `scraper.py` handles the browser, `parser.py` handles transformation only.
+- **Frontend builds from repo root** using `Dockerfile.frontend` (not `./frontend/`). The `docker-compose.yml` `frontend` service uses `build: ./frontend` which is currently mismatched — the correct context is the repo root with `dockerfile: Dockerfile.frontend`.
+- **`services/automation/`** does not yet exist. It will contain Puppeteer-based snapshot logic (`snap_engine.js`).
+- **`docker-compose.override.yml`** is gitignored — use it to layer local overrides (e.g., enabling/disabling the `db` service) without touching the base compose file.

@@ -39,6 +39,26 @@ async def get_hackathon(
     return hackathon
 
 
+@router.post("/sync")
+async def trigger_manual_sync():
+    """Triggers the external scraper service to run a sync immediately."""
+    import httpx
+    import os
+    
+    # Scraper URL — default to localhost for dev, but can be 'scraper' in docker
+    scraper_url = os.environ.get("SCRAPER_URL", "http://localhost:9000")
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(f"{scraper_url}/sync")
+            if resp.status_code == 202:
+                return {"status": "success", "message": "Manual sync triggered"}
+            else:
+                return {"status": "error", "message": f"Scraper returned {resp.status_code}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Could not reach scraper: {str(e)}"}
+
+
 @router.post("/", response_model=HackathonRead, status_code=201)
 async def create_or_update_hackathon(
     payload: HackathonCreate,

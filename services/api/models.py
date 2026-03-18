@@ -83,3 +83,58 @@ class SkillDemand(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+# ─────────────────────────────────────────────
+# AI Agent Infrastructure
+# ─────────────────────────────────────────────
+
+class AgentKnowledge(Base):
+    """Shared state and context for collaborative agents."""
+    __tablename__ = "agent_knowledge"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(64), nullable=False)  # e.g., 'scout', 'strategist'
+    topic: Mapped[str] = mapped_column(String(128), nullable=False)
+    content: Mapped[dict] = mapped_column(JSON, nullable=False)
+    relevance_score: Mapped[float] = mapped_column(Float, default=1.0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AgentSignal(Base):
+    """Event-driven triggers between specialized agents."""
+    __tablename__ = "agent_signals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_agent: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_agent: Mapped[str | None] = mapped_column(String(64), nullable=True)  # None = broadcast
+    signal_type: Mapped[str] = mapped_column(String(64), nullable=False)  # e.g., 'new_discovery', 'analysis_ready'
+    payload: Mapped[dict] = mapped_column(JSON, nullable=True)
+    is_processed: Mapped[bool] = mapped_column(nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class UserProject(Base):
+    """Tracking user projects for AI profile enrichment."""
+    __tablename__ = "user_projects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    github_repo_id: Mapped[int | None] = mapped_column(Integer, nullable=True, unique=True)
+    repo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    stack: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    impact_score: Mapped[int] = mapped_column(Integer, default=0)
+    is_public: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
