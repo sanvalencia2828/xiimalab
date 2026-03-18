@@ -2,20 +2,11 @@
 
 import { motion, type Variants } from "framer-motion";
 import { Trophy, Tag, Clock, TrendingUp, ExternalLink, Bot, Globe } from "lucide-react";
+import type { Hackathon } from "@/lib/types";
 
 // -------------------------------------------------------
 // TYPES
 // -------------------------------------------------------
-export interface Hackathon {
-    id: string;
-    title: string;
-    prizePool: number;
-    tags: string[];
-    deadline: string;
-    matchScore: number;
-    source?: "dorahacks" | "devfolio" | string;
-}
-
 interface DoraHacksFeedProps {
     hackathons: Hackathon[];
     showSource?: boolean;
@@ -139,7 +130,7 @@ export default function DoraHacksFeed({ hackathons, showSource = false }: DoraHa
                                 {/* Prize pool */}
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-amber-400 font-bold">
-                                        ${h.prizePool.toLocaleString()}
+                                        ${h.prize_pool.toLocaleString()}
                                     </span>
                                     <span className="text-muted-text">Prize Pool</span>
                                 </div>
@@ -159,9 +150,9 @@ export default function DoraHacksFeed({ hackathons, showSource = false }: DoraHa
                                 </div>
 
                                 {/* Match score */}
-                                <div className={`flex items-center gap-1 ml-auto font-bold ${matchColor(h.matchScore)}`}>
+                                <div className={`flex items-center gap-1 ml-auto font-bold ${matchColor(h.match_score)}`}>
                                     <TrendingUp className="w-3.5 h-3.5" />
-                                    <span>{h.matchScore}% match</span>
+                                    <span>{h.match_score}% match</span>
                                 </div>
                             </div>
 

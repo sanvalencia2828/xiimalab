@@ -23,14 +23,6 @@ export const supabase = supabaseUrl && supabaseKey
     ? createClient(supabaseUrl, supabaseKey)
     : null;
 
-export type ActiveHackathon = {
-    id:           string;
-    title:        string;
-    prize_pool:   number;
-    tags:         string[];
-    deadline:     string;
-    match_score:  number;
-    source_url:   string | null;
-    source:       string;
-    last_seen_at: string;
-};
+// Re-export from central types — use Hackathon everywhere
+export type { Hackathon as ActiveHackathon } from "@/lib/types";
+export { normalizeHackathon } from "@/lib/types";

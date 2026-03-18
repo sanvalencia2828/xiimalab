@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import HackathonCard   from "./HackathonCard";
 import HackatonesTable from "./HackatonesTable";
-import type { ActiveHackathon } from "@/lib/supabase";
+import type { Hackathon as ActiveHackathon } from "@/lib/types";
+import { normalizeHackathon as normalize } from "@/lib/types";
 
 // ── Tipos ──────────────────────────────────────────────────────────
 type Source   = "all" | "dorahacks" | "devfolio" | "devpost";
@@ -31,20 +32,11 @@ const TABS: { id: Source; label: string; icon: typeof Zap; color: string; mcpLiv
     { id: "devpost",   label: "Devpost",   icon: Trophy, color: "text-emerald-400 border-emerald-400/40 bg-emerald-400/10" },
 ];
 
-// ── Normalizer ─────────────────────────────────────────────────────
-function normalize(h: Record<string, unknown>): ActiveHackathon {
-    return {
-        id:           String(h.id          ?? ""),
-        title:        String(h.title       ?? ""),
-        prize_pool:   Number(h.prize_pool  ?? 0),
-        tags:         Array.isArray(h.tags) ? h.tags as string[] : [],
-        deadline:     String(h.deadline    ?? ""),
-        match_score:  Number(h.match_score ?? 0),
-        source_url:   (h.source_url as string | null) ?? null,
-        source:       String(h.source      ?? "unknown"),
-        last_seen_at: String(h.last_seen_at ?? ""),
-    };
-}
+// ── Normalizer now imported from lib/types ─────────────────────────
+// Legacy local definition removed — use normalizeHackathon() from @/lib/types
+// which handles both snake_case (DB/FastAPI) and camelCase (legacy scrapers)
+// and properly maps missing_skills + project_highlight from ai_analysis JSON.
+
 
 // ── Props ──────────────────────────────────────────────────────────
 interface HackatonesClientProps {
