@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+<<<<<<< HEAD
   LayoutDashboard,
   FolderKanban,
   Zap,
@@ -13,7 +14,20 @@ import {
   Cpu,
   ChevronRight,
   User,
+=======
+    LayoutDashboard,
+    FolderKanban,
+    Zap,
+    BarChart3,
+    ShoppingBag,
+    Settings,
+    Cpu,
+    ChevronRight,
+    Wallet,
+    CheckCircle2,
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 } from "lucide-react";
+import { useWallet } from "@/lib/WalletContext";
 
 // -------------------------------------------------------
 // NAV ITEMS CONFIG
@@ -32,7 +46,12 @@ const navItems = [
 // SIDEBAR NAV
 // -------------------------------------------------------
 export default function SidebarNav() {
+<<<<<<< HEAD
   const pathname = usePathname();
+=======
+    const pathname   = usePathname();
+    const { isConnected, publicKey, displayName } = useWallet();
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden">
@@ -92,6 +111,7 @@ export default function SidebarNav() {
         })}
       </nav>
 
+<<<<<<< HEAD
       {/* System status footer */}
       <div className="p-4 border-t border-border">
         <div className="bg-background rounded-xl p-3 border border-border">
@@ -130,3 +150,68 @@ export default function SidebarNav() {
     </aside>
   );
 }
+=======
+            {/* System status footer */}
+            <div className="p-4 border-t border-border">
+                <div className="bg-background rounded-xl p-3 border border-border">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                        </span>
+                        <span className="text-xs font-semibold text-emerald-400">Sistemas operativos</span>
+                    </div>
+                    <div className="space-y-1.5">
+                        {[
+                            { label: "AURA Engine", status: "online" },
+                            { label: "DoraHacks Bot", status: "online" },
+                            { label: "Devfolio MCP", status: "online" },
+                            { label: "Match API", status: "online" },
+                        ].map(({ label, status }) => (
+                            <div key={label} className="flex items-center justify-between">
+                                <span className="text-xs text-muted-text">{label}</span>
+                                <span className="text-xs text-emerald-400 font-medium capitalize">{status}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Wallet pill */}
+                <Link href="/settings">
+                    <div className={`mt-3 flex items-center gap-2.5 px-2 py-2 rounded-xl transition-colors cursor-pointer ${
+                        isConnected ? "hover:bg-emerald-500/5" : "hover:bg-amber-500/5"
+                    }`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                            isConnected
+                                ? "bg-emerald-500/15 border border-emerald-500/30"
+                                : "bg-amber-500/10 border border-amber-500/25"
+                        }`}>
+                            {isConnected
+                                ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                : <Wallet className="w-3.5 h-3.5 text-amber-400" />
+                            }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            {isConnected ? (
+                                <>
+                                    <p className="text-xs font-semibold text-emerald-400 truncate">
+                                        {displayName ?? "Wallet conectada"}
+                                    </p>
+                                    <p className="text-xs text-muted-text font-mono truncate">
+                                        {publicKey?.slice(0, 8)}…{publicKey?.slice(-4)}
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-xs font-semibold text-amber-400">Sin wallet</p>
+                                    <p className="text-xs text-muted-text">Conectar en Ajustes</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </Link>
+            </div>
+        </aside>
+    );
+}
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba

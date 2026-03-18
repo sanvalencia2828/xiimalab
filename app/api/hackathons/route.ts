@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+// Forzar renderizado dinámico — nunca pre-renderizar en build (no hay FastAPI en Vercel)
+export const dynamic = "force-dynamic";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+<<<<<<< HEAD
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const source = searchParams.get("source") ?? "all";
@@ -12,6 +16,19 @@ export async function GET(req: NextRequest) {
         const upstreamUrl = `${API_URL}/hackathons/?source=${source}&limit=30`;
         const res = await fetch(upstreamUrl, {
             cache: "no-store", // always fresh for filtered queries
+=======
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const source = searchParams.get("source") ?? "all";
+    const limit = searchParams.get("limit") ?? "30";
+
+    const params = new URLSearchParams({ limit });
+    if (source !== "all") params.set("source", source);
+
+    try {
+        const res = await fetch(`${API_URL}/hackathons/?${params}`, {
+            next: { revalidate: 300 },
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
         });
 
         if (!res.ok) {

@@ -28,7 +28,213 @@ services:
     environment:
       - SCRAPER_URL=http://scraper:9000
 
+<<<<<<< HEAD
   # Frontend - Dashboard de Next.js
+=======
+  # ─────────────────────────────────────────────
+  # Devpost Scraper — Antigravity engine
+  # ─────────────────────────────────────────────
+  devpost:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python devpost_engine.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      HEADLESS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    shm_size: '256m'
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # SNAP Engine — Scraper multi-fuente (Devpost + DoraHacks + Devfolio)
+  # ─────────────────────────────────────────────
+  snap-engine:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python snap_engine.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      REDIS_URL: redis://redis:6379
+      DEVFOLIO_MCP_API_KEY: ${DEVFOLIO_MCP_API_KEY}
+      SNAP_INTERVAL_HOURS: ${SNAP_INTERVAL_HOURS:-12}
+      HEADLESS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    shm_size: '256m'
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Agent Crew — 4 agentes colaborativos (Scout→Analyzer→Oracle→Writer)
+  # ─────────────────────────────────────────────
+  agent-crew:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python agent_crew.py --loop 3600
+    environment:
+      DATABASE_URL:          postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      ML_MODEL:              all-MiniLM-L6-v2
+      AGENT_TOP_MATCHES:     ${AGENT_TOP_MATCHES:-3}
+      AGENT_MIN_SCORE:       ${AGENT_MIN_SCORE:-40}
+      AGENT_INSIGHT_TTL_DAYS: ${AGENT_INSIGHT_TTL_DAYS:-14}
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Payout Oracle — Única pieza con acceso a Hot Wallet
+  # Escucha Supabase Realtime + polling de respaldo
+  # ─────────────────────────────────────────────
+  payout-oracle:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: always          # 24/7 — critical service
+    command: python payout_manager.py
+    environment:
+      DATABASE_URL:             postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_PLATFORM_SECRET:  ${STELLAR_PLATFORM_SECRET}   # Hot wallet — SECRETO
+      STELLAR_NETWORK:          ${STELLAR_NETWORK:-testnet}
+      SUPABASE_URL:             ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY:     ${SUPABASE_SERVICE_KEY:-}     # Service Role Key
+      MAX_RETRIES:              ${MAX_RETRIES:-3}
+      POLL_INTERVAL_SEC:        ${POLL_INTERVAL_SEC:-30}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Solo este contenedor tiene la secret key — aislamiento explícito
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # ML Matcher — Embeddings + MarketMatch con pgvector
+  # ─────────────────────────────────────────────
+  ml-matcher:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python ml_matcher.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      ML_MODEL: all-MiniLM-L6-v2
+    depends_on:
+      db:
+        condition: service_healthy
+    # El modelo pesa ~80MB RAM en CPU; 512MB es suficiente
+    mem_limit: 512m
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Crew Monitor — Monitoreo de colaboración multi-agente
+  # Dispara agent-crew cada MONITOR_INTERVAL segundos
+  # y genera reportes de cómo colaboran los agentes
+  # ─────────────────────────────────────────────
+  crew-monitor:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python crew_monitor.py --interval 300
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      ML_MODEL: all-MiniLM-L6-v2
+      MONITOR_INTERVAL: ${MONITOR_INTERVAL:-300}
+    depends_on:
+      db:
+        condition: service_healthy
+      agent-crew:
+        condition: service_started
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Skill Validator — El Vigilante de Proof of Skill
+  # Vigila is_completed=TRUE y ejecuta ClaimCB + Payment en Stellar
+  # ─────────────────────────────────────────────
+  skill-validator:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python skill_validator.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY}
+      VALIDATOR_INTERVAL_SEC: ${VALIDATOR_INTERVAL_SEC:-60}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Staking Monitor — libera escrows automáticamente
+  # ─────────────────────────────────────────────
+  staking-monitor:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python staking_manager.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY}
+      AURA_IMAGES_MILESTONE: ${AURA_IMAGES_MILESTONE:-10}
+      ESCROW_TIMEOUT_DAYS: ${ESCROW_TIMEOUT_DAYS:-180}
+      STAKING_MONITOR_INTERVAL_SEC: 60
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Devfolio MCP Scraper — Tiempo real vía MCP
+  # ─────────────────────────────────────────────
+  devfolio:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python devfolio_mcp.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      REDIS_URL: redis://redis:6379
+      DEVFOLIO_MCP_API_KEY: ${DEVFOLIO_MCP_API_KEY}
+      DEVFOLIO_INTERVAL_MINUTES: ${DEVFOLIO_INTERVAL_MINUTES:-15}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Next.js Frontend
+  # ─────────────────────────────────────────────
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
   frontend:
     build: ./frontend
     container_name: xiima_frontend

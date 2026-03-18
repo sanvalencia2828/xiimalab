@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
 import asyncpg
+import redis.asyncio as aioredis
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # Import integrations
@@ -28,8 +29,12 @@ from integrations import devfolio, dorahacks, devpost
 DATABASE_URL: str = os.environ.get(
     "DATABASE_URL", "postgresql://xiima:secret@localhost:5432/xiimalab"
 )
+REDIS_URL: str = os.environ.get("REDIS_URL", "redis://localhost:6379")
 SCRAPER_INTERVAL_MINUTES: int = int(os.environ.get("SCRAPER_INTERVAL_MINUTES", 30))
 API_URL: str = os.environ.get("NEXT_PUBLIC_API_URL", "http://localhost:8000")
+HEADLESS: bool = os.environ.get("HEADLESS", "true").lower() == "true"
+DORAHACKS_URL = "https://dorahacks.io/hackathon"
+REDIS_HACKATHONS_CHANNEL = "hackathons:new"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("xiima.scraper")
@@ -42,6 +47,9 @@ async def upsert_hackathons(items: list[dict]) -> None:
         return
 
     conn = await asyncpg.connect(DATABASE_URL)
+    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    new_count = 0
+
     try:
         records = [
             (
@@ -71,11 +79,31 @@ async def upsert_hackathons(items: list[dict]) -> None:
             """,
             records,
         )
+
+        # Publish new hackathons to Redis channel
+        from datetime import datetime, timezone
+        for item in items:
+            await redis_client.publish(
+                REDIS_HACKATHONS_CHANNEL,
+                json.dumps({
+                    "id": item["id"],
+                    "title": item["title"],
+                    "prize_pool": item["prize_pool"],
+                    "tags": item["tags"],
+                    "deadline": item["deadline"],
+                    "match_score": item["match_score"],
+                    "source_url": item["source_url"],
+                    "source": item["source"],
+                    "scraped_at": datetime.now(timezone.utc).isoformat(),
+                }),
+            )
+
         log.info(f"✅ Successfully upserted {len(items)} hackathons to PostgreSQL")
     except Exception as e:
         log.error(f"❌ DB Upsert Error: {e}")
     finally:
         await conn.close()
+        await redis_client.close()
 
 # ─────────────────────────────────────────────
 # ML Pipeline Automation

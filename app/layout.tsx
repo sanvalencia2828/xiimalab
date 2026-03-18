@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SidebarNav from "@/components/SidebarNav";
+<<<<<<< HEAD
 import { WalletProvider } from "@/context/WalletContext";
+=======
+import { WalletProvider } from "@/lib/WalletContext";
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
 export const metadata: Metadata = {
     title: "Xiimalab — AI & Blockchain Intelligence Hub",
@@ -24,6 +28,7 @@ export default function RootLayout({
     return (
         <html lang="es" className="dark">
             <body className="bg-background text-slate-100 font-sans antialiased">
+<<<<<<< HEAD
                 <div className="flex min-h-screen">
                     {/* Fixed Sidebar */}
                     <SidebarNav />
@@ -35,6 +40,16 @@ export default function RootLayout({
                         </WalletProvider>
                     </main>
                 </div>
+=======
+                <WalletProvider>
+                    <div className="flex min-h-screen">
+                        <SidebarNav />
+                        <main className="flex-1 ml-64 min-h-screen">
+                            {children}
+                        </main>
+                    </div>
+                </WalletProvider>
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
             </body>
         </html>
     );

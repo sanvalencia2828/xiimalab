@@ -1,5 +1,5 @@
 """
-Xiimalab AI Engine — Claude 3.5 Sonnet competitiveness analysis.
+Xiimalab AI Engine — competitiveness analysis via OpenRouter (Claude/GPT fallback).
 
 analyze_competitiveness(opportunity) → {
     match_score: int (0-100),
@@ -7,27 +7,41 @@ analyze_competitiveness(opportunity) → {
     project_highlight: str,
 }
 
-Fully async. Gracefully degrades to zeroed response on API failure.
+Fully async. Exponential backoff on rate limits / server errors.
+Gracefully degrades to zeroed response after max retries.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import random
 from typing import Any
 
-import anthropic
+import httpx
 import asyncpg
 
 # ─────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────
-ANTHROPIC_API_KEY: str = os.environ.get("ANTHROPIC_API_KEY", "")
+OPENROUTER_API_KEY: str = os.environ.get("OPENROUTER_API_KEY", "")
+ANTHROPIC_API_KEY: str  = os.environ.get("ANTHROPIC_API_KEY", "")   # legacy fallback
 DATABASE_URL: str = os.environ.get(
     "DATABASE_URL", "postgresql+asyncpg://xiima:secret@localhost:5432/xiimalab"
 )
-MODEL = "claude-sonnet-4-6"
-MAX_TOKENS = 1024
+
+# OpenRouter — primary provider
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL    = "anthropic/claude-3.5-sonnet"   # change to openai/gpt-4o, etc.
+MAX_TOKENS          = 1024
+
+# Retry config — exponential backoff
+MAX_RETRIES    = 4          # total attempts
+BASE_DELAY     = 1.0        # seconds for first retry
+MAX_DELAY      = 30.0       # cap on delay
+JITTER         = 0.3        # ±30% random jitter to avoid thundering herd
+RETRYABLE_CODES = {429, 500, 502, 503, 504}  # HTTP codes worth retrying
 
 log = logging.getLogger("xiima.ai_engine")
 
@@ -153,11 +167,97 @@ Example format:
 
 
 # ─────────────────────────────────────────────
+# Exponential backoff helper
+# ─────────────────────────────────────────────
+def _backoff_delay(attempt: int) -> float:
+    """Return delay in seconds for given attempt (0-indexed) with jitter."""
+    delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+    jitter = delay * JITTER * (random.random() * 2 - 1)  # ±JITTER%
+    return max(0.1, delay + jitter)
+
+
+# ─────────────────────────────────────────────
+# OpenRouter API call with retries
+# ─────────────────────────────────────────────
+async def _call_openrouter(prompt: str, title: str) -> str:
+    """
+    Call OpenRouter API with exponential backoff retries.
+
+    Retries on:  429 (rate limit), 500/502/503/504 (server errors), timeouts
+    Fails fast on: 400 (bad request), 401 (invalid key), 403 (forbidden)
+
+    Returns raw text content from the model.
+    Raises RuntimeError after max retries exhausted.
+    """
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://xiimalab.vercel.app",
+        "X-Title": "Xiimalab AI Engine",
+    }
+    payload = {
+        "model": OPENROUTER_MODEL,
+        "max_tokens": MAX_TOKENS,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+
+    last_error: Exception | None = None
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for attempt in range(MAX_RETRIES):
+            try:
+                log.info(f"[AI] attempt {attempt+1}/{MAX_RETRIES} — '{title}'")
+                resp = await client.post(OPENROUTER_BASE_URL, headers=headers, json=payload)
+
+                # Fast-fail on auth/bad-request errors — no point retrying
+                if resp.status_code in (400, 401, 403):
+                    body = resp.text[:300]
+                    raise RuntimeError(f"Non-retryable HTTP {resp.status_code}: {body}")
+
+                # Retryable server/rate-limit errors
+                if resp.status_code in RETRYABLE_CODES:
+                    delay = _backoff_delay(attempt)
+                    retry_after = float(resp.headers.get("Retry-After", delay))
+                    wait = max(delay, retry_after)
+                    log.warning(
+                        f"[AI] HTTP {resp.status_code} on attempt {attempt+1} "
+                        f"— retrying in {wait:.1f}s"
+                    )
+                    last_error = RuntimeError(f"HTTP {resp.status_code}")
+                    await asyncio.sleep(wait)
+                    continue
+
+                resp.raise_for_status()
+                data = resp.json()
+                return data["choices"][0]["message"]["content"]
+
+            except httpx.TimeoutException as exc:
+                delay = _backoff_delay(attempt)
+                log.warning(f"[AI] Timeout on attempt {attempt+1} — retrying in {delay:.1f}s")
+                last_error = exc
+                await asyncio.sleep(delay)
+
+            except httpx.RequestError as exc:
+                delay = _backoff_delay(attempt)
+                log.warning(f"[AI] Network error on attempt {attempt+1}: {exc} — retrying in {delay:.1f}s")
+                last_error = exc
+                await asyncio.sleep(delay)
+
+    raise RuntimeError(
+        f"OpenRouter failed after {MAX_RETRIES} attempts for '{title}'. "
+        f"Last error: {last_error}"
+    )
+
+
+# ─────────────────────────────────────────────
 # Core analysis function
 # ─────────────────────────────────────────────
 async def analyze_competitiveness(opportunity: dict[str, Any], aura_context: dict = None) -> dict[str, Any]:
     """
     Analyze a hackathon/job opportunity against the developer profile.
+
+    Uses OpenRouter as primary provider with exponential backoff.
+    Falls back gracefully to zeroed response if all retries exhausted.
 
     Args:
         opportunity: dict with keys like title, tags, prize_pool, description, etc.
@@ -170,52 +270,50 @@ async def analyze_competitiveness(opportunity: dict[str, Any], aura_context: dic
             project_highlight: str,
         }
     """
+<<<<<<< HEAD
     _fallback = {"match_score": 0, "missing_skills": [], "project_highlight": "", "strategic_category": "Skill Builder"}
+=======
+    _fallback = {"match_score": 0, "missing_skills": [], "project_highlight": ""}
+    title = opportunity.get("title", "unknown")
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
-    if not ANTHROPIC_API_KEY:
-        log.error("ANTHROPIC_API_KEY not set — cannot run analysis")
+    if not OPENROUTER_API_KEY:
+        log.error("OPENROUTER_API_KEY not set — cannot run analysis")
         return _fallback
 
+<<<<<<< HEAD
     # Enrich prompt with AURA context if available
     enriched_opportunity = {**opportunity}
     if aura_context:
         enriched_opportunity["_aura_insights"] = aura_context
         
     prompt = await _build_prompt(enriched_opportunity)
+=======
+    prompt = await _build_prompt(opportunity)
+    raw_text = ""
+>>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
     try:
-        import asyncio
-        loop = asyncio.get_event_loop()
+        raw_text = await _call_openrouter(prompt, title)
+        log.info(f"[AI] response for '{title}': {raw_text[:120]}…")
 
-        def _call_claude() -> str:
-            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-            message = client.messages.create(
-                model=MODEL,
-                max_tokens=MAX_TOKENS,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return message.content[0].text
-
-        raw_text = await loop.run_in_executor(None, _call_claude)
-        log.info(f"Claude response for '{opportunity.get('title', '?')}': {raw_text[:120]}…")
-
-        # Parse JSON from response
         result = json.loads(raw_text.strip())
 
-        # Validate & sanitize fields
         return {
-            "match_score": max(0, min(100, int(result.get("match_score", 0)))),
-            "missing_skills": [str(s) for s in result.get("missing_skills", [])[:5]],
+            "match_score":     max(0, min(100, int(result.get("match_score", 0)))),
+            "missing_skills":  [str(s) for s in result.get("missing_skills", [])[:5]],
             "project_highlight": str(result.get("project_highlight", "")),
             "strategic_category": str(result.get("strategic_category", "Skill Builder")),  # Default to Skill Builder
         }
 
     except json.JSONDecodeError as exc:
-        log.error(f"Claude returned invalid JSON: {exc}\nRaw: {raw_text}")
+        log.error(f"[AI] Invalid JSON from model: {exc}\nRaw: {raw_text[:300]}")
         return _fallback
-    except anthropic.APIError as exc:
-        log.error(f"Anthropic API error: {exc}")
+
+    except RuntimeError as exc:
+        log.error(f"[AI] {exc}")
         return _fallback
+
     except Exception as exc:
-        log.error(f"Unexpected AI engine error: {exc}", exc_info=True)
+        log.error(f"[AI] Unexpected error for '{title}': {exc}", exc_info=True)
         return _fallback
