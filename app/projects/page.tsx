@@ -18,6 +18,7 @@ const projects: ProjectCardProps[] = [
         dockerActive: true,
         metrics: { accuracy: "94%", latency: "< 80ms", platforms: 6 },
         accentColor: "#7dd3fc",
+        githubUrl: "https://github.com/sanvalencia2828/RedimensionAI",
     },
     {
         title: "RedimensionAI",
@@ -28,6 +29,7 @@ const projects: ProjectCardProps[] = [
         dockerActive: false,
         metrics: { formats: 8, reduction: "70%", speed: "2x" },
         accentColor: "#38bdf8",
+        githubUrl: "https://github.com/sanvalencia2828/RedimensionAI",
     },
     {
         title: "Xiimalab",
@@ -38,6 +40,8 @@ const projects: ProjectCardProps[] = [
         dockerActive: false,
         metrics: { pages: 5, scrapers: 3, integrations: "MCP" },
         accentColor: "#a78bfa",
+        githubUrl: "https://github.com/sanvalencia2828/xiimalab",
+        liveUrl: "https://xiimalab.vercel.app",
     },
 ];
 

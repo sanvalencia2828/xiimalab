@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { CheckCircle2, Circle, Clock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Circle, Clock, Github, ExternalLink, ChevronDown } from "lucide-react";
+import { useState } from "react";
 import ProjectInsightCard from "./ProjectInsightCard";
 
 // -------------------------------------------------------
@@ -18,6 +19,9 @@ export interface ProjectCardProps {
     metrics?: Record<string, string | number>;
     accentColor?: string;
     className?: string;
+    githubUrl?: string;   // e.g. "https://github.com/sanvalencia2828/xiimalab"
+    liveUrl?: string;     // e.g. "https://xiimalab.vercel.app"
+    onStatusChange?: (newStatus: ProjectStatus) => void;
 }
 
 // -------------------------------------------------------
@@ -81,13 +85,32 @@ const defaultPillColor = "bg-slate-700/50 text-slate-300 border-slate-600/30";
 export default function ProjectCard({
     title,
     description,
-    status,
+    status: initialStatus,
     stack,
     dockerActive = false,
     metrics,
     accentColor = "#7dd3fc",
     className = "",
+    githubUrl,
+    liveUrl,
+    onStatusChange,
 }: ProjectCardProps) {
+    const storageKey = `project-status-${title.toLowerCase().replace(/\s+/g, "-")}`;
+    const [status, setStatus] = useState<ProjectStatus>(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem(storageKey) as ProjectStatus) ?? initialStatus;
+        }
+        return initialStatus;
+    });
+    const [showStatusMenu, setShowStatusMenu] = useState(false);
+
+    function changeStatus(next: ProjectStatus) {
+        setStatus(next);
+        setShowStatusMenu(false);
+        if (typeof window !== "undefined") localStorage.setItem(storageKey, next);
+        onStatusChange?.(next);
+    }
+
     const cfg = statusConfig[status];
     const StatusIcon = cfg.icon;
 
@@ -119,15 +142,47 @@ export default function ProjectCard({
                     <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">{description}</p>
                 </div>
 
-                {/* Status badge */}
-                <div
-                    className={`flex items-center gap-1.5 ml-4 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.textClass} ${cfg.borderClass} bg-opacity-10 shrink-0`}
-                >
-                    <span
-                        className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} ${status === "active" ? "animate-pulse" : ""}`}
-                    />
-                    <StatusIcon className="w-3 h-3" />
-                    <span>{cfg.label}</span>
+                {/* Status badge — clickable dropdown */}
+                <div className="relative shrink-0 ml-4">
+                    <button
+                        onClick={() => setShowStatusMenu((v) => !v)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.textClass} ${cfg.borderClass} bg-opacity-10 hover:bg-opacity-20 transition-colors`}
+                        title="Click para cambiar estado"
+                    >
+                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} ${status === "active" ? "animate-pulse" : ""}`} />
+                        <StatusIcon className="w-3 h-3" />
+                        <span>{cfg.label}</span>
+                        <ChevronDown className={`w-2.5 h-2.5 transition-transform ${showStatusMenu ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                        {showStatusMenu && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute right-0 top-8 z-50 w-44 bg-card border border-border rounded-xl shadow-xl overflow-hidden"
+                            >
+                                {(Object.keys(statusConfig) as ProjectStatus[]).map((s) => {
+                                    const sc = statusConfig[s];
+                                    const Ic = sc.icon;
+                                    return (
+                                        <button
+                                            key={s}
+                                            onClick={() => changeStatus(s)}
+                                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-white/5 transition-colors ${sc.textClass} ${s === status ? "bg-white/5" : ""}`}
+                                        >
+                                            <span className={`w-1.5 h-1.5 rounded-full ${sc.dotClass}`} />
+                                            <Ic className="w-3 h-3" />
+                                            {sc.label}
+                                            {s === status && <span className="ml-auto text-slate-500">✓</span>}
+                                        </button>
+                                    );
+                                })}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -172,6 +227,39 @@ export default function ProjectCard({
                             <p className="text-xs text-muted-text capitalize">{key}</p>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Links — GitHub + Live */}
+            {(githubUrl || liveUrl) && (
+                <div className="flex items-center gap-2 pt-3 border-t border-border mt-2">
+                    {githubUrl && (
+                        <a
+                            href={githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:border-white/25 hover:bg-white/10 transition-all"
+                        >
+                            <Github className="w-3.5 h-3.5" />
+                            GitHub
+                        </a>
+                    )}
+                    {liveUrl && (
+                        <a
+                            href={liveUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all"
+                            style={{
+                                background: `${accentColor}12`,
+                                borderColor: `${accentColor}30`,
+                                color: accentColor,
+                            }}
+                        >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Ver en vivo
+                        </a>
+                    )}
                 </div>
             )}
 
