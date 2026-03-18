@@ -46,13 +46,11 @@ interface SkillDemand {
 // -------------------------------------------------------
 // SKILLS HOOK — fetches from /api/skills → FastAPI
 // -------------------------------------------------------
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 function useSkillDemands(): SkillDemand[] {
     const [skills, setSkills] = useState<SkillDemand[]>([]);
 
     useEffect(() => {
-        fetch(`${API_URL}/skills/market`)
+        fetch("/api/skills")
             .then((r) => r.json())
             .then((data: SkillDemand[]) => setSkills(data.slice(0, 6)))
             .catch(() => null);

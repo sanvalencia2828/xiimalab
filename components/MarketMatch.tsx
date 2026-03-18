@@ -293,9 +293,45 @@ function AIInsightsModal({ skill, onClose }: InsightsModal) {
 // -------------------------------------------------------
 // MAIN COMPONENT
 // -------------------------------------------------------
+// Icon map for API-returned skills (by label keyword)
+const ICON_MAP: Record<string, React.ElementType> = {
+    "Data":       BarChart3,
+    "Docker":     TrendingUp,
+    "Blockchain": Target,
+    "AI":         BrainCircuit,
+    "ML":         BrainCircuit,
+    "Python":     BarChart3,
+};
+function iconForLabel(label: string): React.ElementType {
+    for (const [key, Icon] of Object.entries(ICON_MAP)) {
+        if (label.includes(key)) return Icon;
+    }
+    return BarChart3;
+}
+
 export default function MarketMatch() {
     const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
-    const [skills] = useState<Skill[]>(BASE_SKILLS);
+    const [skills, setSkills]               = useState<Skill[]>(BASE_SKILLS);
+    const [loadingSkills, setLoadingSkills] = useState(true);
+
+    // Fetch skills from API on mount — fallback to BASE_SKILLS on error
+    useEffect(() => {
+        fetch("/api/skills")
+            .then((r) => r.json())
+            .then((data: Array<{ label: string; sublabel?: string; user_score: number; market_demand: number; color: string }>) => {
+                if (!Array.isArray(data) || data.length === 0) return;
+                setSkills(data.map((s) => ({
+                    label:        s.label,
+                    sublabel:     s.sublabel ?? "",
+                    userScore:    s.user_score,
+                    marketDemand: s.market_demand,
+                    color:        s.color,
+                    icon:         iconForLabel(s.label),
+                })));
+            })
+            .catch(() => {/* keep BASE_SKILLS fallback */})
+            .finally(() => setLoadingSkills(false));
+    }, []);
 
     const overallScore = Math.round(
         skills.reduce((acc, s) => acc + (s.userScore / s.marketDemand) * 100, 0) / skills.length
@@ -328,7 +364,18 @@ export default function MarketMatch() {
 
                 {/* Skills list */}
                 <div className="space-y-5">
-                    {skills.map(({ label, sublabel, userScore, marketDemand, color, icon: Icon }, idx) => (
+                    {loadingSkills ? (
+                        // Skeleton loading
+                        Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="animate-pulse space-y-2">
+                                <div className="flex justify-between">
+                                    <div className="h-3 w-32 bg-slate-700/60 rounded" />
+                                    <div className="h-3 w-12 bg-slate-700/60 rounded" />
+                                </div>
+                                <div className="h-2 w-full bg-slate-700/40 rounded-full" />
+                            </div>
+                        ))
+                    ) : skills.map(({ label, sublabel, userScore, marketDemand, color, icon: Icon }, idx) => (
                         <motion.div
                             key={label}
                             initial={{ opacity: 0, y: 10 }}

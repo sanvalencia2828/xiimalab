@@ -89,14 +89,19 @@ function ApplyButton({ hackathonId, sourceUrl }: { hackathonId: string; sourceUr
     const handleApply = async () => {
         if (state !== "idle") return;
         setState("loading");
-
-        // Simula 1 segundo de carga (aquí irá el call real a /staking/hackathon-apply)
-        await new Promise((r) => setTimeout(r, 1000));
-
-        setState("applied");
-
-        // Abrir URL de la hackatón en nueva pestaña
-        if (sourceUrl) window.open(sourceUrl, "_blank", "noopener noreferrer");
+        try {
+            const res = await fetch("/api/hackathons/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ hackathon_id: hackathonId }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setState("applied");
+            if (sourceUrl) window.open(sourceUrl, "_blank", "noopener noreferrer");
+        } catch (err) {
+            console.error("[ApplyButton]", err);
+            setState("idle"); // reset so user can retry
+        }
     };
 
     return (
