@@ -18,7 +18,7 @@ const projects: ProjectCardProps[] = [
         dockerActive: true,
         metrics: { accuracy: "94%", latency: "< 80ms", platforms: 6 },
         accentColor: "#7dd3fc",
-        githubUrl: "https://github.com/sanvalencia2828/RedimensionAI",
+        githubUrl: "https://github.com/sanvalencia2828/Aura",
     },
     {
         title: "RedimensionAI",
