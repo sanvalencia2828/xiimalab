@@ -4,7 +4,7 @@ import os
 import random
 import re
 from playwright.async_api import async_playwright
-from playwright_stealth import stealth_async
+from playwright_stealth import Stealth
 
 log = logging.getLogger("xiima.scraper.dorahacks")
 
@@ -45,13 +45,15 @@ async def scrape() -> list[dict]:
             viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)}
         )
         page = await context.new_page()
-        await stealth_async(page)
+        # Apply stealth to the page using the new API
+        stealth = Stealth()
+        await stealth.apply_stealth_async(page)
 
         try:
             await page.goto(DORAHACKS_URL, wait_until="domcontentloaded", timeout=45_000)
             await _random_delay(3.0, 5.0)
             await _simulate_scroll(page)
-            
+
             # Extraction logic migrated from scraper.py
             results = await page.evaluate("""
                 () => {
@@ -95,11 +97,11 @@ def parse(raw_items: list[dict]) -> list[dict]:
     for item in raw_items:
         title = item.get("title", "").strip()
         if not title: continue
-        
+
         url = item.get("url", "")
         # Generate stable ID
         slug = re.sub(r"[^a-z0-9]", "-", (title + url).lower())[:60]
-        
+
         parsed.append({
             "id": f"dorahacks-{slug}",
             "title": title,

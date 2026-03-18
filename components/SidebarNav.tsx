@@ -4,17 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-<<<<<<< HEAD
-  LayoutDashboard,
-  FolderKanban,
-  Zap,
-  BarChart3,
-  ShoppingBag,
-  Settings,
-  Cpu,
-  ChevronRight,
-  User,
-=======
     LayoutDashboard,
     FolderKanban,
     Zap,
@@ -25,7 +14,6 @@ import {
     ChevronRight,
     Wallet,
     CheckCircle2,
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 } from "lucide-react";
 import { useWallet } from "@/lib/WalletContext";
 
@@ -38,7 +26,7 @@ const navItems = [
   { href: "/hackatones", icon: Zap, label: "Hackatones" },
   { href: "/match", icon: BarChart3, label: "Market Match" },
   { href: "/ecommerce", icon: ShoppingBag, label: "Ecommerce" },
-  { href: "/perfil", icon: User, label: "Perfil" },
+  { href: "/perfil", icon: Wallet, label: "Perfil" },
   { href: "/settings", icon: Settings, label: "Configuración" },
 ];
 
@@ -46,12 +34,8 @@ const navItems = [
 // SIDEBAR NAV
 // -------------------------------------------------------
 export default function SidebarNav() {
-<<<<<<< HEAD
-  const pathname = usePathname();
-=======
     const pathname   = usePathname();
     const { isConnected, publicKey, displayName } = useWallet();
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden">
@@ -111,46 +95,6 @@ export default function SidebarNav() {
         })}
       </nav>
 
-<<<<<<< HEAD
-      {/* System status footer */}
-      <div className="p-4 border-t border-border">
-        <div className="bg-background rounded-xl p-3 border border-border">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-            </span>
-            <span className="text-xs font-semibold text-emerald-400">Sistemas operativos</span>
-          </div>
-          <div className="space-y-1.5">
-            {[
-              { label: "AURA Engine", status: "online" },
-              { label: "DoraHacks Bot", status: "online" },
-              { label: "Match API", status: "online" },
-            ].map(({ label, status }) => (
-              <div key={label} className="flex items-center justify-between">
-                <span className="text-xs text-muted-text">{label}</span>
-                <span className="text-xs text-emerald-400 font-medium capitalize">{status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* User pill */}
-        <div className="mt-3 flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent/60 to-accent-dim/60 flex items-center justify-center text-xs font-bold text-background">
-            X
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-200 truncate">Xiimalab Dev</p>
-            <p className="text-xs text-muted-text truncate">Administrador</p>
-          </div>
-        </div>
-      </div>
-    </aside>
-  );
-}
-=======
             {/* System status footer */}
             <div className="p-4 border-t border-border">
                 <div className="bg-background rounded-xl p-3 border border-border">
@@ -214,4 +158,3 @@ export default function SidebarNav() {
         </aside>
     );
 }
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
