@@ -138,3 +138,63 @@ class UserProject(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class UserNeuroProfile(Base):
+    """Neuropsychological profile for personalized learning paths."""
+    __tablename__ = "user_neuro_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    wallet_address: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    
+    # Cognitive profile
+    dominant_category: Mapped[str] = mapped_column(String(32), nullable=False, default="executive")
+    cognitive_strengths: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    cognitive_weaknesses: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    
+    # Learning preferences
+    learning_style: Mapped[str] = mapped_column(String(32), nullable=False, default="visual")
+    optimal_time: Mapped[str] = mapped_column(String(32), nullable=False, default="morning")
+    available_minutes_daily: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
+    
+    # Skill progress tracking
+    skills_progress: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # {"python": {"hours": 10, "mastery": 45, "streak": 5, "last_practiced": "2026-03-19"}}
+    
+    # Computed scores
+    neuroplasticity_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    learning_efficiency: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    
+    # Stats
+    total_hours_learned: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    hackathons_participated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    projects_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    
+    # Goals
+    target_skills: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class HackathonNotification(Base):
+    """Push notification records for hackathon urgency."""
+    __tablename__ = "hackathon_notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    wallet_address: Mapped[str] = mapped_column(String(64), nullable=False)
+    hackathon_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    notification_type: Mapped[str] = mapped_column(String(32), nullable=False)  # urgency, deadline, opportunity
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    is_sent: Mapped[bool] = mapped_column(nullable=False, default=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

@@ -10,6 +10,7 @@ from db import engine, Base
 from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge
 from routes.insights import router as insights_router
 from routes.neuro import router as neuro_router
+from routes.notifications import router as notifications_router
 from hotmart_bridge import router as hotmart_router
 from skill_validator import router as skill_validator_router
 from integrations.aura_client import router as aura_router
@@ -74,6 +75,7 @@ app.include_router(profile_router, prefix="/api", tags=["profile"])
 app.include_router(github_router, prefix="/api", tags=["github"])
 app.include_router(insights_router, prefix="/insights", tags=["insights"])
 app.include_router(neuro_router, prefix="/neuro", tags=["neuro"])
+app.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 
 
 # ─────────────────────────────────────────────

@@ -90,6 +90,20 @@ Análisis de tags más demandados en el mercado para guiar desarrollo de skills.
 - `PriorityBoard.tsx` — Widget completo con tabs (Prioridades, Tags, Acciones)
 - `CompactView` — Versión reducida para dashboard
 - `actions/insights.ts` — Server Actions para consumir los endpoints
+- `NeuroProfileDashboard.tsx` — Dashboard de perfil neuropsicológico
+- `notification_service.py` — Sistema de notificaciones push para hackathons urgentes
+
+### Endpoints de Notificaciones
+- `GET /notifications/{wallet}` — Obtiene notificaciones para usuario
+- `POST /notifications/{wallet}/mark-read` — Marca como leídas
+- `GET /notifications/count/{wallet}` — Conteo de notificaciones pendientes
+
+### Perfil Neuropsicológico
+El sistema incluye tracking de:
+- **Neuroplasticidad**: Capacidad de aprendizaje del usuario (0-1)
+- **Categorías cognitivas**: Memory, Attention, Executive, Language, Visuospatial, Motor, Metacognition
+- **Perfil de skills**: Progreso, mastery, streak, horas practicadas
+- **Match personalizado**: Basado en overlap de skills del usuario vs tags de hackathon
 
 ## Commands
 
