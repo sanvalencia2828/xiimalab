@@ -11,7 +11,6 @@
  */
 import { Suspense } from "react";
 import { Trophy, Coins, Target, Calendar, ExternalLink, Database } from "lucide-react";
-import { useWallet } from "@/lib/WalletContext";
 import StakingClient from "@/components/StakingClient";
 
 // force-dynamic: evita problemas con fetch a localhost durante el build
