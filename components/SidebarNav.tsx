@@ -14,6 +14,8 @@ import {
     ChevronRight,
     Wallet,
     CheckCircle2,
+    Brain,
+    Target,
 } from "lucide-react";
 import { useWallet } from "@/lib/WalletContext";
 
@@ -22,11 +24,12 @@ import { useWallet } from "@/lib/WalletContext";
 // -------------------------------------------------------
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/projects", icon: FolderKanban, label: "Proyectos" },
-  { href: "/hackatones", icon: Zap, label: "Hackatones" },
+  { href: "/skills", icon: Brain, label: "Skills" },
+  { href: "/hackathons", icon: Zap, label: "Hackatones" },
   { href: "/match", icon: BarChart3, label: "Market Match" },
-  { href: "/ecommerce", icon: ShoppingBag, label: "Ecommerce" },
-  { href: "/perfil", icon: Wallet, label: "Perfil" },
+  { href: "/profile", icon: Target, label: "Mi Perfil" },
+  { href: "/ecommerce", icon: ShoppingBag, label: "Staking" },
+  { href: "/projects", icon: FolderKanban, label: "Proyectos" },
   { href: "/settings", icon: Settings, label: "Configuración" },
 ];
 
