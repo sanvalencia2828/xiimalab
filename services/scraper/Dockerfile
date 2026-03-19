@@ -1,13 +1,16 @@
 # ─────────────────────────────────────────────
-# DoraHacks scraper image (Playwright + stealth)
+# Xiimalab Scraper Image (Playwright + Selenium)
+# Multi-source hackathon scraper with automated scheduling
 # ─────────────────────────────────────────────
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps required by Playwright's Chromium
+# System deps required by Playwright's Chromium and Selenium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
+    gnupg \
+    curl \
     libnss3 \
     libatk-bridge2.0-0 \
     libcups2 \
@@ -22,7 +25,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libxshmfence1 \
     fonts-liberation \
+    fonts-dejavu \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Chrome for Selenium
+RUN curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/chrome.deb && \
+    dpkg -i /tmp/chrome.deb || apt-get -f install -y && \
+    rm /tmp/chrome.deb
 
 # Least-privilege user
 RUN useradd --system --uid 1001 --gid 0 scraper
@@ -33,6 +43,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Install Chromium for Playwright (as root, then switch user)
 RUN playwright install chromium
 
+# Pre-download ChromeDriver for Selenium
+RUN playwright install-deps chromium || true
+
 COPY . .
 RUN chown -R scraper:0 /app
 
@@ -41,4 +54,5 @@ USER scraper
 # Health endpoint via simple Python HTTP server on a separate port
 EXPOSE 9000
 
+# Run with automated scheduling
 CMD ["python", "scraper.py"]

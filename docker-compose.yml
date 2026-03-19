@@ -276,17 +276,34 @@ services:
     networks:
       - xiima-net
 
+  # ─────────────────────────────────────────────
   # Scraper - Motor de recolección de Hackatones
+  # Automatizado con APScheduler + Playwright + Selenium
+  # ─────────────────────────────────────────────
   scraper:
     build: ./services/scraper
     container_name: xiima_scraper
     restart: always
+    command: python scraper.py
     env_file: .env
-    depends_on:
-      - db
     environment:
       - SCRAPER_URL=http://scraper:9000
       - NEXT_PUBLIC_API_URL=http://api:8000
+      - DATABASE_URL=postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      - REDIS_URL=redis://redis:6379
+      - SCRAPER_INTERVAL_MINUTES=${SCRAPER_INTERVAL_MINUTES:-30}
+      - HEADLESS=${HEADLESS:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    shm_size: '256m'
     networks:
       - xiima-net
 
