@@ -40,10 +40,16 @@ export interface PrioritiesResponse {
 
 export async function getPrioritiesAction(daysWindow: number = 30): Promise<PrioritiesResponse | { error: string }> {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        const response = await fetch(`${apiUrl}/insights/priorities?days_window=${daysWindow}`, {
+        // Use internal Next.js API route (works on Vercel without FastAPI)
+        const vercelUrl = process.env.VERCEL_URL;
+        const base = vercelUrl
+            ? `https://${vercelUrl}`
+            : (process.env.NEXTAUTH_URL ?? "http://localhost:3000");
+
+        const response = await fetch(`${base}/api/insights/priorities?days_window=${daysWindow}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
+            next: { revalidate: 300 },
         });
 
         if (!response.ok) {
@@ -60,17 +66,23 @@ export async function getPrioritiesAction(daysWindow: number = 30): Promise<Prio
 
 export async function getTagAnalysisAction(): Promise<{ tag_analysis: TagInsight[]; error?: string }> {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        const response = await fetch(`${apiUrl}/insights/tag-analysis`, {
+        const vercelUrl = process.env.VERCEL_URL;
+        const base = vercelUrl
+            ? `https://${vercelUrl}`
+            : (process.env.NEXTAUTH_URL ?? "http://localhost:3000");
+
+        const response = await fetch(`${base}/api/insights/priorities?days_window=90`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
+            next: { revalidate: 300 },
         });
 
         if (!response.ok) {
             return { tag_analysis: [], error: "No se pudo obtener el análisis de tags" };
         }
 
-        return await response.json();
+        const data = await response.json();
+        return { tag_analysis: data?.insights?.top_tags ?? [] };
     } catch (error) {
         console.error("Tag Analysis Error:", error);
         return { tag_analysis: [], error: "Error de conexión" };
