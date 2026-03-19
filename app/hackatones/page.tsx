@@ -37,10 +37,14 @@ async function fetchHackathons(): Promise<ActiveHackathon[]> {
         console.info("[hackatones/page] Supabase no configurada — usando fallback API");
     }
 
-    // 2. Fallback → API route interna (proxy al FastAPI)
+    // 2. Fallback → API route interna
+    // En Vercel usar VERCEL_URL; en local usar localhost:3000
     try {
-        const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-        const res  = await fetch(`${base}/api/hackathons?limit=50`, {
+        const vercelUrl = process.env.VERCEL_URL;
+        const base = vercelUrl
+            ? `https://${vercelUrl}`
+            : (process.env.NEXTAUTH_URL ?? "http://localhost:3000");
+        const res = await fetch(`${base}/api/hackathons?limit=50`, {
             next: { revalidate: 300 },
         });
         if (res.ok) {
