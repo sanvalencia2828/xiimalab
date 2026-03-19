@@ -39,12 +39,12 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// Mirrors the hardcoded data — used when the API is down
+// Fallback data — snake_case para coincidir con lib/types.ts Hackathon
 const FALLBACK_HACKATHONS = [
-    { id: "h1", title: "Stellar Build Challenge 2026", prizePool: 50000, tags: ["Stellar", "DeFi", "Cross-chain"], deadline: "2026-06-15", matchScore: 88, source: "dorahacks", url: "https://dorahacks.io/hackathon" },
-    { id: "h2", title: "Avalanche Summit Hackathon", prizePool: 75000, tags: ["Avalanche", "NFT", "Smart Contracts"], deadline: "2026-07-02", matchScore: 74, source: "dorahacks", url: "https://dorahacks.io/hackathon" },
-    { id: "h3", title: "AI x Web3 Global Sprint", prizePool: 30000, tags: ["AI", "Web3", "Python", "Blockchain"], deadline: "2026-05-28", matchScore: 95, source: "devfolio", url: "https://devfolio.co" },
-    { id: "h4", title: "DoraHacks Open Track Q2", prizePool: 100000, tags: ["Open Track", "Innovation", "AI"], deadline: "2026-08-10", matchScore: 81, source: "dorahacks", url: "https://dorahacks.io/hackathon" },
-    { id: "h5", title: "ETHIndia 2026", prizePool: 60000, tags: ["Blockchain", "Web3", "AI"], deadline: "2026-09-01", matchScore: 79, source: "devfolio", url: "https://devfolio.co" },
-    { id: "h6", title: "Devfolio Hackathon Series", prizePool: 25000, tags: ["Innovation", "Open Track"], deadline: "2026-06-20", matchScore: 72, source: "devfolio", url: "https://devfolio.co" },
+    { id: "h1", title: "Stellar Build Challenge 2026",  prize_pool: 50000,  tags: ["Stellar", "DeFi", "Cross-chain"],         deadline: "2026-06-15", match_score: 88, source: "dorahacks", source_url: "https://dorahacks.io/hackathon", missing_skills: [], project_highlight: "" },
+    { id: "h2", title: "Avalanche Summit Hackathon",    prize_pool: 75000,  tags: ["Avalanche", "NFT", "Smart Contracts"],    deadline: "2026-07-02", match_score: 74, source: "dorahacks", source_url: "https://dorahacks.io/hackathon", missing_skills: [], project_highlight: "" },
+    { id: "h3", title: "AI x Web3 Global Sprint",       prize_pool: 30000,  tags: ["AI", "Web3", "Python", "Blockchain"],     deadline: "2026-05-28", match_score: 95, source: "devfolio",  source_url: "https://devfolio.co",             missing_skills: [], project_highlight: "" },
+    { id: "h4", title: "DoraHacks Open Track Q2",       prize_pool: 100000, tags: ["Open Track", "Innovation", "AI"],         deadline: "2026-08-10", match_score: 81, source: "dorahacks", source_url: "https://dorahacks.io/hackathon", missing_skills: [], project_highlight: "" },
+    { id: "h5", title: "ETHIndia 2026",                 prize_pool: 60000,  tags: ["Blockchain", "Web3", "AI"],               deadline: "2026-09-01", match_score: 79, source: "devfolio",  source_url: "https://devfolio.co",             missing_skills: [], project_highlight: "" },
+    { id: "h6", title: "Devfolio Hackathon Series",     prize_pool: 25000,  tags: ["Innovation", "Open Track"],               deadline: "2026-06-20", match_score: 72, source: "devfolio",  source_url: "https://devfolio.co",             missing_skills: [], project_highlight: "" },
 ];

@@ -18,7 +18,7 @@ interface SkillProgress {
 
 interface NeuroProfile {
     wallet_address: string;
-    dominant_category: string;
+    dominant_category: keyof typeof CATEGORY_INFO | string;
     cognitive_strengths: string[];
     neuroplasticity_score: number;
     learning_efficiency: number;
@@ -165,8 +165,8 @@ function TabsHeader({ active, setActive }: { active: "overview" | "skills" | "in
 }
 
 function OverviewTab({ profile }: { profile: NeuroProfile }) {
-    const dominantCategory = (VALID_CATEGORIES.includes(profile.dominant_category as Category) 
-        ? profile.dominant_category 
+    const dominantCategory = (VALID_CATEGORIES.includes(profile.dominant_category as Category)
+        ? profile.dominant_category
         : "executive") as Category;
     const strengthInfo = CATEGORY_INFO[dominantCategory];
     const StrengthIcon = strengthInfo.icon;
