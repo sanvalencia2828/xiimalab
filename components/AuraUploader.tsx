@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Image as ImageIcon, UploadCloud, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { useWallet } from "@/context/WalletContext";
+import { useWallet } from "@/lib/WalletContext";
 import { useRouter } from "next/navigation";
 import { processImageAction } from "@/app/actions/aura";
 

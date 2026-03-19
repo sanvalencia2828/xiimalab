@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import CoachRoadmap from "./CoachRoadmap";
 
 import { applyToHackathonAction } from "@/app/actions/hackathons";
-import { useWallet } from "@/context/WalletContext";
+import { useWallet } from "@/lib/WalletContext";
 
 export type HackathonData = {
     id: string;

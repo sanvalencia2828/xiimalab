@@ -133,7 +133,6 @@ async def scrape_devfolio_hackathons() -> List[Dict]:
                 "url": "https://devfolio.co/hackathons/ethglobal-2026"
             }
         ]
-    }
     """
     log.info("🚀 Starting Devfolio API scrape run…")
 
@@ -215,6 +214,12 @@ async def upsert_devfolio_hackathons(items: List[Dict]) -> None:
 # ─────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────
+async def run() -> List[Dict]:
+    """Run complete Devfolio scrape and return parsed items."""
+    items = await scrape_devfolio_hackathons()
+    return items
+
+
 async def run_devfolio_job() -> None:
     """Run complete Devfolio scrape and upsert cycle."""
     items = await scrape_devfolio_hackathons()

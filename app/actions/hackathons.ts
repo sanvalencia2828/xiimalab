@@ -7,6 +7,10 @@ export async function applyToHackathonAction(hackathonId: string, studentAddress
         return { success: false, error: "Faltan datos obligatorios" };
     }
 
+    if (!supabase) {
+        return { success: false, error: "Configuración de base de datos incompleta" };
+    }
+
     try {
         // 1. Fetch current progress array to append to it
         const { data: progress, error: fetchError } = await supabase

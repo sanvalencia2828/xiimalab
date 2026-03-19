@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
 
-<<<<<<< HEAD
-=======
-// Forzar renderizado dinámico — nunca pre-renderizar en build (no hay FastAPI en Vercel)
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 export const dynamic = "force-dynamic";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";

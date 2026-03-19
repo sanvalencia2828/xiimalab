@@ -1,10 +1,49 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd \"C:\\\\Users\\\\santi\\\\OneDrive\\\\Documentos\\\\Xiimalab\" && npx tsc --noEmit --skipLibCheck 2>&1 | head -40)",
-      "Bash(cd \"C:\\\\Users\\\\santi\\\\OneDrive\\\\Documentos\\\\Xiimalab\" && npx tsc --noEmit --skipLibCheck 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\santi\\\\OneDrive\\\\Documentos\\\\Xiimalab\" && npm run build 2>&1)",
-      "Bash(npm list:*)"
+      "Bash(cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\" && npx tsc --noEmit --skipLibCheck 2>&1 | head -40)",
+      "Bash(cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\" && npx tsc --noEmit --skipLibCheck 2>&1)",
+      "Bash(cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\" && npm run build 2>&1)",
+      "Bash(npm list:*)",
+      "Bash(cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\\services\\api\" && python -m py_compile *)",
+      "Bash(cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\\services\\api\" && python -m flake8 --max-line-length=120 --ignore=E501,W503 2>&1 | head -20)",
+      "Bash(git diff --stat HEAD 2>&1)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_OUTPUT\" | grep -q '\\.tsx\\|\\.ts'; then cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\" && npx tsc --noEmit --skipLibCheck 2>&1 | head -20; fi",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -q '\\.py'; then cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\\services\\api\" && python -m py_compile $(echo \"$CLAUDE_TOOL_INPUT\" | grep -o '[a-zA-Z_/]*.py' | head -1) 2>&1; fi",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[Hook] Ejecutando: $CLAUDE_TOOL_INPUT\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ChevronRight, Trophy, Zap, Clock, Info, FileText, Copy, Sparkles, Loader2, Flame } from "lucide-react";
-import { useWallet } from "@/context/WalletContext";
+import { useWallet } from "@/lib/WalletContext";
 import { acceptRoadmapChallengeAction } from "@/app/actions/roadmap";
 import { generateProjectAssetsAction } from "@/app/actions/agents";
 import { generateAuraEngagementKitAction, submitToAuraEngagementPoolAction } from "@/app/actions/aura";

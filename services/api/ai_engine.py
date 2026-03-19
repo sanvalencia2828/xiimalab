@@ -270,28 +270,20 @@ async def analyze_competitiveness(opportunity: dict[str, Any], aura_context: dic
             project_highlight: str,
         }
     """
-<<<<<<< HEAD
     _fallback = {"match_score": 0, "missing_skills": [], "project_highlight": "", "strategic_category": "Skill Builder"}
-=======
-    _fallback = {"match_score": 0, "missing_skills": [], "project_highlight": ""}
     title = opportunity.get("title", "unknown")
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
     if not OPENROUTER_API_KEY:
         log.error("OPENROUTER_API_KEY not set — cannot run analysis")
         return _fallback
 
-<<<<<<< HEAD
     # Enrich prompt with AURA context if available
     enriched_opportunity = {**opportunity}
     if aura_context:
         enriched_opportunity["_aura_insights"] = aura_context
         
     prompt = await _build_prompt(enriched_opportunity)
-=======
-    prompt = await _build_prompt(opportunity)
     raw_text = ""
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
     try:
         raw_text = await _call_openrouter(prompt, title)

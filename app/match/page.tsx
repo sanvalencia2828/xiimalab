@@ -1,17 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-<<<<<<< HEAD
-import { Target } from "lucide-react";
-import MarketMatch from "@/components/MarketMatch";
-
-=======
 import { BrainCircuit, Sparkles, TrendingUp, Award, Zap } from "lucide-react";
 import MarketMatch from "@/components/MarketMatch";
 
-// ─────────────────────────────────────────────
-// Recomendaciones estáticas (panel derecho)
-// ─────────────────────────────────────────────
 const recommendations = [
     {
         icon: BrainCircuit,
@@ -45,9 +37,6 @@ const recommendations = [
     },
 ];
 
-// ─────────────────────────────────────────────
-// Animaciones
-// ─────────────────────────────────────────────
 const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -61,14 +50,9 @@ const itemVariants = {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
-// ─────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 export default function MatchPage() {
     return (
         <div className="p-6 min-h-screen">
-            {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -76,32 +60,6 @@ export default function MatchPage() {
                 className="mb-8"
             >
                 <div className="flex items-center gap-3 mb-2">
-<<<<<<< HEAD
-                    <div className="p-2 rounded-xl bg-purple-500/15">
-                        <Target className="w-4 h-4 text-purple-400" />
-                    </div>
-                    <span className="text-xs font-medium text-purple-400 uppercase tracking-widest">
-                        Análisis IA
-                    </span>
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-1">
-                    Market <span className="gradient-text">Match</span>
-                </h1>
-                <p className="text-slate-400 text-sm">
-                    Compara tus habilidades con la demanda del mercado · Powered by Claude
-                </p>
-            </motion.div>
-
-            {/* MarketMatch widget */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="max-w-2xl"
-            >
-                <MarketMatch />
-            </motion.div>
-=======
                     <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
                     <span className="text-xs font-medium text-purple-400 uppercase tracking-widest">
                         Inteligencia de Mercado
@@ -124,9 +82,7 @@ export default function MatchPage() {
                 </div>
             </motion.div>
 
-            {/* Main 2-column layout */}
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6">
-                {/* Left — MarketMatch widget (full logic inside) */}
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -143,7 +99,6 @@ export default function MatchPage() {
                     <MarketMatch />
                 </motion.div>
 
-                {/* Right — Recomendaciones */}
                 <motion.div
                     variants={containerVariants}
                     initial="hidden"
@@ -168,23 +123,18 @@ export default function MatchPage() {
                                     whileHover={{ y: -2, transition: { duration: 0.2 } }}
                                     className={`relative bg-card border ${rec.border} rounded-2xl p-5 overflow-hidden cursor-default`}
                                 >
-                                    {/* Top glow line */}
                                     <div
                                         className="absolute top-0 left-0 right-0 h-px opacity-50"
                                         style={{
                                             background: `linear-gradient(90deg, transparent, ${rec.accent}80, transparent)`,
                                         }}
                                     />
-
                                     <div className="flex items-start gap-4">
-                                        {/* Icon */}
                                         <div
                                             className={`p-2.5 rounded-xl ${rec.bg} border ${rec.border} shrink-0`}
                                         >
                                             <Icon className="w-5 h-5" style={{ color: rec.accent }} />
                                         </div>
-
-                                        {/* Content */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                 <h3 className="text-sm font-bold text-white">
@@ -201,8 +151,6 @@ export default function MatchPage() {
                                             </p>
                                         </div>
                                     </div>
-
-                                    {/* Step indicator */}
                                     <div className="absolute bottom-4 right-4 text-xs font-bold text-slate-600">
                                         0{idx + 1}
                                     </div>
@@ -211,7 +159,6 @@ export default function MatchPage() {
                         })}
                     </div>
 
-                    {/* Footer note */}
                     <motion.p
                         variants={itemVariants}
                         className="mt-5 text-xs text-slate-500 leading-relaxed px-1"
@@ -223,7 +170,6 @@ export default function MatchPage() {
                     </motion.p>
                 </motion.div>
             </div>
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
         </div>
     );
 }

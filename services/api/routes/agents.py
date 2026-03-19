@@ -1,19 +1,33 @@
-<<<<<<< HEAD
 from typing import Any, Dict, List, Optional
+import sys, pathlib
+import os as _os
+import logging
+import asyncpg
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
+
 from db import get_db
 from agents.notifier import NotifierAgent
 from agents.trend_forecaster import TrendForecasterAgent
 from agents.coach import CoachAgent
 from agents.aura_engagement import AuraEngagementAgent
-from pydantic import BaseModel
-
 from agents.connector import ConnectorAgent
+
+# Setup path for engine if needed
+sys.path.insert(0, str(pathlib.Path(__file__).parents[3] / "engine"))
 
 router = APIRouter(tags=["agents"])
 
-@router.get("/agents/status")
+# Try to load agent_crew if available
+try:
+    from agent_crew import create_router as _crew_router
+    _crew = _crew_router()
+    router.include_router(_crew)
+except Exception as exc:
+    logging.getLogger("xiima.agents").error(f"No se pudo cargar agent_crew: {exc}")
+
+@router.get("/status")
 async def get_agents_status():
     """Returns the status of all agents in the system."""
     return {
@@ -27,14 +41,12 @@ async def get_agents_status():
         ]
     }
 
-# ... (rest of the existing routes)
-
 class ConnectorOutreachRequest(BaseModel):
     hackathon_title: str
     match_score: int
     tech_stack: List[str]
 
-@router.post("/agents/connector/networking-strategy")
+@router.post("/connector/networking-strategy")
 async def suggest_networking(payload: ConnectorOutreachRequest, db: AsyncSession = Depends(get_db)):
     """Generates a networking strategy and XMTP drafts."""
     connector = ConnectorAgent(db)
@@ -45,7 +57,7 @@ async def suggest_networking(payload: ConnectorOutreachRequest, db: AsyncSession
     )
     return strategy
 
-@router.post("/agents/orchestrator/coordinate")
+@router.post("/orchestrator/coordinate")
 async def run_orchestrator(db: AsyncSession = Depends(get_db)):
     """Triggers the orchestration logic to sync agents."""
     from agents.orchestrator import Orchestrator
@@ -53,14 +65,14 @@ async def run_orchestrator(db: AsyncSession = Depends(get_db)):
     await orchestrator.coordinate()
     return {"message": "Orchestration cycle completed"}
 
-@router.post("/agents/notifier/run")
+@router.post("/notifier/run")
 async def run_notifier_agent(db: AsyncSession = Depends(get_db)):
     """Manually triggers the notifier agent to check for signals."""
     notifier = NotifierAgent(db)
     await notifier.watch_signals()
     return {"message": "Notifier agent run completed"}
 
-@router.post("/agents/trend-forecaster/run")
+@router.post("/trend-forecaster/run")
 async def run_trend_forecaster_agent(db: AsyncSession = Depends(get_db)):
     """Manually triggers the trend forecaster agent to analyze trends."""
     forecaster = TrendForecasterAgent(db)
@@ -72,7 +84,7 @@ class AssetsRequest(BaseModel):
     roadmap: dict
     project_idea: str
 
-@router.post("/agents/coach/assets")
+@router.post("/coach/assets")
 async def generate_assets(payload: AssetsRequest, db: AsyncSession = Depends(get_db)):
     """Generates professional assets (README, Pitch) for a hackathon project."""
     coach = CoachAgent(db)
@@ -89,7 +101,7 @@ class AuraEngagementRequest(BaseModel):
     project_idea: str
     tech_stack: List[str]
 
-@router.post("/agents/aura/engagement-kit")
+@router.post("/aura/engagement-kit")
 async def generate_engagement_kit(payload: AuraEngagementRequest, db: AsyncSession = Depends(get_db)):
     """Generates a multi-platform engagement kit for social media."""
     aura = AuraEngagementAgent(db)
@@ -106,22 +118,19 @@ class FeedbackCollectionRequest(BaseModel):
     platform: str
     metrics: Dict[str, Any]
 
-@router.post("/agents/aura/collect-feedback")
+@router.post("/aura/collect-feedback")
 async def collect_feedback(payload: FeedbackCollectionRequest, db: AsyncSession = Depends(get_db)):
     """Collects engagement metrics for a specific content piece."""
     from agents.feedback_collector import EngagementMetricsCollector
     collector = EngagementMetricsCollector(db)
     
-    # For now, we'll just store the provided metrics
-    # In a real implementation, this would fetch from actual social media APIs
     feedback_data = {
         "content_id": payload.content_id,
         "platform": payload.platform,
         "metrics": payload.metrics,
-        "collected_at": "2026-03-18T10:30:00Z"  # This would be dynamic
+        "collected_at": "2026-03-18T10:30:00Z"
     }
     
-    # Store in agent memory for learning
     from agents.brain import store_memory
     await store_memory(
         db,
@@ -131,29 +140,8 @@ async def collect_feedback(payload: FeedbackCollectionRequest, db: AsyncSession 
     )
     
     return {"status": "success", "message": "Feedback collected successfully"}
-=======
-"""
-services/api/routes/agents.py
-Registra el router del Agent Crew en FastAPI.
-"""
-import sys, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).parents[3] / "engine"))
 
-from fastapi import APIRouter
-
-try:
-    from agent_crew import create_router as _crew_router
-    _base: APIRouter = _crew_router()
-except Exception as exc:
-    import logging
-    logging.getLogger("xiima.agents").error(f"No se pudo cargar agent_crew: {exc}")
-    _base = APIRouter()
-
-import asyncpg, os as _os
-
-agents_router = _base
-
-@agents_router.get("/matches")
+@router.get("/matches")
 async def get_project_matches(project_id: str | None = None, limit: int = 10):
     """Devuelve project_hackathon_matches con join a user_projects + active_hackathons."""
     db_url = _os.environ.get("DATABASE_URL", "")
@@ -183,4 +171,3 @@ async def get_project_matches(project_id: str | None = None, limit: int = 10):
         return []
     finally:
         await conn.close()
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba

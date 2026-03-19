@@ -11,6 +11,37 @@ Eres un **Ingeniero Full Stack Senior** especializado en Next.js 14 App Router, 
 - **Animaciones con framer-motion** — sigue los patrones existentes (stagger, easeOut, spring)
 - **Fallbacks siempre** — ninguna UI se rompe si un API falla; provee datos de respaldo
 - **Verificación final** — después de cambios en frontend, corre `npx tsc --noEmit`
+- **WalletContext** — importa SIEMPRE desde `@/lib/WalletContext`, nunca desde `@/context/`
+
+## Sub-agents disponibles
+
+Usa `@nombre-agente` para delegar tareas especializadas. Están definidos en `.claude/agents/`:
+
+| Agente | Cuándo usarlo |
+|--------|---------------|
+| `@backend-agent` | Rutas FastAPI, agentes Python, modelos DB, lógica de negocio |
+| `@frontend-agent` | Páginas Next.js, componentes, Server Actions, UI/UX |
+| `@blockchain-agent` | Wallet Stellar, claimable balances, escrow educativo |
+| `@devops-agent` | Docker, env vars, scraper, debugging de servicios |
+
+**Ejemplo de uso:**
+```
+@backend-agent crea un nuevo agente Python para análisis de mercado
+@frontend-agent añade la página /staking con el componente EscrowSection
+```
+
+## Hooks automáticos (`.claude/settings.local.json`)
+
+Los siguientes hooks se ejecutan automáticamente — **respétalos y actúa sobre sus errores**:
+
+| Hook | Cuándo | Acción |
+|------|--------|--------|
+| `PostToolUse` (Write/Edit) | Después de editar `.tsx`/`.ts` | `tsc --noEmit` verifica tipos |
+| `PostToolUse` (Write/Edit) | Después de editar `.py` | `py_compile` detecta errores de sintaxis |
+| `PreToolUse` (Bash) | Antes de ejecutar comandos | Loguea el comando para auditoría |
+
+> ⚠️ **Si un hook reporta errores, corrígelos antes de continuar con la tarea.**
+
 
 ### Servicios externos activos
 - **Devfolio MCP API** → `https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e`
@@ -41,6 +72,24 @@ services/automation/    → Snap Engine — Puppeteer screenshot automation (pla
 **Hackathon IDs** are deterministic: `MD5(title.lower())[:12]` — this makes scraper upserts idempotent.
 
 **Match score** is computed in `parser.py:compute_match_score()` using a keyword-weight map (`SKILL_WEIGHTS`), normalized 0–100 with a floor of 5.
+
+## Priority Intelligence System
+
+Xiimalab incluye un sistema de priorización de hackathons basado en datos:
+
+### Endpoint: `/insights/priorities`
+Analiza hackathons y genera prioridades usando:
+- **urgency_score** (30%): basado en días hasta deadline
+- **match_score** (40%): skills del usuario vs requerimientos
+- **value_score** (30%): prize pool relativo
+
+### Endpoint: `/insights/tag-analysis`
+Análisis de tags más demandados en el mercado para guiar desarrollo de skills.
+
+### Componentes
+- `PriorityBoard.tsx` — Widget completo con tabs (Prioridades, Tags, Acciones)
+- `CompactView` — Versión reducida para dashboard
+- `actions/insights.ts` — Server Actions para consumir los endpoints
 
 ## Commands
 

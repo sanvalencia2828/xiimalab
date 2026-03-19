@@ -1,18 +1,8 @@
 "use client";
 
-<<<<<<< HEAD
 import { motion } from "framer-motion";
 import { CheckCircle2, Circle, Clock, ExternalLink, Github } from "lucide-react";
-=======
-import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Circle, Clock, Github, ExternalLink, ChevronDown } from "lucide-react";
-import { useState } from "react";
-import ProjectInsightCard from "./ProjectInsightCard";
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
-// -------------------------------------------------------
-// TYPE DEFINITIONS
-// -------------------------------------------------------
 export type ProjectStatus = "active" | "in-development" | "paused" | "completed";
 
 export interface ProjectCardProps {
@@ -26,14 +16,11 @@ export interface ProjectCardProps {
     repo?: string;
     accentColor?: string;
     className?: string;
-    githubUrl?: string;   // e.g. "https://github.com/sanvalencia2828/xiimalab"
-    liveUrl?: string;     // e.g. "https://xiimalab.vercel.app"
+    githubUrl?: string;
+    liveUrl?: string;
     onStatusChange?: (newStatus: ProjectStatus) => void;
 }
 
-// -------------------------------------------------------
-// STATUS CONFIG MAP
-// -------------------------------------------------------
 const statusConfig: Record<
     ProjectStatus,
     { label: string; icon: React.ElementType; dotClass: string; textClass: string; borderClass: string }
@@ -68,9 +55,6 @@ const statusConfig: Record<
     },
 };
 
-// -------------------------------------------------------
-// STACK PILL COLORS
-// -------------------------------------------------------
 const stackColors: Record<string, string> = {
     Python: "bg-blue-500/15 text-blue-300 border-blue-500/30",
     Docker: "bg-sky-500/15 text-sky-300 border-sky-500/30",
@@ -86,9 +70,6 @@ const stackColors: Record<string, string> = {
 
 const defaultPillColor = "bg-slate-700/50 text-slate-300 border-slate-600/30";
 
-// -------------------------------------------------------
-// MAIN COMPONENT
-// -------------------------------------------------------
 export default function ProjectCard({
     title,
     description,
@@ -104,23 +85,7 @@ export default function ProjectCard({
     liveUrl,
     onStatusChange,
 }: ProjectCardProps) {
-    const storageKey = `project-status-${title.toLowerCase().replace(/\s+/g, "-")}`;
-    const [status, setStatus] = useState<ProjectStatus>(() => {
-        if (typeof window !== "undefined") {
-            return (localStorage.getItem(storageKey) as ProjectStatus) ?? initialStatus;
-        }
-        return initialStatus;
-    });
-    const [showStatusMenu, setShowStatusMenu] = useState(false);
-
-    function changeStatus(next: ProjectStatus) {
-        setStatus(next);
-        setShowStatusMenu(false);
-        if (typeof window !== "undefined") localStorage.setItem(storageKey, next);
-        onStatusChange?.(next);
-    }
-
-    const cfg = statusConfig[status];
+    const cfg = statusConfig[initialStatus];
     const StatusIcon = cfg.icon;
 
     return (
@@ -136,7 +101,6 @@ export default function ProjectCard({
             className={`bg-card border border-border rounded-2xl p-6 cursor-default group relative overflow-hidden ${className}`}
             style={{ borderColor: `${accentColor}18` }}
         >
-            {/* Subtle top glow line */}
             <div
                 className="absolute top-0 left-0 right-0 h-px opacity-60"
                 style={{
@@ -144,58 +108,19 @@ export default function ProjectCard({
                 }}
             />
 
-            {/* Header row */}
             <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                     <h3 className="text-lg font-bold text-white tracking-tight mb-0.5">{title}</h3>
                     <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">{description}</p>
                 </div>
 
-                {/* Status badge — clickable dropdown */}
-                <div className="relative shrink-0 ml-4">
-                    <button
-                        onClick={() => setShowStatusMenu((v) => !v)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.textClass} ${cfg.borderClass} bg-opacity-10 hover:bg-opacity-20 transition-colors`}
-                        title="Click para cambiar estado"
-                    >
-                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} ${status === "active" ? "animate-pulse" : ""}`} />
-                        <StatusIcon className="w-3 h-3" />
-                        <span>{cfg.label}</span>
-                        <ChevronDown className={`w-2.5 h-2.5 transition-transform ${showStatusMenu ? "rotate-180" : ""}`} />
-                    </button>
-
-                    <AnimatePresence>
-                        {showStatusMenu && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                                transition={{ duration: 0.15 }}
-                                className="absolute right-0 top-8 z-50 w-44 bg-card border border-border rounded-xl shadow-xl overflow-hidden"
-                            >
-                                {(Object.keys(statusConfig) as ProjectStatus[]).map((s) => {
-                                    const sc = statusConfig[s];
-                                    const Ic = sc.icon;
-                                    return (
-                                        <button
-                                            key={s}
-                                            onClick={() => changeStatus(s)}
-                                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-white/5 transition-colors ${sc.textClass} ${s === status ? "bg-white/5" : ""}`}
-                                        >
-                                            <span className={`w-1.5 h-1.5 rounded-full ${sc.dotClass}`} />
-                                            <Ic className="w-3 h-3" />
-                                            {sc.label}
-                                            {s === status && <span className="ml-auto text-slate-500">✓</span>}
-                                        </button>
-                                    );
-                                })}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.textClass} ${cfg.borderClass} bg-opacity-10`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} ${initialStatus === "active" ? "animate-pulse" : ""}`} />
+                    <StatusIcon className="w-3 h-3" />
+                    <span>{cfg.label}</span>
                 </div>
             </div>
 
-            {/* Docker Container Badge */}
             {dockerActive && (
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -214,7 +139,6 @@ export default function ProjectCard({
                 </motion.div>
             )}
 
-            {/* Stack pills */}
             <div className="flex flex-wrap gap-2 mb-4">
                 {stack.map((tech) => (
                     <span
@@ -227,13 +151,8 @@ export default function ProjectCard({
                 ))}
             </div>
 
-            {/* Metrics row (optional) */}
             {metrics && (
-<<<<<<< HEAD
                 <div className="pt-4 border-t border-border grid grid-cols-3 gap-2 mb-4">
-=======
-                <div className="pt-4 border-t border-border grid grid-cols-3 gap-2 mb-1">
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
                     {Object.entries(metrics).map(([key, value]) => (
                         <div key={key} className="text-center">
                             <p className="text-sm font-bold text-white">{value}</p>
@@ -243,8 +162,6 @@ export default function ProjectCard({
                 </div>
             )}
 
-<<<<<<< HEAD
-            {/* Actions (Links) */}
             {(url || repo) && (
                 <div className="flex items-center gap-3 pt-4 border-t border-border/50">
                     {url && (
@@ -267,50 +184,10 @@ export default function ProjectCard({
                             title="Ver Código"
                         >
                             <Github className="w-4 h-4" />
-=======
-            {/* Links — GitHub + Live */}
-            {(githubUrl || liveUrl) && (
-                <div className="flex items-center gap-2 pt-3 border-t border-border mt-2">
-                    {githubUrl && (
-                        <a
-                            href={githubUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:border-white/25 hover:bg-white/10 transition-all"
-                        >
-                            <Github className="w-3.5 h-3.5" />
-                            GitHub
-                        </a>
-                    )}
-                    {liveUrl && (
-                        <a
-                            href={liveUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all"
-                            style={{
-                                background: `${accentColor}12`,
-                                borderColor: `${accentColor}30`,
-                                color: accentColor,
-                            }}
-                        >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Ver en vivo
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
                         </a>
                     )}
                 </div>
             )}
-<<<<<<< HEAD
-=======
-
-            {/* Project Insight Card — top match del Agent Crew */}
-            <ProjectInsightCard
-                projectId={title.toLowerCase().replace(/\s+/g, "-")}
-                projectTitle={title}
-                compact
-            />
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
         </motion.div>
     );
 }

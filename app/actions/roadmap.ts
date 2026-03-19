@@ -12,6 +12,10 @@ export async function acceptRoadmapChallengeAction(
         return { success: false, error: "Datos insuficientes" };
     }
 
+    if (!supabase) {
+        return { success: false, error: "Servicio de base de datos no disponible" };
+    }
+
     try {
         // Record the achievement in the user_achievements table
         const { error } = await supabase

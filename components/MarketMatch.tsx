@@ -4,9 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView } from "framer-motion";
 import { BarChart3, BrainCircuit, Loader2, Target, TrendingUp, X } from "lucide-react";
 
-// -------------------------------------------------------
-// TYPES
-// -------------------------------------------------------
 interface DevfolioHackathon {
     id: string;
     title: string;
@@ -23,16 +20,12 @@ interface Skill {
     marketDemand: number;
     color: string;
     icon: typeof BarChart3;
-    // AI-enriched (populated on demand)
     matchScore?: number;
     missingSkills?: string[];
     projectHighlight?: string;
     strategicCategory?: string;
 }
 
-// -------------------------------------------------------
-// STATIC BASE DATA
-// -------------------------------------------------------
 const BASE_SKILLS: Skill[] = [
     {
         label: "Data Analytics",
@@ -68,9 +61,6 @@ const BASE_SKILLS: Skill[] = [
     },
 ];
 
-// -------------------------------------------------------
-// ANIMATED BAR
-// -------------------------------------------------------
 function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
     const ref = useRef<HTMLDivElement>(null);
     const isInView = useInView(ref, { once: true });
@@ -88,9 +78,6 @@ function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string
     );
 }
 
-// -------------------------------------------------------
-// GAP BADGE
-// -------------------------------------------------------
 function GapBadge({ user, market }: { user: number; market: number }) {
     const gap = market - user;
     if (gap <= 0)
@@ -106,9 +93,6 @@ function GapBadge({ user, market }: { user: number; market: number }) {
     );
 }
 
-// -------------------------------------------------------
-// AI INSIGHTS MODAL
-// -------------------------------------------------------
 interface InsightsModalProps {
     skill: Skill;
     hackathonUrl?: string;
@@ -137,8 +121,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
     useEffect(() => {
         if (data) return;
 
-        // Use the new cached analysis endpoint if we have a hackathon ID, 
-        // otherwise fallback to the general simulation/analyze
         const endpoint = hackathonTitle 
             ? `/api/analyze/hackathon/${hackathonUrl?.split('/').pop()}` 
             : `/api/analyze/hackathon/skill-${skill.label.toLowerCase().replace(/\s/g, "-")}`;
@@ -154,7 +136,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
                 })
             )
             .catch(() => {
-                // If GET fails (not analyzed yet), try to trigger a POST call
                 fetch("/api/analyze/hackathon", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -184,7 +165,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            {/* Backdrop */}
             <motion.div
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                 onClick={onClose}
@@ -193,7 +173,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
                 exit={{ opacity: 0 }}
             />
 
-            {/* Modal card */}
             <motion.div
                 className="relative w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl z-10"
                 initial={{ scale: 0.9, y: 20, opacity: 0 }}
@@ -201,7 +180,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
                 exit={{ scale: 0.9, y: 20, opacity: 0 }}
                 transition={{ type: "spring", damping: 20, stiffness: 300 }}
             >
-                {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-lg bg-purple-500/15">
@@ -227,7 +205,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
                     </div>
                 ) : data ? (
                     <div className="space-y-4">
-                        {/* Match score ring */}
                         <div className="flex items-center gap-4 p-4 bg-background rounded-xl border border-border">
                             <div
                                 className="w-16 h-16 rounded-full flex items-center justify-center shrink-0"
@@ -253,7 +230,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
                             </div>
                         </div>
 
-                        {/* Missing skills */}
                         {data.missingSkills.length > 0 && (
                             <div>
                                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
@@ -272,7 +248,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
                             </div>
                         )}
 
-                        {/* Project highlight */}
                         {data.projectHighlight && (
                             <div className="p-3 bg-accent/5 border border-accent/20 rounded-xl">
                                 <p className="text-xs text-muted-text mb-1 font-semibold uppercase tracking-wider">
@@ -284,7 +259,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
                             </div>
                         )}
 
-                        {/* Ver en Devfolio */}
                         {hackathonUrl && (
                             <a
                                 href={hackathonUrl}
@@ -302,10 +276,6 @@ function AIInsightsModal({ skill, hackathonUrl, hackathonTitle, onClose }: Insig
     );
 }
 
-// -------------------------------------------------------
-// MAIN COMPONENT
-// -------------------------------------------------------
-// Icon map for API-returned skills (by label keyword)
 const ICON_MAP: Record<string, React.ElementType> = {
     "Data":       BarChart3,
     "Docker":     TrendingUp,
@@ -323,7 +293,6 @@ function iconForLabel(label: string): React.ElementType {
 
 export default function MarketMatch() {
     const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
-<<<<<<< HEAD
     const [selectedHackathon, setSelectedHackathon] = useState<DevfolioHackathon | undefined>(undefined);
     const [skills] = useState<Skill[]>(BASE_SKILLS);
     const [devfolioHackathons, setDevfolioHackathons] = useState<DevfolioHackathon[]>([]);
@@ -352,29 +321,6 @@ export default function MarketMatch() {
         }
         return best;
     }
-=======
-    const [skills, setSkills]               = useState<Skill[]>(BASE_SKILLS);
-    const [loadingSkills, setLoadingSkills] = useState(true);
-
-    // Fetch skills from API on mount — fallback to BASE_SKILLS on error
-    useEffect(() => {
-        fetch("/api/skills")
-            .then((r) => r.json())
-            .then((data: Array<{ label: string; sublabel?: string; user_score: number; market_demand: number; color: string }>) => {
-                if (!Array.isArray(data) || data.length === 0) return;
-                setSkills(data.map((s) => ({
-                    label:        s.label,
-                    sublabel:     s.sublabel ?? "",
-                    userScore:    s.user_score,
-                    marketDemand: s.market_demand,
-                    color:        s.color,
-                    icon:         iconForLabel(s.label),
-                })));
-            })
-            .catch(() => {/* keep BASE_SKILLS fallback */})
-            .finally(() => setLoadingSkills(false));
-    }, []);
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
 
     const overallScore = Math.round(
         skills.reduce((acc, s) => acc + (s.userScore / s.marketDemand) * 100, 0) / skills.length
@@ -388,7 +334,6 @@ export default function MarketMatch() {
     return (
         <>
             <div className="bg-card border border-border rounded-2xl p-5">
-                {/* Header */}
                 <div className="flex items-center gap-3 mb-5">
                     <div className="p-2 rounded-xl bg-purple-500/15">
                         <Target className="w-4 h-4 text-purple-400" />
@@ -397,7 +342,6 @@ export default function MarketMatch() {
                         <h3 className="text-sm font-semibold text-slate-200">Habilidades vs. Mercado</h3>
                         <p className="text-xs text-muted-text">Análisis IA con Claude 3.5</p>
                     </div>
-                    {/* Score ring */}
                     <div className="text-center">
                         <div
                             className="w-12 h-12 rounded-full flex items-center justify-center"
@@ -410,20 +354,8 @@ export default function MarketMatch() {
                     </div>
                 </div>
 
-                {/* Skills list */}
                 <div className="space-y-5">
-                    {loadingSkills ? (
-                        // Skeleton loading
-                        Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="animate-pulse space-y-2">
-                                <div className="flex justify-between">
-                                    <div className="h-3 w-32 bg-slate-700/60 rounded" />
-                                    <div className="h-3 w-12 bg-slate-700/60 rounded" />
-                                </div>
-                                <div className="h-2 w-full bg-slate-700/40 rounded-full" />
-                            </div>
-                        ))
-                    ) : skills.map(({ label, sublabel, userScore, marketDemand, color, icon: Icon }, idx) => (
+                    {skills.map(({ label, sublabel, userScore, marketDemand, color, icon: Icon }, idx) => (
                         <motion.div
                             key={label}
                             initial={{ opacity: 0, y: 10 }}
@@ -452,7 +384,6 @@ export default function MarketMatch() {
                                 </div>
                             </div>
 
-                            {/* User skill bar */}
                             <div className="mb-1">
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="text-xs text-muted-text">Mis habilidades</span>
@@ -461,7 +392,6 @@ export default function MarketMatch() {
                                 <AnimatedBar value={userScore} color={color} delay={idx * 0.15} />
                             </div>
 
-                            {/* Market demand bar */}
                             <div>
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="text-xs text-muted-text">Demanda mercado</span>
@@ -473,7 +403,6 @@ export default function MarketMatch() {
                     ))}
                 </div>
 
-                {/* Footer */}
                 <div className="mt-5 pt-4 border-t border-border">
                     <p className="text-xs text-muted-text leading-relaxed">
                         <span className="text-accent font-semibold">IA recomendación: </span>
@@ -490,7 +419,6 @@ export default function MarketMatch() {
                 </div>
             </div>
 
-            {/* AI Insights Modal */}
             <AnimatePresence>
                 {selectedSkill && (
                     <AIInsightsModal

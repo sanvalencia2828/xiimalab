@@ -8,9 +8,5 @@ redis[asyncio]>=5.0.0
 httpx>=0.27.0
 anthropic>=0.25.0
 python-dotenv>=1.0.0
-<<<<<<< HEAD
-stellar-sdk>=9.0.0
-email-validator>=2.1.0
-=======
 stellar-sdk>=10.0.0
->>>>>>> 818308f5dd3f39122c8e46bc57ee372d2f05d9ba
+email-validator>=2.1.0

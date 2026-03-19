@@ -17,6 +17,7 @@ import {
 import Link from 'next/link';
 import AuraUploader from "@/components/AuraUploader";
 import AgentActivityFeed from "@/components/AgentActivityFeed";
+import PriorityBoard from "@/components/PriorityBoard";
 
 export default function DashboardPage() {
   return (
@@ -123,6 +124,11 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+            </section>
+
+            {/* PriorityBoard Widget */}
+            <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <PriorityBoard compact />
             </section>
 
             {/* EcommerceBridge Widget */}
