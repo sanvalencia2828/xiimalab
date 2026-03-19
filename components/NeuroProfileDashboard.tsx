@@ -18,7 +18,7 @@ interface SkillProgress {
 
 interface NeuroProfile {
     wallet_address: string;
-    dominant_category: string;
+    dominant_category: keyof typeof CATEGORY_INFO | string;
     cognitive_strengths: string[];
     neuroplasticity_score: number;
     learning_efficiency: number;
@@ -146,7 +146,7 @@ function TabsHeader({ active, setActive }: { active: string; setActive: (t: "ove
             {tabs.map((tab) => (
                 <button
                     key={tab.id}
-                    onClick={() => setActive(tab.id as typeof active)}
+                    onClick={() => setActive(tab.id as "overview" | "skills" | "insights")}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                         active === tab.id
                             ? "bg-accent/20 text-accent"
@@ -162,7 +162,7 @@ function TabsHeader({ active, setActive }: { active: string; setActive: (t: "ove
 }
 
 function OverviewTab({ profile }: { profile: NeuroProfile }) {
-    const strengthInfo = CATEGORY_INFO[profile.dominant_category] || CATEGORY_INFO.executive;
+    const strengthInfo = CATEGORY_INFO[profile.dominant_category as keyof typeof CATEGORY_INFO] || CATEGORY_INFO.executive;
     const StrengthIcon = strengthInfo.icon;
 
     return (
@@ -224,7 +224,7 @@ function OverviewTab({ profile }: { profile: NeuroProfile }) {
                 <span className="text-xs text-slate-500 uppercase tracking-wider">Fortalezas cognitivas</span>
                 <div className="flex flex-wrap gap-2 mt-2">
                     {profile.cognitive_strengths.map((cat) => {
-                        const info = CATEGORY_INFO[cat] || CATEGORY_INFO.executive;
+                        const info = CATEGORY_INFO[cat as keyof typeof CATEGORY_INFO] || CATEGORY_INFO.executive;
                         return (
                             <span key={cat} className={`px-2 py-1 rounded-full text-[10px] font-medium ${info.bg} ${info.color}`}>
                                 {info.label}
