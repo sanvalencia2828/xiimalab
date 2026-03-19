@@ -28,7 +28,10 @@ interface NeuroProfile {
     hackathons_participated: number;
 }
 
-const CATEGORY_INFO = {
+const VALID_CATEGORIES = ["memory", "attention", "executive", "language", "visuospatial", "motor", "metacognition"] as const;
+type Category = typeof VALID_CATEGORIES[number];
+
+const CATEGORY_INFO: Record<Category, { icon: any; color: string; bg: string; label: string }> = {
     memory: { icon: Brain, color: "text-blue-400", bg: "bg-blue-500/10", label: "Memoria" },
     attention: { icon: Target, color: "text-red-400", bg: "bg-red-500/10", label: "Atención" },
     executive: { icon: Zap, color: "text-amber-400", bg: "bg-amber-500/10", label: "Ejecutivo" },
@@ -134,8 +137,8 @@ export default function NeuroProfileDashboard({ walletAddress }: { walletAddress
     );
 }
 
-function TabsHeader({ active, setActive }: { active: string; setActive: (t: "overview" | "skills" | "insights") => void }) {
-    const tabs = [
+function TabsHeader({ active, setActive }: { active: "overview" | "skills" | "insights"; setActive: (t: "overview" | "skills" | "insights") => void }) {
+    const tabs: { id: "overview" | "skills" | "insights"; label: string; icon: any }[] = [
         { id: "overview", label: "Overview", icon: Brain },
         { id: "skills", label: "Skills", icon: TrendingUp },
         { id: "insights", label: "Insights", icon: Zap },
@@ -146,7 +149,7 @@ function TabsHeader({ active, setActive }: { active: string; setActive: (t: "ove
             {tabs.map((tab) => (
                 <button
                     key={tab.id}
-                    onClick={() => setActive(tab.id as typeof active)}
+                    onClick={() => setActive(tab.id)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                         active === tab.id
                             ? "bg-accent/20 text-accent"
@@ -162,7 +165,10 @@ function TabsHeader({ active, setActive }: { active: string; setActive: (t: "ove
 }
 
 function OverviewTab({ profile }: { profile: NeuroProfile }) {
-    const strengthInfo = CATEGORY_INFO[profile.dominant_category] || CATEGORY_INFO.executive;
+    const dominantCategory = (VALID_CATEGORIES.includes(profile.dominant_category as Category) 
+        ? profile.dominant_category 
+        : "executive") as Category;
+    const strengthInfo = CATEGORY_INFO[dominantCategory];
     const StrengthIcon = strengthInfo.icon;
 
     return (
@@ -215,7 +221,7 @@ function OverviewTab({ profile }: { profile: NeuroProfile }) {
                     </div>
                 </div>
                 <p className="text-xs text-slate-400">
-                    {CATEGORY_DESCRIPTIONS[profile.dominant_category]}
+                    {CATEGORY_DESCRIPTIONS[dominantCategory]}
                 </p>
             </div>
 
@@ -224,7 +230,8 @@ function OverviewTab({ profile }: { profile: NeuroProfile }) {
                 <span className="text-xs text-slate-500 uppercase tracking-wider">Fortalezas cognitivas</span>
                 <div className="flex flex-wrap gap-2 mt-2">
                     {profile.cognitive_strengths.map((cat) => {
-                        const info = CATEGORY_INFO[cat] || CATEGORY_INFO.executive;
+                        const safeCat: Category = VALID_CATEGORIES.includes(cat as Category) ? cat as Category : "executive";
+                        const info = CATEGORY_INFO[safeCat];
                         return (
                             <span key={cat} className={`px-2 py-1 rounded-full text-[10px] font-medium ${info.bg} ${info.color}`}>
                                 {info.label}

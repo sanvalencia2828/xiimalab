@@ -7,10 +7,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base
-from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge
+from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge, devfolio, aggregated
 from routes.insights import router as insights_router
 from routes.neuro import router as neuro_router
 from routes.notifications import router as notifications_router
+from routes.ml_recommendations import router as ml_router
+from routes.portfolio import router as portfolio_router
 from hotmart_bridge import router as hotmart_router
 from skill_validator import router as skill_validator_router
 from integrations.aura_client import router as aura_router
@@ -61,6 +63,8 @@ app.add_middleware(
 # Routers
 # ─────────────────────────────────────────────
 app.include_router(hackathons.router, prefix="/hackathons", tags=["hackathons"])
+app.include_router(devfolio.router, prefix="/hackathons/devfolio", tags=["devfolio"])
+app.include_router(aggregated.router, prefix="/hackathons/aggregated", tags=["aggregated"])
 app.include_router(skills.router, prefix="/skills", tags=["skills"])
 app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
 app.include_router(staking.router, prefix="/staking", tags=["staking"])
@@ -76,6 +80,8 @@ app.include_router(github_router, prefix="/api", tags=["github"])
 app.include_router(insights_router, prefix="/insights", tags=["insights"])
 app.include_router(neuro_router, prefix="/neuro", tags=["neuro"])
 app.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
+app.include_router(ml_router, prefix="/ml", tags=["ml-recommendations"])
+app.include_router(portfolio_router, prefix="/portfolio", tags=["portfolio"])
 
 
 # ─────────────────────────────────────────────

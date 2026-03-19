@@ -17,6 +17,78 @@ from db import get_db
 from models import Hackathon, UserNeuroProfile
 from neuro_tracker import SKILL_COGNITIVE_MAP, NeuroSkillEngine
 
+
+def calculate_cognitive_affinity(user_profile: UserNeuroProfile, hackathon_tags: list[str]) -> float:
+    """
+    Calculate cognitive affinity between user profile and hackathon tags.
+
+    Args:
+        user_profile: User's neuro profile
+        hackathon_tags: List of tags from hackathon
+
+    Returns:
+        Float between 0-100 representing cognitive affinity
+    """
+    if not user_profile or not hackathon_tags:
+        return 0.0
+
+    # Convert tags to lowercase for comparison
+    tags_lower = [tag.lower() for tag in hackathon_tags]
+
+    # Get user's cognitive strengths
+    strengths = user_profile.cognitive_strengths or []
+
+    # Calculate category alignment bonus
+    category_bonus = 0
+    matched_categories = set()
+
+    for tag in tags_lower:
+        if tag in SKILL_COGNITIVE_MAP:
+            category = SKILL_COGNITIVE_MAP[tag].get("category", "")
+            if category and category.value in strengths:
+                matched_categories.add(category.value)
+                category_bonus += 15  # Bonus for each matching category
+
+    # Calculate plasticity alignment
+    plasticity_bonus = 0
+    for tag in tags_lower:
+        if tag in SKILL_COGNITIVE_MAP:
+            plasticity = SKILL_COGNITIVE_MAP[tag].get("plasticity_index", 0.5)
+            # Higher bonus for skills that align with user's learning capacity
+            plasticity_bonus += plasticity * 10
+
+    # Calculate load compatibility
+    load_bonus = 0
+    for tag in tags_lower:
+        if tag in SKILL_COGNITIVE_MAP:
+            cognitive_load = SKILL_COGNITIVE_MAP[tag].get("cognitive_load", 0.5)
+            # Bonus for skills that match user's available learning capacity
+            if hasattr(user_profile, 'available_minutes_daily'):
+                # Assume average user can handle medium cognitive load (0.5)
+                load_compatibility = 1 - abs(cognitive_load - 0.5)
+                load_bonus += load_compatibility * 5
+
+    # Combine bonuses with diminishing returns
+    total_affinity = min(100, category_bonus + plasticity_bonus + load_bonus)
+
+    return total_affinity
+
+
+def calculate_success_history_score(wallet_address: str, db: AsyncSession) -> float:
+    """
+    Calculate user's historical success rate with hackathons.
+
+    Args:
+        wallet_address: User's wallet address
+        db: Database session
+
+    Returns:
+        Float between 0-100 representing historical success score
+    """
+    # This would require additional tables to track user's hackathon participation
+    # For now, we'll return a default score based on neuroplasticity
+    return 50.0  # Placeholder - would need actual implementation with user history data
+
 log = logging.getLogger("xiima.routes.insights")
 router = APIRouter()
 
@@ -163,13 +235,17 @@ async def get_priorities(
         value = min(100, (h.prize_pool / max_prize * 100)) if max_prize > 0 else 0
         
         # total priority: combinación ponderada
-        # match_score tiene peso 0.4 (es personalizado al usuario)
-        # urgency tiene peso 0.3 (tiempo)
-        # value tiene peso 0.3 (premio)
+        # - match_score: 35%
+        # - urgency: 25%
+        # - value: 20%
+        # - success_history: 10%
+        # - cognitive_affinity: 10%
         total_priority = (
-            h.match_score * 0.4 +
-            urgency * 0.3 +
-            value * 0.3
+            h.match_score * 0.35 +
+            urgency * 0.25 +
+            value * 0.20 +
+            50 * 0.10 +  # success_history placeholder
+            50 * 0.10    # cognitive_affinity placeholder
         )
         
         if days_left <= 7:
@@ -377,7 +453,7 @@ async def get_personalized_priorities(
             h_tags_lower = [t.lower() for t in (h.tags or [])]
             user_skills_lower = [s.lower() for s in user_skills]
             overlap = set(h_tags_lower) & set(user_skills_lower)
-            
+
             # Bônus por categoría cognitiva
             category_bonus = 0
             if user_profile:
@@ -387,11 +463,17 @@ async def get_personalized_priorities(
                     if tag_lower in SKILL_COGNITIVE_MAP:
                         if SKILL_COGNITIVE_MAP[tag_lower].get("category", "").value in strengths:
                             category_bonus += 10
-            
+
             personalized_match = min(100, (len(overlap) * 20) + category_bonus + 30)
         else:
             personalized_match = h.match_score
-        
+
+        # Calcular afinidad cognitiva
+        cognitive_affinity = calculate_cognitive_affinity(user_profile, h.tags or [])
+
+        # Calcular historial de éxito (placeholder)
+        success_history = calculate_success_history_score(wallet_address, db)
+
         # Urgency
         if days_left <= 3:
             urgency = 100
@@ -403,15 +485,22 @@ async def get_personalized_priorities(
             urgency = 40
         else:
             urgency = 20
-        
+
         # Value
         value = min(100, (h.prize_pool / max_prize * 100)) if max_prize > 0 else 0
-        
-        # Total priority con match personalizado
+
+        # Total priority con nuevo algoritmo ponderado:
+        # - Match personalizado: 35%
+        # - Urgency: 25%
+        # - Valor económico: 20%
+        # - Historial de éxito: 10%
+        # - Afinidad cognitiva: 10%
         total_priority = (
-            personalized_match * 0.4 +
-            urgency * 0.3 +
-            value * 0.3
+            personalized_match * 0.35 +
+            urgency * 0.25 +
+            value * 0.20 +
+            success_history * 0.10 +
+            cognitive_affinity * 0.10
         )
         
         if days_left <= 7:

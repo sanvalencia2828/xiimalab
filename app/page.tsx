@@ -1,23 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import {
-    Brain, Target, TrendingUp, Trophy, Zap, Clock, Bell,
-    ChevronRight, Sparkles, Flame, BarChart3, BookOpen,
-    Wallet, Settings, Loader2, Plus, Award, Calendar,
-    CheckCircle2, AlertCircle, ArrowUpRight, X
+    Brain, Target, TrendingUp, Trophy, Zap, Clock,
+    ChevronRight, Flame, BarChart3,
+    Wallet, Loader2, Plus, Award,
+    CheckCircle2, ArrowUpRight, ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import PriorityBoard from "@/components/PriorityBoard";
-
-interface Notification {
-    id: number;
-    type: string;
-    hackathon_id: string;
-    message: string;
-    created_at: string;
-}
+import NotificationBell from "@/components/NotificationBell";
+import { loadUserSkillsAction } from "@/app/actions/userSkills";
 
 interface Skill {
     name: string;
@@ -36,9 +30,7 @@ interface DashboardStats {
 
 export default function UnifiedDashboard() {
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
-    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [skills, setSkills] = useState<Skill[]>([]);
-    const [showNotifications, setShowNotifications] = useState(false);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<DashboardStats>({
         totalHackathons: 0,
@@ -56,19 +48,27 @@ export default function UnifiedDashboard() {
     const initializeDashboard = async () => {
         setLoading(true);
         
-        // Load wallet from localStorage
+        // Load wallet
         const savedWallet = localStorage.getItem("stellar_pubkey");
         if (savedWallet) {
             setWalletAddress(savedWallet);
+            
+            // Load skills from PostgreSQL via API
+            const result = await loadUserSkillsAction(savedWallet);
+            if (result.skills && result.skills.length > 0) {
+                setSkills(result.skills.map((s: any) => ({
+                    name: s.name,
+                    level: s.level,
+                    category: s.category,
+                })));
+            }
         }
 
-        // Load skills
+        // Load from localStorage as fallback
         const savedSkills = localStorage.getItem("user_skills");
-        if (savedSkills) {
-            const parsed = JSON.parse(savedSkills);
-            setSkills(parsed);
-        } else {
-            // Default skills
+        if (savedSkills && skills.length === 0) {
+            setSkills(JSON.parse(savedSkills));
+        } else if (!savedWallet && skills.length === 0) {
             const defaults = [
                 { name: "Python", level: 65, category: "technical" },
                 { name: "JavaScript", level: 70, category: "technical" },
@@ -77,20 +77,31 @@ export default function UnifiedDashboard() {
             setSkills(defaults);
         }
 
-        // Load stats
+        // Load cached stats
         const savedStats = localStorage.getItem("dashboard_stats");
         if (savedStats) {
             setStats(JSON.parse(savedStats));
-        }
-
-        // Load notifications
-        const savedNotifications = localStorage.getItem("user_notifications");
-        if (savedNotifications) {
-            setNotifications(JSON.parse(savedNotifications));
+        } else {
+            // Default stats
+            setStats({
+                totalHackathons: 12,
+                urgentHackathons: 3,
+                avgMatchScore: 68,
+                skillsCount: skills.length || 3,
+                neuroplasticity: 0.72,
+                pendingNotifications: 0,
+            });
         }
 
         setLoading(false);
     };
+
+    // Sync localStorage with API data
+    useEffect(() => {
+        if (skills.length > 0) {
+            localStorage.setItem("user_skills", JSON.stringify(skills));
+        }
+    }, [skills]);
 
     const avgSkillLevel = skills.length > 0 
         ? Math.round(skills.reduce((a, s) => a + s.level, 0) / skills.length) 
@@ -112,11 +123,9 @@ export default function UnifiedDashboard() {
             <div className="max-w-7xl mx-auto p-6 space-y-6">
                 
                 {/* Header */}
-                <Header 
+                <DashboardHeader 
                     walletAddress={walletAddress}
                     stats={stats}
-                    notifications={notifications}
-                    onToggleNotifications={() => setShowNotifications(!showNotifications)}
                 />
 
                 {/* Main Grid */}
@@ -125,15 +134,14 @@ export default function UnifiedDashboard() {
                     {/* Left Column - Priority & Actions */}
                     <div className="lg:col-span-2 space-y-6">
                         <HackathonsSection />
-                        <QuickActionsSection walletAddress={walletAddress} />
+                        <QuickActionsSection />
                     </div>
 
                     {/* Right Column - Profile & Skills */}
                     <div className="space-y-6">
                         <ProfileSection 
-                            walletAddress={walletAddress}
-                            avgSkillLevel={avgSkillLevel}
                             skillsCount={skills.length}
+                            avgSkillLevel={avgSkillLevel}
                             neuroplasticity={stats.neuroplasticity}
                         />
                         <SkillsOverview skills={skills} />
@@ -141,30 +149,16 @@ export default function UnifiedDashboard() {
                     </div>
                 </div>
             </div>
-
-            {/* Notifications Panel */}
-            <AnimatePresence>
-                {showNotifications && (
-                    <NotificationsPanel 
-                        notifications={notifications}
-                        onClose={() => setShowNotifications(false)}
-                    />
-                )}
-            </AnimatePresence>
         </div>
     );
 }
 
-function Header({ 
+function DashboardHeader({ 
     walletAddress, 
-    stats, 
-    notifications, 
-    onToggleNotifications 
+    stats 
 }: { 
     walletAddress: string | null;
     stats: DashboardStats;
-    notifications: Notification[];
-    onToggleNotifications: () => void;
 }) {
     return (
         <motion.div
@@ -223,22 +217,12 @@ function Header({
                         className="flex items-center gap-2 px-3 py-2 bg-accent/10 border border-accent/20 rounded-xl hover:bg-accent/20 transition-colors"
                     >
                         <Wallet className="w-4 h-4 text-accent" />
-                        <span className="text-xs font-medium text-accent">Conectar Wallet</span>
+                        <span className="text-xs font-medium text-accent">Conectar</span>
                     </Link>
                 )}
 
-                {/* Notifications Bell */}
-                <button
-                    onClick={onToggleNotifications}
-                    className="relative p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-                >
-                    <Bell className="w-5 h-5 text-slate-400" />
-                    {notifications.length > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                            {notifications.length}
-                        </span>
-                    )}
-                </button>
+                {/* Notification Bell */}
+                <NotificationBell walletAddress={walletAddress || undefined} />
             </div>
         </motion.div>
     );
@@ -279,40 +263,12 @@ function HackathonsSection() {
     );
 }
 
-function QuickActionsSection({ walletAddress }: { walletAddress: string | null }) {
+function QuickActionsSection() {
     const actions = [
-        { 
-            icon: Plus, 
-            label: "Agregar Skill", 
-            href: "/skills",
-            color: "text-blue-400",
-            bg: "bg-blue-500/10 border-blue-500/20",
-            hover: "hover:bg-blue-500/20"
-        },
-        { 
-            icon: Target, 
-            label: "Ver Roles", 
-            href: "/skills",
-            color: "text-purple-400",
-            bg: "bg-purple-500/10 border-purple-500/20",
-            hover: "hover:bg-purple-500/20"
-        },
-        { 
-            icon: Brain, 
-            label: "Neuro Perfil", 
-            href: "/profile",
-            color: "text-emerald-400",
-            bg: "bg-emerald-500/10 border-emerald-500/20",
-            hover: "hover:bg-emerald-500/20"
-        },
-        { 
-            icon: Award, 
-            label: "Logros", 
-            href: "/achievements",
-            color: "text-amber-400",
-            bg: "bg-amber-500/10 border-amber-500/20",
-            hover: "hover:bg-amber-500/20"
-        },
+        { icon: Plus, label: "Agregar Skill", href: "/skills", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+        { icon: Target, label: "Ver Roles", href: "/skills", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
+        { icon: Brain, label: "Mi Perfil", href: "/profile", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+        { icon: Award, label: "Logros", href: "/profile", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
     ];
 
     return (
@@ -333,7 +289,7 @@ function QuickActionsSection({ walletAddress }: { walletAddress: string | null }
                     >
                         <Link
                             href={action.href}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border ${action.bg} ${action.hover} transition-all group`}
+                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border ${action.bg} hover:opacity-80 transition-all group`}
                         >
                             <action.icon className={`w-6 h-6 ${action.color}`} />
                             <span className="text-xs font-medium text-slate-300 group-hover:text-white text-center">
@@ -348,14 +304,12 @@ function QuickActionsSection({ walletAddress }: { walletAddress: string | null }
 }
 
 function ProfileSection({ 
-    walletAddress, 
-    avgSkillLevel, 
-    skillsCount,
+    skillsCount, 
+    avgSkillLevel,
     neuroplasticity 
 }: { 
-    walletAddress: string | null;
-    avgSkillLevel: number;
     skillsCount: number;
+    avgSkillLevel: number;
     neuroplasticity: number;
 }) {
     return (
@@ -514,82 +468,6 @@ function MarketOverview() {
                     </div>
                 ))}
             </div>
-        </motion.div>
-    );
-}
-
-function NotificationsPanel({ 
-    notifications, 
-    onClose 
-}: { 
-    notifications: Notification[]; 
-    onClose: () => void;
-}) {
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-            onClick={onClose}
-        >
-            <motion.div
-                initial={{ x: 300 }}
-                animate={{ x: 0 }}
-                exit={{ x: 300 }}
-                transition={{ type: "spring", damping: 25 }}
-                className="absolute right-0 top-0 h-full w-full max-w-md bg-card border-l border-border p-6"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                        <Bell className="w-5 h-5 text-accent" />
-                        <h3 className="text-lg font-bold text-white">Notificaciones</h3>
-                        {notifications.length > 0 && (
-                            <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full">
-                                {notifications.length}
-                            </span>
-                        )}
-                    </div>
-                    <button onClick={onClose} className="text-slate-500 hover:text-white">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {notifications.length === 0 ? (
-                    <div className="text-center py-12">
-                        <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-                        <p className="text-slate-400">¡Todo al día!</p>
-                        <p className="text-xs text-slate-500 mt-1">No hay notificaciones pendientes</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {notifications.map((notif, idx) => (
-                            <motion.div
-                                key={notif.id}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                                className="p-3 bg-white/5 border border-white/5 rounded-xl"
-                            >
-                                <p className="text-sm text-slate-300">{notif.message}</p>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                        notif.type === "urgency" 
-                                            ? "bg-rose-500/10 text-rose-400" 
-                                            : "bg-emerald-500/10 text-emerald-400"
-                                    }`}>
-                                        {notif.type === "urgency" ? "Urgente" : "Match"}
-                                    </span>
-                                    <span className="text-[10px] text-slate-500">
-                                        {new Date(notif.created_at).toLocaleDateString("es")}
-                                    </span>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                )}
-            </motion.div>
         </motion.div>
     );
 }

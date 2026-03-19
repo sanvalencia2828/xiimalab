@@ -16,6 +16,8 @@ import {
     CheckCircle2,
     Brain,
     Target,
+    Briefcase,
+    Database,
 } from "lucide-react";
 import { useWallet } from "@/lib/WalletContext";
 
@@ -26,6 +28,8 @@ const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/skills", icon: Brain, label: "Skills" },
   { href: "/hackathons", icon: Zap, label: "Hackatones" },
+  { href: "/aggregated", icon: Database, label: "Aggregated" },
+  { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
   { href: "/match", icon: BarChart3, label: "Market Match" },
   { href: "/profile", icon: Target, label: "Mi Perfil" },
   { href: "/ecommerce", icon: ShoppingBag, label: "Staking" },

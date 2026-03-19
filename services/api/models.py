@@ -29,6 +29,18 @@ class Hackathon(Base):
     source_url: Mapped[str] = mapped_column(Text, nullable=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="dorahacks")
     ai_analysis: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    
+    # Devfolio-specific metadata (nullable for backward compatibility)
+    tech_stack: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    difficulty: Mapped[str | None] = mapped_column(String(32), nullable=True)  # beginner, intermediate, advanced
+    requirements: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    talent_pool_estimate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    organizer: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    event_type: Mapped[str | None] = mapped_column(String(32), nullable=True)  # virtual, in-person, hybrid
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    participation_count_estimate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    
     scraped_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -197,4 +209,65 @@ class HackathonNotification(Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RecommendationFeedback(Base):
+    """User feedback on hackathon recommendations for adaptive learning."""
+    __tablename__ = "recommendation_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    wallet_address: Mapped[str] = mapped_column(String(64), nullable=False)
+    hackathon_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    feedback_type: Mapped[str] = mapped_column(String(32), nullable=False)  # accepted, rejected, ignored
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class UserSkillProfile(Base):
+    """Aggregated user skills for intelligent hackathon matching."""
+    __tablename__ = "user_skill_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    wallet_address: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    
+    # Skill inventory
+    verified_skills: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    # ["Python", "FastAPI", "React", "Smart Contracts"]
+    
+    preferred_tech_stack: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    # ["Python", "TypeScript", "PostgreSQL", "Ethereum"]
+    
+    # Additional profiles
+    learning_history: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    # [{completed_at, skill, hours, source}]
+    
+    certifications: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    # [{name, issuer, issued_at}]
+    
+    # Computed metrics
+    total_skill_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    skill_diversity_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # 0.0-1.0: Diversity (specialization vs generalization)
+    
+    # Preferences
+    preferred_difficulty: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # "beginner" | "intermediate" | "advanced"
+    
+    preferred_event_types: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    # ["virtual", "in-person", "hybrid"]
+    
+    # Cross-reference with neuro profile
+    neuroplasticity_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    # Synced from user_neuro_profiles.neuroplasticity_score
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )

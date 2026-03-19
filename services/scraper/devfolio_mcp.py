@@ -317,6 +317,47 @@ def normalize_devfolio_hackathon(raw: dict) -> dict | None:
     tag_set = {t.lower() for t in tags}
     match_score = len(tag_set & relevant_keywords) * 20
 
+    # ─────────────────────────────────────────────
+    # Devfolio-specific extended metadata
+    # ─────────────────────────────────────────────
+    tech_stack = raw.get("tech_stack") or raw.get("technologies") or []
+    if isinstance(tech_stack, str):
+        tech_stack = [t.strip() for t in tech_stack.split(",") if t.strip()]
+
+    difficulty = raw.get("difficulty") or raw.get("level") or None
+    if difficulty:
+        difficulty = difficulty.lower()
+
+    requirements = raw.get("requirements") or raw.get("eligibility_criteria") or []
+    if isinstance(requirements, str):
+        requirements = [r.strip() for r in requirements.split(",") if r.strip()]
+
+    talent_pool_estimate = None
+    tp_raw = raw.get("talent_pool") or raw.get("expected_participants")
+    if tp_raw:
+        try:
+            talent_pool_estimate = int(str(tp_raw).replace(",", "").split()[0])
+        except (ValueError, IndexError):
+            pass
+
+    organizer = raw.get("organizer") or raw.get("organizer_name") or None
+    city = raw.get("city") or raw.get("location") or None
+    event_type = raw.get("event_type") or raw.get("format") or None
+    if event_type:
+        event_type = event_type.lower()
+
+    description = raw.get("description") or raw.get("about") or None
+    if description and len(description) > 5000:
+        description = description[:5000]  # Truncate if too long
+
+    participation_count = None
+    pc_raw = raw.get("participation_count") or raw.get("participants_count")
+    if pc_raw:
+        try:
+            participation_count = int(str(pc_raw).replace(",", "").split()[0])
+        except (ValueError, IndexError):
+            pass
+
     return {
         "id": hackathon_id,
         "title": title[:256],
@@ -326,6 +367,16 @@ def normalize_devfolio_hackathon(raw: dict) -> dict | None:
         "match_score": min(match_score, 100),
         "source_url": source_url,
         "source": "devfolio",
+        # Extended metadata
+        "tech_stack": tech_stack,
+        "difficulty": difficulty,
+        "requirements": requirements,
+        "talent_pool_estimate": talent_pool_estimate,
+        "organizer": organizer,
+        "city": city,
+        "event_type": event_type,
+        "description": description,
+        "participation_count_estimate": participation_count,
     }
 
 
@@ -360,16 +411,27 @@ async def upsert_and_publish(
             await conn.execute(
                 """
                 INSERT INTO hackathons
-                    (id, title, prize_pool, tags, deadline, match_score, source_url, source)
-                VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
+                    (id, title, prize_pool, tags, deadline, match_score, source_url, source,
+                     tech_stack, difficulty, requirements, talent_pool_estimate, organizer, 
+                     city, event_type, description, participation_count_estimate)
+                VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb, $12, $13, $14, $15, $16, $17)
                 ON CONFLICT (id) DO UPDATE SET
-                    title       = EXCLUDED.title,
-                    prize_pool  = EXCLUDED.prize_pool,
-                    tags        = EXCLUDED.tags,
-                    deadline    = EXCLUDED.deadline,
-                    match_score = EXCLUDED.match_score,
-                    source_url  = EXCLUDED.source_url,
-                    updated_at  = NOW()
+                    title                           = EXCLUDED.title,
+                    prize_pool                      = EXCLUDED.prize_pool,
+                    tags                            = EXCLUDED.tags,
+                    deadline                        = EXCLUDED.deadline,
+                    match_score                     = EXCLUDED.match_score,
+                    source_url                      = EXCLUDED.source_url,
+                    tech_stack                      = EXCLUDED.tech_stack,
+                    difficulty                      = EXCLUDED.difficulty,
+                    requirements                    = EXCLUDED.requirements,
+                    talent_pool_estimate            = EXCLUDED.talent_pool_estimate,
+                    organizer                       = EXCLUDED.organizer,
+                    city                            = EXCLUDED.city,
+                    event_type                      = EXCLUDED.event_type,
+                    description                     = EXCLUDED.description,
+                    participation_count_estimate    = EXCLUDED.participation_count_estimate,
+                    updated_at                      = NOW()
                 """,
                 h["id"],
                 h["title"],
@@ -379,6 +441,15 @@ async def upsert_and_publish(
                 h["match_score"],
                 h["source_url"],
                 h["source"],
+                json.dumps(h.get("tech_stack", [])),
+                h.get("difficulty"),
+                json.dumps(h.get("requirements", [])),
+                h.get("talent_pool_estimate"),
+                h.get("organizer"),
+                h.get("city"),
+                h.get("event_type"),
+                h.get("description"),
+                h.get("participation_count_estimate"),
             )
 
             if is_new:

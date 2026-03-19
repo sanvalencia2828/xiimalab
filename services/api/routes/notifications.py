@@ -14,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from notification_service import get_user_notifications, NotificationService
+from notification_service import record_recommendation_feedback, get_feedback_history, adjust_recommendation_weights
+from notification_service import get_neuro_profile_recommendations
 
 log = logging.getLogger("xiima.routes.notifications")
 router = APIRouter()
@@ -25,6 +27,23 @@ class NotificationResponse(BaseModel):
     urgent_deadlines: int
     high_match_opportunities: int
     pending: list[dict]
+    generated_at: str
+
+
+class FeedbackRequest(BaseModel):
+    hackathon_id: str
+    feedback_type: str  # accepted, rejected, ignored
+
+
+class FeedbackHistoryResponse(BaseModel):
+    wallet_address: str
+    feedback_history: list[dict]
+    adjusted_weights: dict
+
+
+class RecommendationResponse(BaseModel):
+    wallet_address: str
+    recommendations: list[dict]
     generated_at: str
 
 

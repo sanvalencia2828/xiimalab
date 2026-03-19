@@ -74,6 +74,49 @@ export interface ProjectMatch {
 }
 
 // ─────────────────────────────────────────────
+// Phase 4: Multi-source Aggregation
+// ─────────────────────────────────────────────
+export interface SourceMetadata {
+  sources:             string[];           // ["devfolio", "dorahacks"]
+  primary_source:      string;             // Highest priority source
+  source_urls:         Record<string, string>;  // source → URL mapping
+  is_multi_source:     boolean;            // True if multiple sources
+  source_confidence:   number;             // 0.7-1.0 based on source count
+}
+
+export interface PersonalizedMatchScore {
+  skill_overlap_score:  number;
+  urgency_score:        number;
+  value_score:          number;
+  tech_stack_score:     number;
+  neuro_score:          number;
+  personalized_score:   number;
+  reasoning:            string;
+}
+
+export interface AggregatedHackathon extends Hackathon {
+  // Extended metadata from Devfolio/multi-source
+  tech_stack?:              string[] | null;
+  difficulty?:              string | null;        // "beginner" | "intermediate" | "advanced"
+  requirements?:            string[] | null;
+  talent_pool_estimate?:    number | null;
+  organizer?:               string | null;
+  city?:                    string | null;
+  event_type?:              string | null;        // "virtual" | "in-person" | "hybrid"
+  description?:             string | null;
+  participation_count_estimate?: number | null;
+  
+  // Phase 3 Scoring
+  urgency_score?:           number | null;
+  value_score?:             number | null;
+  personalized_score?:      number | null;       // Only if wallet provided
+  match_breakdown?:         PersonalizedMatchScore | null;
+  
+  // Multi-source metadata
+  source_metadata:          SourceMetadata;
+}
+
+// ─────────────────────────────────────────────
 // Normalize helper — convert API snake_case to this type safely
 // Handles legacy camelCase responses from Devfolio/Devpost scrapers
 // ─────────────────────────────────────────────
