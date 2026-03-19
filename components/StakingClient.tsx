@@ -205,3 +205,4 @@ export default function StakingClient({ initialData, userId }: StakingClientProp
         </div>
     );
 }
+// StakingClient verified 2026-03-19T10:48:43Z
