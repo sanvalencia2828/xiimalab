@@ -4,6 +4,7 @@ Xiimalab API — FastAPI application entry point
 from contextlib import asynccontextmanager
 import sys
 import os
+import asyncio
 
 # Ensure local imports take precedence over absolute imports from engine/
 sys.path.insert(0, os.path.dirname(__file__))
@@ -31,6 +32,25 @@ from routes.profile import router as profile_router
 # ─────────────────────────────────────────────
 # Startup / Shutdown lifecycle
 # ─────────────────────────────────────────────
+
+async def agent_background_runner():
+    """Background loop to process agent signals automatically."""
+    from db import SessionLocal
+    from agents.notifier import NotifierAgent
+    
+    print("🤖 Agent Background Runner started.")
+    while True:
+        try:
+            async with SessionLocal() as session:
+                # The NotifierAgent checks pending signals (like golden_match) and notifies users
+                notifier = NotifierAgent(session)
+                await notifier.watch_signals()
+        except Exception as e:
+            print(f"⚠️ Agent Runner error: {e}")
+        
+        # Poll every 60 seconds
+        await asyncio.sleep(60)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # [SIMPLIFIED] Commented out DB initialization to prevent startup hang
@@ -42,9 +62,19 @@ async def lifespan(app: FastAPI):
     # except Exception as e:
     #     print(f"⚠️ DB init failed (non-blocking): {e}")
     
+    # Start the background runner
+    runner_task = asyncio.create_task(agent_background_runner())
+    
     print("✅ FastAPI lifespan: startup complete")
     yield
     print("🛑 FastAPI lifespan: shutdown")
+    
+    # Cancel the background runner
+    runner_task.cancel()
+    try:
+        await runner_task
+    except asyncio.CancelledError:
+        pass
     # Dispose connection pool on shutdown
     try:
         await engine.dispose()
