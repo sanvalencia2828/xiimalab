@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from models import Hackathon, HackathonNotification, UserNeuroProfile
+from neuro_tracker import SKILL_COGNITIVE_MAP, NeuroSkillEngine, calculate_cognitive_affinity
 
 log = logging.getLogger("xiima.notifications")
 
@@ -158,7 +159,6 @@ class NotificationService:
             # Calcular afinidad cognitiva para personalizar el mensaje
             cognitive_affinity = 0
             if profile and hackathon.tags:
-                from routes.insights import calculate_cognitive_affinity
                 cognitive_affinity = calculate_cognitive_affinity(profile, hackathon.tags)
 
             # Personalizar mensaje basado en el perfil neuropsicológico
@@ -297,7 +297,6 @@ async def get_neuro_profile_recommendations(
         # Calcular afinidad cognitiva
         cognitive_affinity = 0
         if profile and hackathon.tags:
-            from routes.insights import calculate_cognitive_affinity
             cognitive_affinity = calculate_cognitive_affinity(profile, hackathon.tags)
 
         # Calcular match personalizado

@@ -15,68 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from models import Hackathon, UserNeuroProfile
-from neuro_tracker import SKILL_COGNITIVE_MAP, NeuroSkillEngine
+from neuro_tracker import SKILL_COGNITIVE_MAP, NeuroSkillEngine, calculate_cognitive_affinity
 
 
-def calculate_cognitive_affinity(user_profile: UserNeuroProfile, hackathon_tags: list[str]) -> float:
-    """
-    Calculate cognitive affinity between user profile and hackathon tags.
-
-    Args:
-        user_profile: User's neuro profile
-        hackathon_tags: List of tags from hackathon
-
-    Returns:
-        Float between 0-100 representing cognitive affinity
-    """
-    if not user_profile or not hackathon_tags:
-        return 0.0
-
-    # Convert tags to lowercase for comparison
-    tags_lower = [tag.lower() for tag in hackathon_tags]
-
-    # Get user's cognitive strengths
-    strengths = user_profile.cognitive_strengths or []
-
-    # Calculate category alignment bonus
-    category_bonus = 0
-    matched_categories = set()
-
-    for tag in tags_lower:
-        if tag in SKILL_COGNITIVE_MAP:
-            category = SKILL_COGNITIVE_MAP[tag].get("category", "")
-            if category and category.value in strengths:
-                matched_categories.add(category.value)
-                category_bonus += 15  # Bonus for each matching category
-
-    # Calculate plasticity alignment
-    plasticity_bonus = 0
-    for tag in tags_lower:
-        if tag in SKILL_COGNITIVE_MAP:
-            plasticity = SKILL_COGNITIVE_MAP[tag].get("plasticity_index", 0.5)
-            # Higher bonus for skills that align with user's learning capacity
-            plasticity_bonus += plasticity * 10
-
-    # Calculate load compatibility
-    load_bonus = 0
-    for tag in tags_lower:
-        if tag in SKILL_COGNITIVE_MAP:
-            cognitive_load = SKILL_COGNITIVE_MAP[tag].get("cognitive_load", 0.5)
-            # Bonus for skills that match user's available learning capacity
-            if hasattr(user_profile, 'available_minutes_daily'):
-                # Assume average user can handle medium cognitive load (0.5)
-                load_compatibility = 1 - abs(cognitive_load - 0.5)
-                load_bonus += load_compatibility * 5
-
-    # Calculate learning efficiency alignment
-    learning_efficiency_bonus = 0
-    if hasattr(user_profile, 'learning_efficiency') and user_profile.learning_efficiency:
-        learning_efficiency_bonus = user_profile.learning_efficiency * 10
-
-    # Combine bonuses with diminishing returns
-    total_affinity = min(100, category_bonus + plasticity_bonus + load_bonus + learning_efficiency_bonus)
-
-    return total_affinity
 
 
 async def calculate_success_history_score(wallet_address: str, db: AsyncSession) -> float:
