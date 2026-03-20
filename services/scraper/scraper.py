@@ -135,6 +135,26 @@ async def trigger_ai_analysis(items: list[dict]):
             except Exception as e:
                 log.error(f"  ⚠️ Error triggering analysis for {item['id']}: {e}")
 
+async def trigger_project_matchmaking(items: list[dict]):
+    """Background Agent Matchmaker: crosses new hackathons with active user projects."""
+    if not items:
+        return
+        
+    log.info(f"🤖 Triggering Background Agent Matchmaker for {len(items)} hackathons...")
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            match_url = f"{API_URL}/api/agents/strategist/match-projects"
+            payload = {"hackathons": items}
+            resp = await client.post(match_url, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                log.info(f"  ✅ Background Matchmaker found {data.get('matches_found', 0)} new project matches!")
+            else:
+                log.error(f"  ❌ Matchmaker failed: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            log.error(f"  ⚠️ Error triggering Matchmaker: {e}")
+
 # ─────────────────────────────────────────────
 # Core Job
 # ─────────────────────────────────────────────
@@ -162,6 +182,8 @@ async def run_all_scrapers():
         await upsert_hackathons(all_hackathons)
         # Automate the ML analysis
         await trigger_ai_analysis(all_hackathons)
+        # Automate Project Matchmaking (Agent Pipeline)
+        await trigger_project_matchmaking(all_hackathons)
     else:
         log.warning("No hackathons found in any integration.")
 

@@ -161,6 +161,101 @@ async def collect_feedback(payload: FeedbackCollectionRequest, db: AsyncSession 
     
     return {"status": "success", "message": "Feedback collected successfully"}
 
+class MatchProjectsRequest(BaseModel):
+    hackathons: List[Dict[str, Any]]
+
+@router.post("/strategist/match-projects")
+async def match_projects(payload: MatchProjectsRequest, db: AsyncSession = Depends(get_db)):
+    """Background job endpoint to cross-check new hackathons against active user projects."""
+    db_url = _os.environ.get("DATABASE_URL", "")
+    if not db_url:
+        return {"status": "error", "message": "DATABASE_URL not found"}
+        
+    conn = await asyncpg.connect(db_url)
+    try:
+        # Fetch active projects
+        projects_records = await conn.fetch("SELECT id, title, stack, status FROM user_projects WHERE status IN ('active', 'ideation')")
+        
+        matches_found = 0
+        
+        for p in projects_records:
+            project_id = p["id"]
+            p_title = p["title"]
+            p_stack_raw = p["stack"]
+            p_stack = []
+            
+            if p_stack_raw:
+                if isinstance(p_stack_raw, str):
+                    import json
+                    try:
+                        p_stack = json.loads(p_stack_raw)
+                    except:
+                        p_stack = []
+                else:
+                    p_stack = p_stack_raw
+                    
+            if not isinstance(p_stack, list):
+                p_stack = []
+                
+            for h in payload.hackathons:
+                h_tags = h.get("tags", [])
+                if not h_tags or not isinstance(h_tags, list):
+                    continue
+                    
+                overlap = set([str(t).lower() for t in h_tags]) & set([str(s).lower() for s in p_stack])
+                
+                base_match = h.get("match_score", 50)
+                if overlap:
+                    base_match = min(100, base_match + (len(overlap) * 15))
+                
+                if base_match >= 60:
+                    shared_tags = list(overlap)
+                    reasoning = f"Compatible con tu stack ({', '.join(shared_tags)})" if shared_tags else "Oportunidad estratégica alineada"
+                    
+                    try:
+                        import json
+                        await conn.execute("""
+                            INSERT INTO project_hackathon_matches 
+                            (project_id, hackathon_id, hackathon_title, match_pct, shared_tags, reasoning, prize_pool, source, source_url, computed_at)
+                            VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, NOW())
+                            ON CONFLICT (project_id, hackathon_id) DO UPDATE SET
+                                match_pct = EXCLUDED.match_pct,
+                                shared_tags = EXCLUDED.shared_tags,
+                                reasoning = EXCLUDED.reasoning,
+                                prize_pool = EXCLUDED.prize_pool,
+                                hackathon_title = EXCLUDED.hackathon_title,
+                                source_url = EXCLUDED.source_url,
+                                source = EXCLUDED.source,
+                                computed_at = EXCLUDED.computed_at
+                        """, project_id, h["id"], h.get("title", ""), base_match, json.dumps(shared_tags), reasoning, h.get("prize_pool", 0), h.get("source", "mcp"), h.get("source_url", ""))
+                        
+                        matches_found += 1
+                        
+                        # Golden Matches (>85%) emits a signal
+                        if base_match >= 85:
+                            from agents.orchestrator import Orchestrator
+                            orch = Orchestrator(db)
+                            await orch.emit_signal(
+                                source="strategist",
+                                signal_type="golden_project_match",
+                                payload={
+                                    "project_id": project_id,
+                                    "project_title": p_title,
+                                    "hackathon_id": h["id"],
+                                    "hackathon_title": h.get("title", ""),
+                                    "match_pct": base_match
+                                }
+                            )
+                    except Exception as ins_exc:
+                        logging.getLogger("xiima.matchmaker").error(f"Error inserting match: {ins_exc}")
+                        
+        return {"status": "success", "matches_found": matches_found}
+    except Exception as e:
+        logging.getLogger("xiima.matchmaker").error(f"Error en match_projects: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        await conn.close()
+
 @router.get("/matches")
 async def get_project_matches(project_id: str | None = None, limit: int = 10):
     """Devuelve project_hackathon_matches con join a user_projects + active_hackathons."""

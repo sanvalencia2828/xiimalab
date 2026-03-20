@@ -2,6 +2,11 @@
 Xiimalab API — FastAPI application entry point
 """
 from contextlib import asynccontextmanager
+import sys
+import os
+
+# Ensure local imports take precedence over absolute imports from engine/
+sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,13 +19,13 @@ from routes.notifications import router as notifications_router
 from routes.ml_recommendations import router as ml_router
 from routes.portfolio import router as portfolio_router
 from hotmart_bridge import router as hotmart_router
-from skill_validator import router as skill_validator_router
+# from skill_validator import router as skill_validator_router  # [DISABLED] conflicto con engine/skill_validator.py - renombra a skill_validator_routes.py para arreglarlo
 from integrations.aura_client import router as aura_router
 from scrapers.hackathon_tracker import router as hackathon_tracker_router
 from routes.agents import router as agents_router
-from routes.projects import router as projects_router
+# from routes.projects import router as projects_router  # [DISABLED] routes/projects.py no existe
 from routes.profile import router as profile_router
-from routes.github import router as github_router
+# from routes.github import router as github_router  # [DISABLED] routes/github.py no existe aún
 
 
 # ─────────────────────────────────────────────
@@ -28,12 +33,23 @@ from routes.github import router as github_router
 # ─────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create all tables on startup if they don't exist
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # [SIMPLIFIED] Commented out DB initialization to prevent startup hang
+    # if PostgreSQL is unavailable. Tables will be created on first request
+    # or manually via alembic migrations.
+    # try:
+    #     async with engine.begin() as conn:
+    #         await conn.run_sync(Base.metadata.create_all)
+    # except Exception as e:
+    #     print(f"⚠️ DB init failed (non-blocking): {e}")
+    
+    print("✅ FastAPI lifespan: startup complete")
     yield
+    print("🛑 FastAPI lifespan: shutdown")
     # Dispose connection pool on shutdown
-    await engine.dispose()
+    try:
+        await engine.dispose()
+    except Exception as e:
+        print(f"⚠️ Engine dispose failed: {e}")
 
 
 # ─────────────────────────────────────────────
@@ -71,13 +87,13 @@ app.include_router(staking.router, prefix="/staking", tags=["staking"])
 app.include_router(milestones.router, prefix="/milestones", tags=["milestones"])
 app.include_router(stream.router, prefix="/stream", tags=["realtime"])
 app.include_router(hotmart_bridge.router, prefix="/hotmart", tags=["hotmart"])
-app.include_router(skill_validator_router)      # GET/POST /skills/escrow, /skills/progress
+# app.include_router(skill_validator_router)  # [DISABLED] conflicto con engine/skill_validator.py
 app.include_router(aura_router)                 # GET /aura/progress/{address}, POST /aura/progress/{address}/force-sync
 app.include_router(hackathon_tracker_router)    # GET /hackathon-tracker/applications/{address}
 app.include_router(agents_router, prefix="/api/agents", tags=["agents"])
-app.include_router(projects_router, prefix="/api/projects", tags=["projects"])
+# app.include_router(projects_router, prefix="/api/projects", tags=["projects"])  # [DISABLED] routes/projects.py no existe
 app.include_router(profile_router, prefix="/api", tags=["profile"])
-app.include_router(github_router, prefix="/api", tags=["github"])
+# app.include_router(github_router, prefix="/api", tags=["github"])  # [DISABLED] routes/github.py no existe
 app.include_router(insights_router, prefix="/insights", tags=["insights"])
 app.include_router(neuro_router, prefix="/neuro", tags=["neuro"])
 app.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
