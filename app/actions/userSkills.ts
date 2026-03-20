@@ -1,4 +1,6 @@
 "use server";
+import { getApiBase, safeFetch } from "@/lib/api";
+const _API = getApiBase() ?? "http://localhost:8000";
 
 export interface SkillData {
     name: string;
@@ -18,7 +20,7 @@ export async function saveUserSkillsAction(
     }
 
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiUrl = _API;
         
         const payload = {
             wallet_address: walletAddress,
@@ -62,7 +64,7 @@ export async function loadUserSkillsAction(
     }
 
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiUrl = _API;
         const response = await fetch(`${apiUrl}/skills/user/${walletAddress}`);
 
         if (!response.ok) {
@@ -104,7 +106,7 @@ export async function logPracticeSessionAction(
     }
 
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiUrl = _API;
         const response = await fetch(
             `${apiUrl}/skills/user/${walletAddress}/practice?skill_name=${encodeURIComponent(skillName)}&minutes=${minutes}`,
             { method: "POST" }

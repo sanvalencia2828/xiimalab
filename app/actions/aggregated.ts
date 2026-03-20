@@ -2,7 +2,9 @@
 
 import type { AggregatedHackathon } from "@/lib/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { getApiBase } from "@/lib/api";
+const _API_BASE_RAW = getApiBase();
+const API_BASE = _API_BASE_RAW ?? "http://localhost:8000";
 
 /**
  * Server action to fetch aggregated hackathons from multiple sources.

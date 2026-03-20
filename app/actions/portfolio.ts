@@ -1,6 +1,8 @@
 "use server";
+import { getApiBase, safeFetch } from "@/lib/api";
+const _API = getApiBase() ?? "http://localhost:8000";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = _API;
 
 export interface PortfolioData {
     wallet_address: string;
