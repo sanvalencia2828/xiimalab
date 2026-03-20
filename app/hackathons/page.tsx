@@ -11,7 +11,7 @@
 import { Suspense }      from "react";
 import { Zap, Database } from "lucide-react";
 import { supabase, type ActiveHackathon } from "@/lib/supabase";
-import HackatonesClient        from "@/components/HackatonesClient";
+import { AggregatedHackathonsClient } from "@/components/AggregatedHackathonsClient";
 import WalletOnboardingModal   from "@/components/WalletOnboardingModal";
 
 // force-dynamic: evita fetch a localhost:8000 durante el build de Vercel
@@ -131,7 +131,7 @@ export default async function HackatonesPage() {
             <WalletOnboardingModal />
 
             <Suspense fallback={<HackatonSkeleton />}>
-                <HackatonesClient initialData={initialData} />
+                <AggregatedHackathonsClient />
             </Suspense>
         </div>
     );

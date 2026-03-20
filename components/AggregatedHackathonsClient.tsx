@@ -21,6 +21,7 @@ export function AggregatedHackathonsClient() {
   const [sortBy, setSortBy] = useState<"personalized_score" | "urgency" | "value" | "match" | "prize">(
     wallet ? "personalized_score" : "urgency"
   );
+  const [dedupThreshold, setDedupThreshold] = useState<number>(0.90);
 
   // Track which hackathon is expanded
   const [selectedHackathon, setSelectedHackathon] = useState<AggregatedHackathon | null>(null);
@@ -32,6 +33,7 @@ export function AggregatedHackathonsClient() {
     minPrize: minPrize > 0 ? minPrize : undefined,
     wallet: wallet ?? undefined,
     sortBy,
+    dedupThreshold,
     limit: 50,
   });
 
@@ -97,7 +99,7 @@ export function AggregatedHackathonsClient() {
         </div>
 
         {/* Filters Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {/* Min Prize */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">
@@ -135,13 +137,28 @@ export function AggregatedHackathonsClient() {
             </select>
           </div>
 
+          {/* Dedup Threshold */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              Strictness
+            </label>
+            <select
+              value={dedupThreshold}
+              onChange={(e) => setDedupThreshold(Number(e.target.value))}
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+            >
+              <option value={0.80}>Aggressive (80%)</option>
+              <option value={0.90}>Balanced (90%)</option>
+              <option value={0.95}>Strict (95%)</option>
+            </select>
+          </div>
+
           {/* Tag Filter Info */}
           <div className="flex items-end">
             <div className="text-xs text-muted-text">
               {selectedTags.length > 0 && (
                 <span>
-                  Filtering by {selectedTags.length} tag
-                  {selectedTags.length !== 1 ? "s" : ""}
+                  Filtering by {selectedTags.length} tag{selectedTags.length !== 1 ? "s" : ""}
                 </span>
               )}
             </div>
