@@ -68,13 +68,18 @@ def calculate_cognitive_affinity(user_profile: UserNeuroProfile, hackathon_tags:
                 load_compatibility = 1 - abs(cognitive_load - 0.5)
                 load_bonus += load_compatibility * 5
 
+    # Calculate learning efficiency alignment
+    learning_efficiency_bonus = 0
+    if hasattr(user_profile, 'learning_efficiency') and user_profile.learning_efficiency:
+        learning_efficiency_bonus = user_profile.learning_efficiency * 10
+
     # Combine bonuses with diminishing returns
-    total_affinity = min(100, category_bonus + plasticity_bonus + load_bonus)
+    total_affinity = min(100, category_bonus + plasticity_bonus + load_bonus + learning_efficiency_bonus)
 
     return total_affinity
 
 
-def calculate_success_history_score(wallet_address: str, db: AsyncSession) -> float:
+async def calculate_success_history_score(wallet_address: str, db: AsyncSession) -> float:
     """
     Calculate user's historical success rate with hackathons.
 
@@ -85,9 +90,39 @@ def calculate_success_history_score(wallet_address: str, db: AsyncSession) -> fl
     Returns:
         Float between 0-100 representing historical success score
     """
-    # This would require additional tables to track user's hackathon participation
-    # For now, we'll return a default score based on neuroplasticity
-    return 50.0  # Placeholder - would need actual implementation with user history data
+    try:
+        # Get user's neuro profile for baseline metrics
+        result = await db.execute(
+            select(UserNeuroProfile).where(UserNeuroProfile.wallet_address == wallet_address)
+        )
+        user_profile = result.scalar_one_or_none()
+
+        if not user_profile:
+            return 50.0  # Default score if no profile
+
+        # Base score from neuroplasticity
+        base_score = user_profile.neuroplasticity_score * 100 if user_profile.neuroplasticity_score else 50.0
+
+        # Bonus for hackathon participation
+        participation_bonus = min(user_profile.hackathons_participated * 5, 20)  # Max 20 bonus points
+
+        # Bonus for completed projects
+        project_bonus = min(user_profile.projects_completed * 3, 15)  # Max 15 bonus points
+
+        # Calculate completion rate if we have sufficient data
+        if user_profile.hackathons_participated > 0:
+            completion_rate = user_profile.projects_completed / max(user_profile.hackathons_participated, 1)
+            completion_bonus = completion_rate * 20  # Max 20 bonus points for perfect completion rate
+        else:
+            completion_bonus = 0
+
+        # Total score capped at 100
+        total_score = min(100, base_score + participation_bonus + project_bonus + completion_bonus)
+
+        return total_score
+    except Exception as e:
+        log.warning(f"Error calculating success history score: {e}")
+        return 50.0  # Default fallback
 
 log = logging.getLogger("xiima.routes.insights")
 router = APIRouter()
