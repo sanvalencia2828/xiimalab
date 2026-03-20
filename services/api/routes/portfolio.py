@@ -15,7 +15,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from models import Hackathon, HackathonSkill, UserNeuroProfile, UserAchievement
+from models import Hackathon, UserNeuroProfile, UserAchievement
 
 log = logging.getLogger("xiima.routes.portfolio")
 router = APIRouter()
@@ -91,11 +91,12 @@ async def get_portfolio(
     )
     user_profile = result.scalar_one_or_none()
     
-    # Obtener skills
-    result = await db.execute(
-        select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
-    )
-    user_skills = result.scalars().all()
+    # Obtener skills — TODO: HackathonSkill model not yet implemented
+    # result = await db.execute(
+    #     select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
+    # )
+    # user_skills = result.scalars().all()
+    user_skills = []
     
     # Obtener hackathons del usuario
     result = await db.execute(
@@ -283,13 +284,15 @@ async def get_skill_badge(
     """
     Genera un SVG badge con el nivel de skill más alto del usuario.
     """
-    result = await db.execute(
-        select(HackathonSkill)
-        .where(HackathonSkill.wallet_address == wallet_address)
-        .order_by(HackathonSkill.level.desc())
-        .limit(1)
-    )
-    top_skill = result.scalar_one_or_none()
+    # TODO: HackathonSkill model not yet implemented
+    # result = await db.execute(
+    #     select(HackathonSkill)
+    #     .where(HackathonSkill.wallet_address == wallet_address)
+    #     .order_by(HackathonSkill.level.desc())
+    #     .limit(1)
+    # )
+    # top_skill = result.scalar_one_or_none()
+    top_skill = None
     
     if not top_skill:
         return {

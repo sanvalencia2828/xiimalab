@@ -123,6 +123,12 @@ async def hotmart_webhook(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid escrow data: {exc}",
         )
+    except Exception as exc:
+        log.error(f"Error creando escrow: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creando Claimable Balance: {exc}",
+        )
 
 
 @router.post("/aura-milestone")

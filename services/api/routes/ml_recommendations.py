@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from models import Hackathon, UserNeuroProfile, HackathonSkill
+from models import Hackathon, UserNeuroProfile
 from neuro_tracker import NeuroSkillEngine, SKILL_COGNITIVE_MAP
 
 log = logging.getLogger("xiima.routes.ml_recommendations")
@@ -72,11 +72,12 @@ async def get_ml_recommendations(
     )
     user_profile = result.scalar_one_or_none()
     
-    # Obtener skills del usuario
-    result = await db.execute(
-        select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
-    )
-    user_skills = result.scalars().all()
+    # Obtener skills del usuario — TODO: HackathonSkill model not yet implemented
+    # result = await db.execute(
+    #     select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
+    # )
+    # user_skills = result.scalars().all()
+    user_skills = []
     
     # Obtener hackathons activos
     result = await db.execute(
@@ -226,11 +227,12 @@ async def get_skill_gaps_analysis(
     """
     today = datetime.now().date()
     
-    # Obtener skills del usuario
-    result = await db.execute(
-        select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
-    )
-    user_skills = {s.name.lower(): s.level for s in result.scalars().all()}
+    # Obtener skills del usuario — TODO: HackathonSkill model not yet implemented
+    # result = await db.execute(
+    #     select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
+    # )
+    # user_skills = {s.name.lower(): s.level for s in result.scalars().all()}
+    user_skills = {}
     
     # Obtener todos los tags del mercado
     result = await db.execute(
@@ -305,10 +307,12 @@ async def get_ai_analysis(
         )
         user_profile = result.scalar_one_or_none()
         
-        result = await db.execute(
-            select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
-        )
-        user_skills = [s.name for s in result.scalars().all()]
+        # TODO: HackathonSkill model not yet implemented
+        # result = await db.execute(
+        #     select(HackathonSkill).where(HackathonSkill.wallet_address == wallet_address)
+        # )
+        # user_skills = [s.name for s in result.scalars().all()]
+        user_skills = []
         
         # Obtener hackathon si se especificó
         hackathon = None

@@ -142,7 +142,7 @@ SKILL_COGNITIVE_MAP: dict[str, dict] = {
         "plasticity_index": 0.7,
         "attention_demand": 0.5,
         "transfer_potential": 0.8,
-        "related_cognitive": [CognitiveCategory.MEMORY, CognitiveCategory.ANALYTICAL],
+        "related_cognitive": [CognitiveCategory.MEMORY, CognitiveCategory.METACOGNITION],
     },
     "javascript": {
         "category": CognitiveCategory.EXECUTIVE,
@@ -158,10 +158,10 @@ SKILL_COGNITIVE_MAP: dict[str, dict] = {
         "plasticity_index": 0.5,
         "attention_demand": 0.8,
         "transfer_potential": 0.7,
-        "related_cognitive": [CognitiveCategory.MEMORY, CognitiveCategory.ANALYTICAL],
+        "related_cognitive": [CognitiveCategory.MEMORY, CognitiveCategory.METACOGNITION],
     },
     "ml": {
-        "category": CognitiveCategory.ANALYTICAL,
+        "category": CognitiveCategory.METACOGNITION,
         "cognitive_load": 0.85,
         "plasticity_index": 0.45,
         "attention_demand": 0.85,
@@ -177,12 +177,12 @@ SKILL_COGNITIVE_MAP: dict[str, dict] = {
         "related_cognitive": [CognitiveCategory.MEMORY, CognitiveCategory.LANGUAGE],
     },
     "docker": {
-        "category": CognitiveCategory.PRACTICAL,
+        "category": CognitiveCategory.EXECUTIVE,
         "cognitive_load": 0.5,
         "plasticity_index": 0.8,
         "attention_demand": 0.4,
         "transfer_potential": 0.7,
-        "related_cognitive": [CognitiveCategory.EXECUTIVE],
+        "related_cognitive": [CognitiveCategory.MOTOR],
     },
     "web3": {
         "category": CognitiveCategory.EXECUTIVE,
@@ -193,7 +193,7 @@ SKILL_COGNITIVE_MAP: dict[str, dict] = {
         "related_cognitive": [CognitiveCategory.MEMORY, CognitiveCategory.LANGUAGE],
     },
     "defi": {
-        "category": CognitiveCategory.ANALYTICAL,
+        "category": CognitiveCategory.METACOGNITION,
         "cognitive_load": 0.8,
         "plasticity_index": 0.4,
         "attention_demand": 0.8,
@@ -201,7 +201,7 @@ SKILL_COGNITIVE_MAP: dict[str, dict] = {
         "related_cognitive": [CognitiveCategory.EXECUTIVE, CognitiveCategory.MEMORY],
     },
     "data": {
-        "category": CognitiveCategory.ANALYTICAL,
+        "category": CognitiveCategory.METACOGNITION,
         "cognitive_load": 0.65,
         "plasticity_index": 0.7,
         "attention_demand": 0.55,
@@ -217,7 +217,7 @@ SKILL_COGNITIVE_MAP: dict[str, dict] = {
         "related_cognitive": [CognitiveCategory.MEMORY, CognitiveCategory.LANGUAGE],
     },
     "fastapi": {
-        "category": CognitiveCategory.PRACTICAL,
+        "category": CognitiveCategory.EXECUTIVE,
         "cognitive_load": 0.55,
         "plasticity_index": 0.8,
         "attention_demand": 0.5,

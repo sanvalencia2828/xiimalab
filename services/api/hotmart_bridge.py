@@ -34,9 +34,9 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 # ─── Configuración ────────────────────────────────────────────────────────────
 
-HOTMART_SECRET = os.environ["HOTMART_WEBHOOK_SECRET"]
-DATABASE_URL = os.environ["DATABASE_URL"]  # asyncpg-compatible
-STELLAR_PLATFORM_SECRET = os.environ["STELLAR_PLATFORM_SECRET_KEY"]
+HOTMART_SECRET = os.environ.get("HOTMART_WEBHOOK_SECRET", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")  # asyncpg-compatible
+STELLAR_PLATFORM_SECRET = os.environ.get("STELLAR_PLATFORM_SECRET_KEY", "")
 STELLAR_HORIZON = "https://horizon-testnet.stellar.org"
 STELLAR_NETWORK = Network.TESTNET_NETWORK_PASSPHRASE
 
