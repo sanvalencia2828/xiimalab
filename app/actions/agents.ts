@@ -25,6 +25,31 @@ export async function generateProjectAssetsAction(hackathonTitle: string, roadma
     }
 }
 
+export async function generateNetworkingStrategyAction(hackathonTitle: string, matchScore: number, techStack: string[]) {
+    try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agents/connector/networking-strategy`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                hackathon_title: hackathonTitle,
+                match_score: matchScore,
+                tech_stack: techStack
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to generate networking strategy: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Action Error (Connector):", error);
+        return { error: "Failed to connect to Connector Agent" };
+    }
+}
+
 // ── Agent Management Actions ──────────────────────────────────────────────────
 
 export async function getAgentsStatusAction() {

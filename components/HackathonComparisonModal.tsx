@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ExternalLink, Trophy, Clock, Tag } from "lucide-react";
 import type { AggregatedHackathon } from "@/lib/types";
 import { SourceBadges } from "./SourceBadges";
+import { ConnectorOutreach } from "./ConnectorOutreach";
 
 interface HackathonComparisonModalProps {
   hackathon: AggregatedHackathon | null;
@@ -252,6 +253,13 @@ export function HackathonComparisonModal({
                   )}
                 </div>
               )}
+
+              {/* Connector Outreach (XMTP) */}
+              <ConnectorOutreach
+                  hackathonTitle={hackathon.title}
+                  matchScore={hackathon.personalized_score ?? hackathon.match_score ?? 0}
+                  techStack={hackathon.tech_stack || []}
+              />
             </div>
           </motion.div>
         </>

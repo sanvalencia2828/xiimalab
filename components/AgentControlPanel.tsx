@@ -14,8 +14,8 @@ interface AgentStatus {
 const AGENT_ENDPOINTS: Record<string, string> = {
     "Notifier Agent": "notifier/run",
     "Trend Forecaster Agent": "trend-forecaster/run",
-    // Connector, Coach, etc requieren payloads específicos por ahora,
-    // o se pueden integrar después si se les hace endpoints sin payload.
+    "Strategist Agent": "strategist/run",
+    // Connector y Coach tienen UI específica, pero se maneja desde AgentInsights
 };
 
 const AGENT_ICONS: Record<string, any> = {

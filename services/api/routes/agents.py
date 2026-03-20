@@ -79,6 +79,26 @@ async def run_trend_forecaster_agent(db: AsyncSession = Depends(get_db)):
     trends = await forecaster.analyze_trends()
     return {"message": "Trend forecaster agent run completed", "trends": trends}
 
+@router.post("/strategist/run")
+async def run_strategist_agent(db: AsyncSession = Depends(get_db)):
+    """Manually triggers the strategist agent to analyze a sample opportunity."""
+    from agents.strategist import StrategistAgent
+    from sqlalchemy import text
+    
+    strategist = StrategistAgent(db)
+    
+    # Fetch an opportunity to analyze (e.g., top active hackathon)
+    result = await db.execute(text("SELECT id, title as project_title, description, tags, prize_pool FROM active_hackathons ORDER BY deadline ASC LIMIT 1"))
+    row = result.fetchone()
+    
+    if not row:
+        return {"message": "No active hackathons found to analyze", "analysis": None}
+        
+    opportunity_data = dict(row._mapping)
+    analysis = await strategist.analyze_opportunity(opportunity_data, user_accepted=False)
+    
+    return {"message": "Strategist agent run completed", "analysis": analysis}
+
 class AssetsRequest(BaseModel):
     hackathon_title: str
     roadmap: dict
