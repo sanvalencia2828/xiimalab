@@ -390,3 +390,30 @@ FROM escrow_ledger el
 LEFT JOIN escrow_timeline et ON et.escrow_id = el.id
 WHERE el.current_state = 'DISPUTE_RESOLUTION'
 GROUP BY el.id;
+
+-- ─────────────────────────────────────────────
+-- Market Trends (Real-Time Growth & Demand)
+-- ─────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS market_trends (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    role_name VARCHAR(128) NOT NULL,
+    demand_score INTEGER NOT NULL DEFAULT 0,
+    growth_percentage VARCHAR(32) NOT NULL DEFAULT '+0%',
+    category VARCHAR(64) NOT NULL DEFAULT 'tech',
+    top_projects_keywords JSONB NOT NULL DEFAULT '[]',
+    last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_trends_demand ON market_trends (demand_score DESC);
+CREATE INDEX IF NOT EXISTS idx_market_trends_category ON market_trends (category);
+
+CREATE OR REPLACE TRIGGER trg_market_trends_updated_at
+    BEFORE UPDATE ON market_trends
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Enable RLS and create public read policy
+ALTER TABLE market_trends ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access to market_trends" ON market_trends FOR SELECT USING (true);
+-- Service role handles inserts/updates so it bypasses RLS
+

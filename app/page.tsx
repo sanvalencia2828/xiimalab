@@ -436,12 +436,52 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
 }
 
 function MarketOverview() {
-    const marketSkills = [
-        { name: "AI/ML", demand: 90, growth: "+12%" },
-        { name: "Blockchain", demand: 75, growth: "+8%" },
-        { name: "Rust", demand: 82, growth: "+15%" },
-        { name: "Docker", demand: 78, growth: "+5%" },
+    const [marketSkills, setMarketSkills] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
+
+    useEffect(() => {
+        fetchTrends();
+    }, []);
+
+    const fetchTrends = async () => {
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/market/trends`);
+            const data = await res.json();
+            if (data.success && data.trends && data.trends.length > 0) {
+                setMarketSkills(data.trends);
+            } else {
+                setMarketSkills(getFallbackTrends());
+            }
+        } catch (error) {
+            console.error("Error fetching trends:", error);
+            setMarketSkills(getFallbackTrends());
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getFallbackTrends = () => [
+        { role_name: "AI/ML", demand_score: 90, growth_percentage: "+12%" },
+        { role_name: "Blockchain", demand_score: 75, growth_percentage: "+8%" },
+        { role_name: "Rust", demand_score: 82, growth_percentage: "+15%" },
+        { role_name: "Docker", demand_score: 78, growth_percentage: "+5%" },
+        { role_name: "Program Manager", demand_score: 85, growth_percentage: "+10%" },
+        { role_name: "Data Analytics", demand_score: 88, growth_percentage: "+14%" },
     ];
+
+    const handleSync = async () => {
+        setSyncing(true);
+        try {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/market/sync`, { method: "POST" });
+            // Wait a few seconds for background agent to process, then refetch
+            setTimeout(fetchTrends, 5000);
+        } catch (error) {
+            console.error("Error syncing trends:", error);
+        } finally {
+            setTimeout(() => setSyncing(false), 2000);
+        }
+    };
 
     return (
         <motion.div
@@ -455,19 +495,33 @@ function MarketOverview() {
                     <TrendingUp className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-sm font-bold text-white">Mercado en Alza</h3>
                 </div>
+                <button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="flex items-center gap-1 text-xs text-accent hover:text-accent-bright transition-colors disabled:opacity-50"
+                >
+                    {syncing ? <Loader2 className="w-3 h-3 animate-spin"/> : <TrendingUp className="w-3 h-3"/>}
+                    {syncing ? "Sincronizando..." : "Actualizar"}
+                </button>
             </div>
 
-            <div className="space-y-2">
-                {marketSkills.map((skill) => (
-                    <div key={skill.name} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                        <div>
-                            <span className="text-xs font-medium text-slate-300">{skill.name}</span>
-                            <p className="text-[10px] text-emerald-400">{skill.growth} vs mes anterior</p>
+            {loading ? (
+                <div className="flex justify-center p-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-accent" />
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {marketSkills.map((skill, idx) => (
+                        <div key={skill.id || idx} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                            <div>
+                                <span className="text-xs font-medium text-slate-300">{skill.role_name}</span>
+                                <p className="text-[10px] text-emerald-400">{skill.growth_percentage} vs mes anterior</p>
+                            </div>
+                            <span className="text-sm font-bold text-emerald-400">{skill.demand_score}%</span>
                         </div>
-                        <span className="text-sm font-bold text-emerald-400">{skill.demand}%</span>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </motion.div>
     );
 }

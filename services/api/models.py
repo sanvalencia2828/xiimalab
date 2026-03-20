@@ -271,3 +271,21 @@ class UserSkillProfile(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class MarketTrend(Base):
+    """Market Trends (Real-Time Growth & Demand)"""
+    __tablename__ = "market_trends"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    role_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    demand_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    growth_percentage: Mapped[str] = mapped_column(String(32), nullable=False, default="+0%")
+    category: Mapped[str] = mapped_column(String(64), nullable=False, default="tech")
+    top_projects_keywords: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
