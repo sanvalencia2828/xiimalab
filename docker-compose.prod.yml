@@ -1,0 +1,276 @@
+version: '3.8'
+
+services:
+  # Base de Datos
+  db:
+    image: postgres:15
+    container_name: xiima_db_prod
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: xiimalab
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - xiima-net
+
+  # Cache Redis
+  redis:
+    image: redis:7-alpine
+    container_name: xiima_redis_prod
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - xiima-net
+
+  # Backend FastAPI
+  api:
+    build: ./services/api
+    container_name: xiima_api_prod
+    restart: always
+    env_file: .env
+    depends_on:
+      - db
+    # No exponemos el puerto 8000 hacia afuera. Caddy se encarga.
+    expose:
+      - "8000"
+    environment:
+      - SCRAPER_URL=http://scraper:9000
+    networks:
+      - xiima-net
+
+  # Reverse Proxy (Caddy)
+  caddy:
+    image: caddy:2-alpine
+    container_name: xiima_caddy_prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks:
+      - xiima-net
+
+  # ─────────────────────────────────────────────
+  # Motores de Recolección e IA
+  # ─────────────────────────────────────────────
+  devpost:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python devpost_engine.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      HEADLESS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    shm_size: '256m'
+    networks:
+      - xiima-net
+
+  snap-engine:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python snap_engine.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      REDIS_URL: redis://redis:6379
+      DEVFOLIO_MCP_API_KEY: ${DEVFOLIO_MCP_API_KEY}
+      SNAP_INTERVAL_HOURS: ${SNAP_INTERVAL_HOURS:-12}
+      HEADLESS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    shm_size: '256m'
+    networks:
+      - xiima-net
+
+  agent-crew:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python agent_crew.py --loop 3600
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      ML_MODEL: all-MiniLM-L6-v2
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+    networks:
+      - xiima-net
+
+  payout-oracle:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: always
+    command: python payout_manager.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_PLATFORM_SECRET: ${STELLAR_PLATFORM_SECRET}
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - xiima-net
+
+  ml-matcher:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python ml_matcher.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      ML_MODEL: all-MiniLM-L6-v2
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+    networks:
+      - xiima-net
+
+  crew-monitor:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python crew_monitor.py --interval 300
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      ML_MODEL: all-MiniLM-L6-v2
+    depends_on:
+      db:
+        condition: service_healthy
+      agent-crew:
+        condition: service_started
+    networks:
+      - xiima-net
+
+  skill-validator:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python skill_validator.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  staking-monitor:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python staking_manager.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      STELLAR_SECRET_KEY: ${STELLAR_SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  devfolio:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python devfolio_mcp.py
+    environment:
+      DATABASE_URL: postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      REDIS_URL: redis://redis:6379
+      DEVFOLIO_MCP_API_KEY: ${DEVFOLIO_MCP_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - xiima-net
+
+  scraper:
+    build: ./services/scraper
+    container_name: xiima_scraper_prod
+    restart: always
+    command: python scraper.py
+    env_file: .env
+    environment:
+      - SCRAPER_URL=http://scraper:9000
+      - NEXT_PUBLIC_API_URL=http://api:8000
+      - DATABASE_URL=postgresql://xiima:${POSTGRES_PASSWORD}@db:5432/xiimalab
+      - REDIS_URL=redis://redis:6379
+      - HEADLESS=true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    shm_size: '256m'
+    networks:
+      - xiima-net
+
+  automation:
+    build: ./services/automation
+    container_name: xiima_automation_prod
+    volumes:
+      - ./snapshots:/app/snapshots
+    env_file: .env
+    depends_on:
+      - api
+    networks:
+      - xiima-net
+
+  redimension_ai:
+    image: sanvalencia2828/redimension-ai:latest
+    container_name: redimension_engine_prod
+    restart: always
+    networks:
+      - xiima-net
+
+volumes:
+  postgres_data_prod:
+  caddy_data:
+  caddy_config:
+
+networks:
+  xiima-net:
+    driver: bridge

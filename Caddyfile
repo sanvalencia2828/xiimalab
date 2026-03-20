@@ -1,0 +1,15 @@
+# Caddyfile para Producción
+# Caddy se encarga automáticamente de obtener certificados SSL gratuitos de Let's Encrypt
+
+# Reemplaza la variable de entorno en tu .env o directamente aquí por tu subdominio (ej. api.xiimalab.com)
+{$DOMAIN_NAME} {
+    # Redirigir el trafico a la API de FastAPI corriendo en el contenedor 'api'
+    reverse_proxy api:8000
+    
+    # Configuraciones extra de seguridad (CORS manejado por FastAPI)
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+}
