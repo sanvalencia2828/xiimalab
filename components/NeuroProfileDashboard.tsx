@@ -68,8 +68,7 @@ export default function NeuroProfileDashboard({ walletAddress }: { walletAddress
     const loadProfile = async (address: string) => {
         setLoading(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const response = await fetch(`${apiUrl}/neuro/profile/${address}`);
+            const response = await fetch(`/api/neuro/profile/${address}`);
             if (response.ok) {
                 const data = await response.json();
                 setProfile(data);
