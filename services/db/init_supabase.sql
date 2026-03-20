@@ -205,3 +205,188 @@ CREATE INDEX IF NOT EXISTS idx_user_skill_profiles_tech_stack_gin ON user_skill_
 CREATE OR REPLACE TRIGGER trg_user_skill_profiles_updated_at
     BEFORE UPDATE ON user_skill_profiles
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ─────────────────────────────────────────────
+-- Stellar Escrow Lifecycle (Educational Staking)
+-- ─────────────────────────────────────────────
+
+-- Escrow State Enum
+CREATE TYPE escrow_state AS ENUM (
+    'INITIATION',
+    'FUNDING',
+    'MILESTONE_UPDATES',
+    'APPROVAL',
+    'RELEASE',
+    'DISPUTE_RESOLUTION'
+);
+
+-- Escrow Ledger (educational staking contracts)
+CREATE TABLE IF NOT EXISTS escrow_ledger (
+    id SERIAL PRIMARY KEY,
+    
+    -- Stellar identifiers
+    student_address VARCHAR(64) NOT NULL,
+    coach_address VARCHAR(64) NOT NULL,
+    escrow_account VARCHAR(64),
+    
+    -- Contract terms
+    amount_xlm FLOAT NOT NULL,
+    total_milestones INTEGER NOT NULL DEFAULT 1,
+    
+    -- Current state
+    current_state escrow_state NOT NULL DEFAULT 'INITIATION',
+    
+    -- Stellar claimable balance info
+    claimable_balance_id VARCHAR(128),
+    
+    -- Dates
+    initiated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    funded_at TIMESTAMPTZ,
+    approval_at TIMESTAMPTZ,
+    released_at TIMESTAMPTZ,
+    disputed_at TIMESTAMPTZ,
+    
+    -- Dispute resolution
+    dispute_resolver_address VARCHAR(64),
+    dispute_reason TEXT,
+    dispute_outcome VARCHAR(32),
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_escrow_ledger_student ON escrow_ledger(student_address);
+CREATE INDEX IF NOT EXISTS idx_escrow_ledger_coach ON escrow_ledger(coach_address);
+CREATE INDEX IF NOT EXISTS idx_escrow_ledger_state ON escrow_ledger(current_state);
+CREATE INDEX IF NOT EXISTS idx_escrow_ledger_created ON escrow_ledger(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_escrow_ledger_active ON escrow_ledger(current_state)
+    WHERE current_state NOT IN ('RELEASE', 'DISPUTE_RESOLUTION');
+
+-- Escrow Timeline (audit trail for state transitions)
+CREATE TABLE IF NOT EXISTS escrow_timeline (
+    id SERIAL PRIMARY KEY,
+    
+    escrow_id INTEGER NOT NULL REFERENCES escrow_ledger(id) ON DELETE CASCADE,
+    
+    -- State transition
+    from_state escrow_state NOT NULL,
+    to_state escrow_state NOT NULL,
+    
+    -- Transition metadata
+    actor VARCHAR(64) NOT NULL,
+    reason TEXT,
+    metadata JSONB DEFAULT '{}',
+    
+    -- Transaction tracking
+    stellar_tx_hash VARCHAR(128),
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_escrow_timeline_escrow ON escrow_timeline(escrow_id);
+CREATE INDEX IF NOT EXISTS idx_escrow_timeline_states ON escrow_timeline(from_state, to_state);
+CREATE INDEX IF NOT EXISTS idx_escrow_timeline_created ON escrow_timeline(created_at DESC);
+
+-- Escrow Milestones (individual milestone tracking)
+CREATE TABLE IF NOT EXISTS escrow_milestones (
+    id SERIAL PRIMARY KEY,
+    
+    escrow_id INTEGER NOT NULL REFERENCES escrow_ledger(id) ON DELETE CASCADE,
+    
+    -- Milestone details
+    milestone_number INTEGER NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    description TEXT,
+    required_skills JSONB DEFAULT '[]',
+    
+    -- Completion tracking
+    marked_completed_at TIMESTAMPTZ,
+    completion_proof_url TEXT,
+    
+    -- Approval tracking
+    approved_at TIMESTAMPTZ,
+    approver_notes TEXT,
+    
+    -- Release status
+    funds_released_at TIMESTAMPTZ,
+    release_amount_xlm FLOAT,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_escrow_milestones_escrow ON escrow_milestones(escrow_id);
+CREATE INDEX IF NOT EXISTS idx_escrow_milestones_approved ON escrow_milestones(approved_at) 
+    WHERE approved_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_escrow_milestones_released ON escrow_milestones(funds_released_at) 
+    WHERE funds_released_at IS NOT NULL;
+
+-- Add escrow tracking to user_achievements
+ALTER TABLE user_achievements
+ADD COLUMN IF NOT EXISTS escrow_id INTEGER REFERENCES escrow_ledger(id),
+ADD COLUMN IF NOT EXISTS escrow_milestone_id INTEGER REFERENCES escrow_milestones(id),
+ADD COLUMN IF NOT EXISTS is_escrow_verified BOOLEAN DEFAULT FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_achievements_escrow ON user_achievements(escrow_id) 
+    WHERE escrow_id IS NOT NULL;
+
+-- Update escrow state from timeline
+CREATE OR REPLACE FUNCTION update_escrow_state_from_timeline()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE escrow_ledger
+    SET current_state = NEW.to_state,
+        updated_at = NOW()
+    WHERE id = NEW.escrow_id;
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER trg_escrow_timeline_update_state
+    AFTER INSERT ON escrow_timeline
+    FOR EACH ROW EXECUTE FUNCTION update_escrow_state_from_timeline();
+
+-- Triggers for updated_at
+CREATE OR REPLACE TRIGGER trg_escrow_ledger_updated_at
+    BEFORE UPDATE ON escrow_ledger
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE OR REPLACE TRIGGER trg_escrow_milestones_updated_at
+    BEFORE UPDATE ON escrow_milestones
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Active Escrows View
+CREATE OR REPLACE VIEW v_active_escrows AS
+SELECT 
+    el.id,
+    el.student_address,
+    el.coach_address,
+    el.amount_xlm,
+    el.current_state,
+    el.total_milestones,
+    COUNT(em.id) as completed_milestones,
+    MAX(em.approved_at) as latest_approval,
+    el.initiated_at,
+    el.updated_at
+FROM escrow_ledger el
+LEFT JOIN escrow_milestones em ON em.escrow_id = el.id AND em.approved_at IS NOT NULL
+WHERE el.current_state NOT IN ('RELEASE', 'DISPUTE_RESOLUTION')
+GROUP BY el.id;
+
+-- Disputed Escrows View
+CREATE OR REPLACE VIEW v_disputed_escrows AS
+SELECT 
+    el.id,
+    el.student_address,
+    el.coach_address,
+    el.amount_xlm,
+    el.dispute_resolver_address,
+    el.dispute_reason,
+    el.dispute_outcome,
+    el.disputed_at,
+    COUNT(et.id) as state_change_count
+FROM escrow_ledger el
+LEFT JOIN escrow_timeline et ON et.escrow_id = el.id
+WHERE el.current_state = 'DISPUTE_RESOLUTION'
+GROUP BY el.id;

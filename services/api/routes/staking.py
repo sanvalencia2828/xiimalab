@@ -112,16 +112,16 @@ async def hotmart_webhook(
             course_id=payload.course_id,
         )
         log.info(
-            f"Escrow creado — order={payload.order_id} "
-            f"student={payload.buyer_email} balance={result['balance_id']}"
+            f"✨ Escrow creado — order={payload.order_id} "
+            f"student={payload.buyer_email} escrow_id={result['escrow_id']}"
         )
         return {"success": True, **result}
 
-    except Exception as exc:
-        log.error(f"Error creando escrow: {exc}")
+    except ValueError as exc:
+        log.error(f"Validation error creating escrow: {exc}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creando Claimable Balance: {exc}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid escrow data: {exc}",
         )
 
 

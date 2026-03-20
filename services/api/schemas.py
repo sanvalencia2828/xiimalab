@@ -144,11 +144,83 @@ class SourceMetadata(BaseModel):
 class AggregatedHackathonResponse(HackathonExtendedRead):
     """Extended response with multi-source aggregation metadata."""
     model_config = ConfigDict(from_attributes=True)
-    
+
     source_metadata: SourceMetadata
-    
+
     # Phase 3 Scoring
     urgency_score: float | None = None
     value_score: float | None = None
     personalized_score: float | None = None
     match_breakdown: PersonalizedMatchScore | None = None
+
+
+# ─────────────────────────────────────────────
+# Milestone Approval Workflow schemas
+# ─────────────────────────────────────────────
+
+class MarkMilestoneCompletedRequest(BaseModel):
+    """Request schema: Student marks milestone as completed."""
+    completion_proof_url: str | None = None  # URL to GitHub, screenshot, or evidence
+    notes: str | None = None  # Optional notes from student
+
+
+class ApproveMilestoneRequest(BaseModel):
+    """Request schema: Coach approves a milestone."""
+    approver_address: str  # Coach's wallet address (for audit)
+    approver_notes: str | None = None  # Optional coach feedback
+
+
+class RejectMilestoneRequest(BaseModel):
+    """Request schema: Coach rejects a milestone."""
+    approver_address: str  # Coach's wallet address (for audit)
+    rejection_reason: str  # Required reason for rejection
+    allow_resubmission: bool = True  # Can student resubmit?
+
+
+class MilestoneStatusRead(BaseModel):
+    """Response schema: Complete milestone status."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    escrow_id: int
+    milestone_number: int
+    title: str
+    description: str | None = None
+    required_skills: list[str] = []
+
+    # Timestamps
+    marked_completed_at: datetime | None = None
+    approved_at: datetime | None = None
+    funds_released_at: datetime | None = None
+
+    # Approver feedback
+    approver_notes: str | None = None
+
+    # Release info
+    release_amount_xlm: float | None = None
+    completion_proof_url: str | None = None
+
+    # Computed status (pending, marked_completed, approved, rejected, released)
+    status: str
+
+
+class PendingMilestoneRead(BaseModel):
+    """Response schema: Milestone pending coach approval."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    escrow_id: int
+    milestone_number: int
+    title: str
+    description: str | None = None
+    required_skills: list[str] = []
+
+    # When student marked it completed
+    marked_completed_at: datetime
+
+    # Proof provided by student
+    completion_proof_url: str | None = None
+
+    # Student info (for coach review)
+    student_address: str
+    escrow_amount: float  # Total escrow amount (for context)

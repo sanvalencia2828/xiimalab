@@ -24,3 +24,45 @@ export async function generateProjectAssetsAction(hackathonTitle: string, roadma
         return { error: "Failed to connect to AI Coach" };
     }
 }
+
+// ── Agent Management Actions ──────────────────────────────────────────────────
+
+export async function getAgentsStatusAction() {
+    try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agents/status`, {
+            method: "GET",
+            // Evitar caché para obtener el status real siempre
+            cache: "no-store",
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to get agents status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Action Error (getAgentsStatus):", error);
+        return { error: "Failed to connect to API, ensure backend is running" };
+    }
+}
+
+export async function runAgentAction(endpointId: string) {
+    try {
+        // endpointId is something like "notifier/run" or "orchestrator/coordinate"
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agents/${endpointId}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to execute agent ${endpointId}: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Action Error (runAgentAction):", error);
+        return { error: `Failed to trigger ${endpointId}` };
+    }
+}

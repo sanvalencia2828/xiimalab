@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base
-from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge, devfolio, aggregated
+from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge, devfolio, aggregated, milestones
 from routes.insights import router as insights_router
 from routes.neuro import router as neuro_router
 from routes.notifications import router as notifications_router
@@ -68,6 +68,7 @@ app.include_router(aggregated.router, prefix="/hackathons/aggregated", tags=["ag
 app.include_router(skills.router, prefix="/skills", tags=["skills"])
 app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
 app.include_router(staking.router, prefix="/staking", tags=["staking"])
+app.include_router(milestones.router, prefix="/milestones", tags=["milestones"])
 app.include_router(stream.router, prefix="/stream", tags=["realtime"])
 app.include_router(hotmart_bridge.router, prefix="/hotmart", tags=["hotmart"])
 app.include_router(skill_validator_router)      # GET/POST /skills/escrow, /skills/progress
