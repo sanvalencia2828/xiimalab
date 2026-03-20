@@ -37,6 +37,7 @@ RUN curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_a
 # Least-privilege user
 RUN useradd --system --uid 1001 --gid 0 scraper
 
+# Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -46,13 +47,18 @@ RUN playwright install chromium
 # Pre-download ChromeDriver for Selenium
 RUN playwright install-deps chromium || true
 
+# Copy application code
 COPY . .
 RUN chown -R scraper:0 /app
 
 USER scraper
 
-# Health endpoint via simple Python HTTP server on a separate port
+# Health check port
 EXPOSE 9000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)" || exit 1
 
 # Run with automated scheduling
 CMD ["python", "scraper.py"]

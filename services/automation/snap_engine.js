@@ -8,12 +8,14 @@
  * Usage:
  *   node snap_engine.js [--url http://localhost:3000] [--out ./snapshots]
  */
-
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
 const FormData = require("form-data");
 const fetch = require("node-fetch");
+
+// Load configuration
+const config = require('./config');
 
 // ─────────────────────────────────────────────
 // Config (override via env or CLI args)
@@ -23,15 +25,10 @@ const args = process.argv.slice(2).reduce((acc, arg, i, arr) => {
   return acc;
 }, {});
 
-const DASHBOARD_URL = args.url || process.env.DASHBOARD_URL || "http://localhost:3000";
-const OUTPUT_DIR = args.out || process.env.SNAP_OUTPUT_DIR || "./snapshots";
-const REDIMENSION_URL = process.env.REDIMENSION_AI_URL || "http://localhost:8001";
-
-/** Formats to request from RedimensionAI */
-const EXPORT_FORMATS = [
-  { name: "linkedin-16x9", width: 1920, height: 1080, platform: "linkedin" },
-  { name: "tiktok-4x5", width: 1080, height: 1350, platform: "tiktok" },
-];
+const DASHBOARD_URL = args.url || config.dashboard.url;
+const OUTPUT_DIR = args.out || config.output.directory;
+const REDIMENSION_URL = config.redimensionAI.url;
+const EXPORT_FORMATS = config.redimensionAI.formats;
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -49,7 +46,7 @@ function timestamp() {
  * Strategy: poll until no elements with transform transitions are mid-flight,
  * or fall back to a fixed delay.
  */
-async function waitForAnimations(page, maxWaitMs = 3000) {
+async function waitForAnimations(page, maxWaitMs = config.dashboard.animationWait) {
   try {
     await page.waitForFunction(
       () => {
@@ -74,24 +71,24 @@ async function captureScreenshot() {
   console.log(`[snap] Launching browser → ${DASHBOARD_URL}`);
 
   const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    headless: config.browser.headless,
+    args: config.browser.args,
   });
 
   const page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 2 });
+  await page.setViewport(config.dashboard.viewport);
 
   // Suppress console noise from the page
   page.on("console", () => {});
 
-  await page.goto(DASHBOARD_URL, { waitUntil: "networkidle2", timeout: 30_000 });
+  await page.goto(DASHBOARD_URL, { waitUntil: "networkidle2", timeout: config.dashboard.timeout });
 
   // Wait for Framer Motion entrance animations (staggerChildren: 0.1, delayChildren: 0.2)
   await page.waitForTimeout(800);
-  await waitForAnimations(page, 2000);
+  await waitForAnimations(page, config.dashboard.animationWait);
 
   const ts = timestamp();
-  const screenshotPath = path.join(OUTPUT_DIR, `dashboard-${ts}.png`);
+  const screenshotPath = path.join(OUTPUT_DIR, `${config.output.filenamePrefix}-${ts}.png`);
   ensureDir(OUTPUT_DIR);
 
   await page.screenshot({ path: screenshotPath, fullPage: false, type: "png" });
@@ -125,7 +122,7 @@ async function sendToRedimensionAI(imagePath, format) {
 
   // Expect binary image back
   const buffer = await res.buffer();
-  const outPath = path.join(OUTPUT_DIR, `dashboard-${format.name}-${path.basename(imagePath)}`);
+  const outPath = path.join(OUTPUT_DIR, `${config.output.filenamePrefix}-${format.name}-${path.basename(imagePath)}`);
   fs.writeFileSync(outPath, buffer);
   console.log(`[snap] ✅ Optimized saved → ${outPath}`);
   return outPath;
