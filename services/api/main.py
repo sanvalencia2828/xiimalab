@@ -14,6 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base
 from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge, devfolio, aggregated, milestones
+from routes.hackathons import router as hackathons_router
+from routes.aggregated import router as aggregated_router
+from routes.skills import router as skills_router
 from routes.insights import router as insights_router
 from routes.neuro import router as neuro_router
 from routes.notifications import router as notifications_router
@@ -108,10 +111,10 @@ app.add_middleware(
 # ─────────────────────────────────────────────
 # Routers
 # ─────────────────────────────────────────────
-app.include_router(hackathons.router, prefix="/hackathons", tags=["hackathons"])
+app.include_router(hackathons_router, prefix="/hackathons", tags=["hackathons"])
 app.include_router(devfolio.router, prefix="/hackathons/devfolio", tags=["devfolio"])
-app.include_router(aggregated.router, prefix="/hackathons/aggregated", tags=["aggregated"])
-app.include_router(skills.router, prefix="/skills", tags=["skills"])
+app.include_router(aggregated_router, prefix="/hackathons/aggregated", tags=["hackathons-aggregated"])
+app.include_router(skills_router, prefix="/skills", tags=["skills"])
 app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
 app.include_router(staking.router, prefix="/staking", tags=["staking"])
 app.include_router(milestones.router, prefix="/milestones", tags=["milestones"])

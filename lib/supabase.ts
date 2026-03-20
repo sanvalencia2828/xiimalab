@@ -15,11 +15,13 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
+const isValidUrl = supabaseUrl !== "" && !supabaseUrl.includes("<project-id>");
+
 /**
  * Cliente Supabase — puede ser null si las env vars no están configuradas.
  * Siempre verificar: `if (supabase)` antes de usarlo.
  */
-export const supabase = supabaseUrl && supabaseKey
+export const supabase = isValidUrl && supabaseKey
     ? createClient(supabaseUrl, supabaseKey)
     : null;
 
