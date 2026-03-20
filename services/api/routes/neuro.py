@@ -283,6 +283,47 @@ async def get_cognitive_profile():
     }
 
 
+@router.get("/profile/{wallet_address}")
+async def get_neuro_profile(wallet_address: str, db: AsyncSession = Depends(get_db)):
+    """
+    Retorna el perfil neuropsicológico de un usuario.
+    Si no existe, retorna datos por defecto para el dashboard.
+    """
+    import models
+    result = await db.execute(
+        select(models.UserNeuroProfile).where(models.UserNeuroProfile.wallet_address == wallet_address)
+    )
+    profile = result.scalar_one_or_none()
+    
+    if profile:
+        return {
+            "wallet_address": profile.wallet_address,
+            "dominant_category": profile.dominant_category,
+            "cognitive_strengths": profile.cognitive_strengths,
+            "neuroplasticity_score": profile.neuroplasticity_score,
+            "learning_efficiency": profile.learning_efficiency,
+            "skills_progress": profile.skills_progress,
+            "target_skills": profile.target_skills,
+            "total_hours_learned": profile.total_hours_learned,
+            "hackathons_participated": profile.hackathons_participated,
+        }
+    
+    # Datos por defecto si el usuario aún no tiene perfil guardado
+    return {
+        "wallet_address": wallet_address,
+        "dominant_category": "executive",
+        "cognitive_strengths": ["executive", "memory"],
+        "neuroplasticity_score": 0.5,
+        "learning_efficiency": 0.5,
+        "skills_progress": {
+            "python": {"name": "Python", "hours": 10, "mastery": 30, "streak": 1, "category": "executive"}
+        },
+        "target_skills": ["AI/ML", "Web3"],
+        "total_hours_learned": 10.0,
+        "hackathons_participated": 0,
+    }
+
+
 # ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
