@@ -190,9 +190,9 @@ export function AggregatedHackathonCard({
         {/* Source Badges */}
         <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
           <SourceBadges
-            sources={hackathon.source_metadata.sources}
-            sourceUrls={hackathon.source_metadata.source_urls}
-            primarySource={hackathon.source_metadata.primary_source}
+            sources={hackathon.source_metadata?.sources ?? []}
+            sourceUrls={hackathon.source_metadata?.source_urls ?? {}}
+            primarySource={hackathon.source_metadata?.primary_source ?? ""}
             compact
           />
         </div>
@@ -229,11 +229,11 @@ export function AggregatedHackathonCard({
             )}
 
             {/* Available On Links */}
-            {hackathon.source_metadata.sources.length > 1 && (
+            {(hackathon.source_metadata?.sources?.length ?? 0) > 1 && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs font-medium text-slate-400 mb-2">Available on:</p>
                 <div className="flex flex-wrap gap-2">
-                  {hackathon.source_metadata.sources.map((source) => {
+                  {(hackathon.source_metadata?.sources ?? []).map((source) => {
                     const url = hackathon.source_metadata.source_urls[source];
                     return url ? (
                       <a

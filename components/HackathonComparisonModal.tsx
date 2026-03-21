@@ -60,7 +60,7 @@ export function HackathonComparisonModal({
                     {hackathon.title}
                   </h2>
                   <SourceBadges
-                    sources={hackathon.source_metadata.sources}
+                    sources={hackathon.source_metadata?.sources ?? []}
                     sourceUrls={hackathon.source_metadata.source_urls}
                     primarySource={hackathon.source_metadata.primary_source}
                   />
@@ -100,7 +100,7 @@ export function HackathonComparisonModal({
                 <div>
                   <p className="text-xs text-muted-text mb-1">Sources</p>
                   <p className="text-lg font-semibold text-slate-200">
-                    {hackathon.source_metadata.sources.length}
+                    {hackathon.source_metadata?.sources?.length ?? 0}
                   </p>
                 </div>
               </div>
@@ -184,7 +184,7 @@ export function HackathonComparisonModal({
               <div className="mb-6">
                 <h3 className="text-sm font-semibold text-slate-200 mb-3">Available on:</h3>
                 <div className="grid grid-cols-1 gap-2">
-                  {hackathon.source_metadata.sources.map((source) => {
+                  {(hackathon.source_metadata?.sources ?? []).map((source) => {
                     const url = hackathon.source_metadata.source_urls[source];
                     const isPrimary = source === hackathon.source_metadata.primary_source;
                     return url ? (
