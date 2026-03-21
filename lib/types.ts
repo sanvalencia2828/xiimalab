@@ -166,3 +166,4 @@ export function normalizeHackathon(raw: Record<string, unknown>): Hackathon {
     ai_analysis:       ai ?? null,
   };
 }
+
