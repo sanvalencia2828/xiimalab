@@ -2,7 +2,54 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Clock, TrendingUp, ExternalLink, Zap, Tag, Eye } from "lucide-react";
+import { Trophy, Clock, TrendingUp, ExternalLink, Zap, Tag, Eye, Send, CheckCircle2, Loader2 } from "lucide-react";
+
+type ApplyState = "idle" | "loading" | "applied";
+
+function ApplyButton({ hackathonId, sourceUrl }: { hackathonId: string; sourceUrl: string | null }) {
+    const [state, setState] = useState<ApplyState>("idle");
+
+    const handleApply = async () => {
+        if (state !== "idle") return;
+        setState("loading");
+        try {
+            const res = await fetch("/api/hackathons/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ hackathon_id: hackathonId }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setState("applied");
+            if (sourceUrl) window.open(sourceUrl, "_blank", "noopener noreferrer");
+        } catch {
+            setState("idle");
+        }
+    };
+
+    return (
+        <motion.button
+            whileHover={state === "idle" ? { scale: 1.03 } : {}}
+            whileTap={state === "idle" ? { scale: 0.97 } : {}}
+            onClick={handleApply}
+            disabled={state !== "idle"}
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                state === "applied"
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 cursor-default"
+                    : state === "loading"
+                    ? "bg-accent/10 text-accent border-accent/20 cursor-not-allowed opacity-70"
+                    : "bg-accent/10 text-accent border-accent/30 hover:bg-accent/20"
+            }`}
+        >
+            {state === "applied" ? (
+                <><CheckCircle2 className="w-3 h-3" /> ¡Aplicaste!</>
+            ) : state === "loading" ? (
+                <><Loader2 className="w-3 h-3 animate-spin" /> Aplicando...</>
+            ) : (
+                <><Send className="w-3 h-3" /> Aplicar</>
+            )}
+        </motion.button>
+    );
+}
 import type { AggregatedHackathon } from "@/lib/types";
 import { SourceBadges } from "./SourceBadges";
 
@@ -217,23 +264,10 @@ export function AggregatedHackathonCard({
           </button>
 
           {/* Primary CTA */}
-          {hackathon.source_metadata.source_urls[
-            hackathon.source_metadata.primary_source
-          ] && (
-            <a
-              href={
-                hackathon.source_metadata.source_urls[
-                  hackathon.source_metadata.primary_source
-                ]
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/20 text-accent hover:bg-accent/30 text-xs font-medium rounded-lg transition-colors"
-            >
-              <Zap className="w-3 h-3" />
-              Apply
-            </a>
-          )}
+          <ApplyButton
+            hackathonId={hackathon.id}
+            sourceUrl={hackathon.source_metadata?.source_urls?.[hackathon.source_metadata?.primary_source] ?? hackathon.source_url ?? null}
+          />
         </div>
       </div>
     </motion.div>
