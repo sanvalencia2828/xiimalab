@@ -20,6 +20,7 @@ import {
     Briefcase,
     Database,
 } from "lucide-react";
+import SystemStatus from "./SystemStatus";
 import { useWallet } from "@/lib/WalletContext";
 
 // -------------------------------------------------------
@@ -105,30 +106,9 @@ export default function SidebarNav() {
         })}
       </nav>
 
-            {/* System status footer */}
+            {/* System Status with real API ping */}
             <div className="p-4 border-t border-border">
-                <div className="bg-background rounded-xl p-3 border border-border">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-                        </span>
-                        <span className="text-xs font-semibold text-emerald-400">Sistemas operativos</span>
-                    </div>
-                    <div className="space-y-1.5">
-                        {[
-                            { label: "AURA Engine", status: "online" },
-                            { label: "DoraHacks Bot", status: "online" },
-                            { label: "Devfolio MCP", status: "online" },
-                            { label: "Match API", status: "online" },
-                        ].map(({ label, status }) => (
-                            <div key={label} className="flex items-center justify-between">
-                                <span className="text-xs text-muted-text">{label}</span>
-                                <span className="text-xs text-emerald-400 font-medium capitalize">{status}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <SystemStatus />
 
                 {/* Wallet pill */}
                 <Link href="/settings">

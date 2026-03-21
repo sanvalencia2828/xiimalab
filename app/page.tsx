@@ -3,16 +3,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-    Brain, Target, TrendingUp, Trophy, Zap, Clock,
-    ChevronRight, Flame, BarChart3,
+    Brain, Target, TrendingUp, Trophy, Zap, Clock, TrendingDown,
+    ChevronRight, Flame, BarChart3, BookOpen, AlertCircle,
     Wallet, Loader2, Plus, Award,
-    CheckCircle2, ArrowUpRight, ExternalLink
+    CheckCircle2, ArrowUpRight, ExternalLink, GraduationCap
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import PriorityBoard from "@/components/PriorityBoard";
 import NotificationBell from "@/components/NotificationBell";
+import BestMatchHero from "@/components/BestMatchHero";
 import { loadUserSkillsAction } from "@/app/actions/userSkills";
+import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
 import type { MarketTrend } from "@/lib/types";
 
 interface Skill {
@@ -135,6 +137,7 @@ export default function UnifiedDashboard() {
                     
                     {/* Left Column - Priority & Actions */}
                     <div className="lg:col-span-2 space-y-6">
+                        <BestMatchHero />
                         <HackathonsSection />
                         <QuickActionsSection />
                     </div>
@@ -255,7 +258,7 @@ function HackathonsSection() {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-400" />
-                    <h2 className="text-lg font-bold text-white">Hackatones Prioritarios</h2>
+                    <h2 className="text-lg font-bold text-white">Análisis de Relevancia del Mercado</h2>
                 </div>
                 <Link
                     href="/hackathons"
@@ -441,52 +444,115 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
     );
 }
 
+interface SkillGap {
+    skill: string;
+    relevance: number;
+    userLevel: number;
+    gap: number;
+    trend: "up" | "stable";
+    priority: "high" | "medium" | "low";
+    recommendedAction: string;
+}
+
 function MarketOverview() {
-    const [marketSkills, setMarketSkills] = useState<MarketTrend[]>([]);
+    const [skillGaps, setSkillGaps] = useState<SkillGap[]>([]);
     const [loading, setLoading] = useState(true);
-    const [syncing, setSyncing] = useState(false);
+    const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchTrends();
+        fetchSkillAnalysis();
     }, []);
 
-    const fetchTrends = async () => {
+    const fetchSkillAnalysis = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/market/trends`);
-            const data = await res.json();
-            if (data.success && data.trends && data.trends.length > 0) {
-                setMarketSkills(data.trends);
-            } else {
-                setMarketSkills(getFallbackTrends());
+            const [relevanceResult, userSkillsResult] = await Promise.all([
+                getSkillRelevanceAction(),
+                loadUserSkillsAction(localStorage.getItem("stellar_pubkey") || "")
+            ]);
+
+            if ("error" in relevanceResult || !Array.isArray(relevanceResult?.relevance_report)) {
+                setSkillGaps(getFallbackGaps());
+                setLoading(false);
+                return;
             }
+
+            const userSkills = userSkillsResult?.skills ?? [];
+            const userSkillMap = new Map<string, number>();
+            userSkills.forEach((s: { name: string; level: number }) => {
+                userSkillMap.set(s.name.toLowerCase(), s.level);
+            });
+
+            const gaps: SkillGap[] = relevanceResult.relevance_report.slice(0, 6).map((r: SkillRelevance) => {
+                let userLevel = 0;
+                const skillLower = r.skill.toLowerCase();
+                
+                userSkillMap.forEach((level, name) => {
+                    if ((name.includes(skillLower) || skillLower.includes(name)) && userLevel === 0) {
+                        userLevel = level;
+                    }
+                });
+
+                const gap = Math.max(0, r.score - userLevel);
+                
+                let priority: "high" | "medium" | "low" = "medium";
+                if (r.trend === "up" && gap > 30) priority = "high";
+                else if (gap < 15) priority = "low";
+
+                let recommendedAction = "Mantén tu nivel actual";
+                if (gap > 50) {
+                    recommendedAction = "Curso intensivo recomendado";
+                } else if (gap > 30) {
+                    recommendedAction = "Practica y mejora";
+                } else if (gap > 15) {
+                    recommendedAction = "Refuerza con ejercicios";
+                } else if (gap > 0) {
+                    recommendedAction = "微 aprendizaje";
+                }
+
+                return {
+                    skill: r.skill,
+                    relevance: r.score,
+                    userLevel,
+                    gap,
+                    trend: r.trend,
+                    priority,
+                    recommendedAction,
+                };
+            });
+
+            setSkillGaps(gaps.sort((a, b) => {
+                const priorityOrder = { high: 0, medium: 1, low: 2 };
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+            }));
         } catch (error) {
-            console.error("Error fetching trends:", error);
-            setMarketSkills(getFallbackTrends());
+            console.error("Error fetching skill analysis:", error);
+            setSkillGaps(getFallbackGaps());
         } finally {
             setLoading(false);
         }
     };
 
-    const getFallbackTrends = () => [
-        { role_name: "AI/ML", demand_score: 90, growth_percentage: "+12%" },
-        { role_name: "Blockchain", demand_score: 75, growth_percentage: "+8%" },
-        { role_name: "Rust", demand_score: 82, growth_percentage: "+15%" },
-        { role_name: "Docker", demand_score: 78, growth_percentage: "+5%" },
-        { role_name: "Program Manager", demand_score: 85, growth_percentage: "+10%" },
-        { role_name: "Data Analytics", demand_score: 88, growth_percentage: "+14%" },
+    const getFallbackGaps = (): SkillGap[] => [
+        { skill: "AI/ML", relevance: 83, userLevel: 45, gap: 38, trend: "up", priority: "high", recommendedAction: "Curso intensivo recomendado" },
+        { skill: "DeFi", relevance: 67, userLevel: 30, gap: 37, trend: "stable", priority: "high", recommendedAction: "Practica y mejora" },
+        { skill: "Blockchain", relevance: 60, userLevel: 25, gap: 35, trend: "stable", priority: "high", recommendedAction: "Practica y mejora" },
+        { skill: "Social Good", relevance: 60, userLevel: 50, gap: 10, trend: "stable", priority: "low", recommendedAction: "微 aprendizaje" },
+        { skill: "Web3", relevance: 50, userLevel: 20, gap: 30, trend: "stable", priority: "medium", recommendedAction: "Refuerza con ejercicios" },
+        { skill: "Open Ended", relevance: 53, userLevel: 35, gap: 18, trend: "stable", priority: "medium", recommendedAction: "Refuerza con ejercicios" },
     ];
 
-    const handleSync = async () => {
-        setSyncing(true);
-        try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/market/sync`, { method: "POST" });
-            // Wait a few seconds for background agent to process, then refetch
-            setTimeout(fetchTrends, 5000);
-        } catch (error) {
-            console.error("Error syncing trends:", error);
-        } finally {
-            setTimeout(() => setSyncing(false), 2000);
+    const getPriorityColor = (priority: string) => {
+        switch (priority) {
+            case "high": return "text-rose-400 bg-rose-500/10 border-rose-500/30";
+            case "medium": return "text-amber-400 bg-amber-500/10 border-amber-500/30";
+            default: return "text-slate-400 bg-slate-500/10 border-slate-500/30";
         }
+    };
+
+    const getGapBarColor = (gap: number) => {
+        if (gap > 50) return "bg-gradient-to-r from-rose-500 to-red-500";
+        if (gap > 30) return "bg-gradient-to-r from-amber-500 to-orange-500";
+        return "bg-gradient-to-r from-emerald-500 to-teal-500";
     };
 
     return (
@@ -498,34 +564,136 @@ function MarketOverview() {
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-emerald-400" />
+                    <TrendingUp className="w-5 h-5 text-indigo-400" />
                     <h3 className="text-sm font-bold text-white">Mercado en Alza</h3>
                 </div>
-                <button
-                    onClick={handleSync}
-                    disabled={syncing}
-                    className="flex items-center gap-1 text-xs text-accent hover:text-accent-bright transition-colors disabled:opacity-50"
+                <Link
+                    href="/skills"
+                    className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
                 >
-                    {syncing ? <Loader2 className="w-3 h-3 animate-spin"/> : <TrendingUp className="w-3 h-3"/>}
-                    {syncing ? "Sincronizando..." : "Actualizar"}
-                </button>
+                    <BookOpen className="w-3 h-3" />
+                    Ver plan
+                </Link>
             </div>
 
             {loading ? (
                 <div className="flex justify-center p-4">
-                    <Loader2 className="w-5 h-5 animate-spin text-accent" />
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
                 </div>
             ) : (
-                <div className="space-y-2">
-                    {marketSkills.map((skill, idx) => (
-                        <div key={skill.role_name} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                            <div>
-                                <span className="text-xs font-medium text-slate-300">{skill.role_name}</span>
-                                <p className="text-[10px] text-emerald-400">{skill.growth_percentage} vs mes anterior</p>
+                <div className="space-y-3">
+                    {skillGaps.map((item, idx) => (
+                        <motion.div
+                            key={item.skill}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                                expandedSkill === item.skill 
+                                    ? "bg-indigo-500/10 border-indigo-500/30" 
+                                    : "bg-white/5 border-white/5 hover:border-indigo-500/20"
+                            }`}
+                            onClick={() => setExpandedSkill(expandedSkill === item.skill ? null : item.skill)}
+                        >
+                            <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-slate-200">{item.skill}</span>
+                                    {item.trend === "up" ? (
+                                        <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] rounded">
+                                            <TrendingUp className="w-2.5 h-2.5" /> up
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-500/10 text-slate-400 text-[8px] rounded">
+                                            <TrendingDown className="w-2.5 h-2.5" /> stable
+                                        </span>
+                                    )}
+                                </div>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getPriorityColor(item.priority)}`}>
+                                    {item.priority === "high" ? "Urgente" : item.priority === "medium" ? "Medio" : "Bajo"}
+                                </span>
                             </div>
-                            <span className="text-sm font-bold text-emerald-400">{skill.demand_score}%</span>
-                        </div>
+
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="flex-1">
+                                    <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                        <span>Tu nivel: {item.userLevel}%</span>
+                                        <span>Relevancia: {item.relevance}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${item.userLevel}%` }}
+                                            transition={{ delay: idx * 0.05 + 0.1, duration: 0.5 }}
+                                            className="h-full bg-purple-500 rounded-full"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-500">Brecha:</span>
+                                    <span className={`text-xs font-bold ${
+                                        item.gap > 30 ? "text-rose-400" : item.gap > 15 ? "text-amber-400" : "text-emerald-400"
+                                    }`}>
+                                        {item.gap}%
+                                    </span>
+                                </div>
+                                {item.gap > 15 && (
+                                    <Link
+                                        href={`/skills?skill=${encodeURIComponent(item.skill)}`}
+                                        className="flex items-center gap-1 text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <GraduationCap className="w-3 h-3" />
+                                        {item.recommendedAction}
+                                    </Link>
+                                )}
+                            </div>
+
+                            {expandedSkill === item.skill && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-3 pt-3 border-t border-white/10"
+                                >
+                                    <div className="flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-xs text-slate-300 mb-2">{item.recommendedAction}</p>
+                                            <Link
+                                                href={`/learning?skill=${encodeURIComponent(item.skill)}&target=${item.relevance}`}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-medium rounded-lg transition-colors"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <BookOpen className="w-3 h-3" />
+                                                Encontrar cursos
+                                                <ArrowUpRight className="w-3 h-3" />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </motion.div>
                     ))}
+                </div>
+            )}
+
+            {skillGaps.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-slate-500">
+                            {skillGaps.filter(s => s.priority === "high").length} skills requieren atención
+                        </span>
+                        <Link
+                            href="/learning"
+                            className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                        >
+                            Plan de aprendizaje
+                            <ChevronRight className="w-3 h-3" />
+                        </Link>
+                    </div>
                 </div>
             )}
         </motion.div>

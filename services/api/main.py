@@ -23,6 +23,7 @@ from routes.notifications import router as notifications_router
 from routes.ml_recommendations import router as ml_router
 from routes.portfolio import router as portfolio_router
 from routes.market import router as market_router
+from routes.learning_resources import router as learning_router
 from hotmart_bridge import router as hotmart_router
 # from skill_validator import router as skill_validator_router  # [DISABLED] conflicto con engine/skill_validator.py - renombra a skill_validator_routes.py para arreglarlo
 from integrations.aura_client import router as aura_router
@@ -128,6 +129,7 @@ app.include_router(staking.router, prefix="/staking", tags=["staking"])
 app.include_router(milestones.router, prefix="/milestones", tags=["milestones"])
 app.include_router(stream.router, prefix="/stream", tags=["realtime"])
 app.include_router(hotmart_bridge.router, prefix="/hotmart", tags=["hotmart"])
+app.include_router(learning_router, prefix="/learning", tags=["learning"])
 # app.include_router(skill_validator_router)  # [DISABLED] conflicto con engine/skill_validator.py
 app.include_router(aura_router)                 # GET /aura/progress/{address}, POST /aura/progress/{address}/force-sync
 app.include_router(hackathon_tracker_router)    # GET /hackathon-tracker/applications/{address}
@@ -144,8 +146,94 @@ app.include_router(market_router, prefix="/api/v1", tags=["market"])
 
 
 # ─────────────────────────────────────────────
-# Health check
+# Health check con verificación real
 # ─────────────────────────────────────────────
 @app.get("/health", tags=["system"])
-async def health():
-    return {"status": "ok", "service": "xiimalab-api"}
+async def health_check():
+    """
+    Health check ligero que verifica que el servicio está respondiendo.
+    GET /health → { status, service, timestamp, services }
+    """
+    from datetime import datetime
+    import asyncio
+    
+    services = {
+        "api": "online",
+        "database": "unknown",
+    }
+    
+    try:
+        async def check_db():
+            try:
+                from db import engine
+                async with engine.connect() as conn:
+                    await conn.execute("SELECT 1")
+                return "online"
+            except Exception:
+                return "offline"
+        
+        db_task = asyncio.create_task(check_db())
+        db_status = await asyncio.wait_for(db_task, timeout=3.0)
+        services["database"] = db_status
+    except asyncio.TimeoutError:
+        services["database"] = "timeout"
+    except Exception:
+        services["database"] = "offline"
+    
+    overall = "healthy" if services["api"] == "online" else "degraded"
+    if services["database"] == "offline":
+        overall = "degraded"
+    
+    return {
+        "status": overall,
+        "service": "xiimalab-api",
+        "version": "1.0.0",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "services": services,
+    }
+
+
+@app.get("/health/live", tags=["system"])
+async def liveness_probe():
+    """
+    Liveness probe para Kubernetes/load balancers.
+    Solo verifica que el proceso está respondiendo.
+    """
+    return {"status": "alive"}
+
+
+@app.get("/health/ready", tags=["system"])
+async def readiness_probe():
+    """
+    Readiness probe - verifica que el servicio puede recibir tráfico.
+    """
+    from datetime import datetime
+    
+    try:
+        async def check_db():
+            try:
+                from db import engine
+                async with engine.connect() as conn:
+                    await conn.execute("SELECT 1")
+                return True
+            except Exception:
+                return False
+        
+        db_ready = await asyncio.wait_for(check_db(), timeout=3.0)
+        return {
+            "status": "ready" if db_ready else "not_ready",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    except asyncio.TimeoutError:
+        return {"status": "not_ready", "reason": "database_timeout"}
+    except Exception:
+        return {"status": "not_ready", "reason": "internal_error"}
+
+
+@app.get("/api/health", tags=["system"], include_in_schema=False)
+async def api_health():
+    """
+    Health check simple para el frontend.
+    GET /api/health → {"status": "ok"}
+    """
+    return {"status": "ok"}

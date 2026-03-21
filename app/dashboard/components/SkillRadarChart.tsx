@@ -13,39 +13,51 @@ import {
 } from "chart.js";
 import { Loader2, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
-// Props que recibe el nivel del usuario (el backend da la demanda del mercado)
 interface SkillRadarChartProps {
     userProfile: Record<string, number>;
 }
 
+const FALLBACK_DEMAND = {
+    "AI / LLM": 95,
+    "Data Analytics": 85,
+    "Web3 / DeFi": 70,
+    "Rust": 60,
+    "PostgreSQL": 80,
+    "TypeScript": 75,
+};
+
 export default function SkillRadarChart({ userProfile }: SkillRadarChartProps) {
-    const [marketDemand, setMarketDemand] = useState<Record<string, number>>({});
+    const [marketDemand, setMarketDemand] = useState<Record<string, number>>(FALLBACK_DEMAND);
+    const [skillRelevance, setSkillRelevance] = useState<SkillRelevance[]>([]);
     const [loading, setLoading] = useState(true);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
-        const fetchDemand = async () => {
+        const fetchData = async () => {
             try {
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-                const res = await fetch(`${API_URL}/api/v1/market/live-demand`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setMarketDemand(data);
-                } else {
-                    setMarketDemand({"AI / LLM": 95, "Data Analytics": 85, "Web3 / DeFi": 70, "Rust": 60, "PostgreSQL": 80});
+                const relevanceResult = await getSkillRelevanceAction();
+                if (!("error" in relevanceResult) && Array.isArray(relevanceResult.relevance_report)) {
+                    setSkillRelevance(relevanceResult.relevance_report);
+                    const demandFromRelevance: Record<string, number> = {};
+                    relevanceResult.relevance_report.slice(0, 6).forEach((r: SkillRelevance) => {
+                        demandFromRelevance[r.skill] = r.score;
+                    });
+                    if (Object.keys(demandFromRelevance).length > 0) {
+                        setMarketDemand(demandFromRelevance);
+                    }
                 }
             } catch (err) {
-                console.warn("Backend offline, loading fallback radar dataset:", err);
-                setMarketDemand({"AI / LLM": 95, "Data Analytics": 85, "Web3 / DeFi": 70, "Rust": 60, "PostgreSQL": 80});
+                console.warn("Could not fetch skill relevance:", err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchDemand();
+        fetchData();
     }, []);
 
     // Evitar hidratación mismatch (Chart.js no le gusta pintar en SSR estricto aveces)
@@ -60,12 +72,16 @@ export default function SkillRadarChart({ userProfile }: SkillRadarChartProps) {
         );
     }
 
-    // Preparar Data para Chart.js
-    // Mapeamos solo los skills (tags) que el usuario tiene definido o los top del mercado
-    const allLabels = Array.from(new Set([...Object.keys(userProfile), ...Object.keys(marketDemand).slice(0, 5)])).slice(0, 6);
+    // Preparar Data para Chart.js usando Optional Chaining
+    const relevanceLabels = skillRelevance?.slice(0, 5)?.map(r => r.skill) ?? [];
+    const allLabels = Array.from(new Set([...Object.keys(userProfile ?? {}), ...relevanceLabels])).slice(0, 6);
     
-    const marketDataPoints = allLabels.map(label => marketDemand[label] || 0);
-    const userDataPoints = allLabels.map(label => userProfile[label] || 0);
+    const marketDataPoints = allLabels.map(label => {
+        const relevanceItem = skillRelevance?.find(r => r.skill === label);
+        if (relevanceItem) return relevanceItem.score;
+        return marketDemand?.[label] ?? 0;
+    });
+    const userDataPoints = allLabels.map(label => userProfile?.[label] ?? 0);
 
     const data = {
         labels: allLabels,

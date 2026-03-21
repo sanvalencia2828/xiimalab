@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Briefcase, Calendar, MapPin, CheckCircle2, Loader2, AlertCircle, Flame, Zap, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CoachRoadmap from "./CoachRoadmap";
+import SkillGapOverview from "./SkillGapOverview";
 
 import { applyToHackathonAction } from "@/app/actions/hackathons";
 import { useWallet } from "@/lib/WalletContext";
@@ -192,6 +193,18 @@ export function OpportunityCard({ data, userSkills = [] }: { data: HackathonData
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                    </div>
+                )}
+
+                {/* Skill Gap Overview — nuevo componente para missing_skills */}
+                {data.missing_skills && data.missing_skills.length > 0 && (
+                    <div className="mt-4">
+                        <SkillGapOverview 
+                            missingSkills={data.missing_skills}
+                            hackathonTags={data.tags}
+                            matchScore={data.match_score || data.matchScore || 0}
+                            isExpanded={false}
+                        />
                     </div>
                 )}
             </div>

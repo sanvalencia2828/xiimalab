@@ -7,6 +7,7 @@ import {
     ChevronRight, Trophy, Clock, Zap, Award, BarChart3,
     CheckCircle2, Circle, Loader2, Star, ArrowUpRight
 } from "lucide-react";
+import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
 
 interface Skill {
     id: string;
@@ -105,6 +106,7 @@ const ROLES: Role[] = [
 export default function SkillsPage() {
     const [skills, setSkills] = useState<Skill[]>([]);
     const [marketSkills, setMarketSkills] = useState<MarketSkill[]>([]);
+    const [skillRelevance, setSkillRelevance] = useState<SkillRelevance[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<"profile" | "market" | "roles">("profile");
     const [showAddModal, setShowAddModal] = useState(false);
@@ -131,13 +133,20 @@ export default function SkillsPage() {
             setSkills(defaults);
         }
 
-        // Load market data
+        // Load market data and skill relevance in parallel
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const response = await fetch(`/api/neuro/market-analysis`);
-            if (response.ok) {
-                const data = await response.json();
+            const [marketResponse, relevanceResult] = await Promise.all([
+                fetch(`/api/neuro/market-analysis`),
+                getSkillRelevanceAction(),
+            ]);
+            
+            if (marketResponse.ok) {
+                const data = await marketResponse.json();
                 setMarketSkills(data.top_skills_by_demand || []);
+            }
+            
+            if (!("error" in relevanceResult) && Array.isArray(relevanceResult.relevance_report)) {
+                setSkillRelevance(relevanceResult.relevance_report);
             }
         } catch (err) {
             console.log("Using mock market data");
@@ -176,9 +185,25 @@ export default function SkillsPage() {
 
     const getMissingSkills = () => {
         const userSkillNames = skills.map(s => s.name.toLowerCase());
-        return marketSkills.filter(m => 
+        
+        const missingFromMarket = marketSkills.filter(m => 
             !userSkillNames.some(u => m.skill.toLowerCase().includes(u) || u.includes(m.skill.toLowerCase()))
-        ).slice(0, 8);
+        );
+        
+        // Prioritize by skill relevance score using Optional Chaining
+        const sortedMissing = missingFromMarket.sort((a, b) => {
+            const relevanceA = skillRelevance?.find(r => 
+                r.skill.toLowerCase() === a.skill.toLowerCase() || 
+                a.skill.toLowerCase().includes(r.skill.toLowerCase())
+            )?.score ?? 0;
+            const relevanceB = skillRelevance?.find(r => 
+                r.skill.toLowerCase() === b.skill.toLowerCase() || 
+                b.skill.toLowerCase().includes(r.skill.toLowerCase())
+            )?.score ?? 0;
+            return relevanceB - relevanceA;
+        });
+        
+        return sortedMissing.slice(0, 8);
     };
 
     const calculateRoleProgress = (role: Role): number => {
