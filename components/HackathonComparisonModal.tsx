@@ -61,8 +61,8 @@ export function HackathonComparisonModal({
                   </h2>
                   <SourceBadges
                     sources={hackathon.source_metadata?.sources ?? []}
-                    sourceUrls={hackathon.source_metadata.source_urls}
-                    primarySource={hackathon.source_metadata.primary_source}
+                    sourceUrls={hackathon.source_metadata?.source_urls ?? {}}
+                    primarySource={hackathon.source_metadata?.primary_source ?? ""}
                   />
                 </div>
                 <button
