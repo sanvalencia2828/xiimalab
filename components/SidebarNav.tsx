@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
     LayoutDashboard,
@@ -27,10 +28,10 @@ import { useWallet } from "@/lib/WalletContext";
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/skills", icon: Brain, label: "Skills" },
-  { href: "/hackathons", icon: Zap, label: "Hackatones" },
+  { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
   { href: "/aggregated", icon: Database, label: "Aggregated" },
   { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
-  { href: "/match", icon: BarChart3, label: "Market Match" },
+  { href: "/match", icon: BarChart3, label: "Market Match", badgeKey: "insights" },
   { href: "/profile", icon: Target, label: "Mi Perfil" },
   { href: "/ecommerce", icon: ShoppingBag, label: "Staking" },
   { href: "/projects", icon: FolderKanban, label: "Proyectos" },
@@ -43,6 +44,22 @@ const navItems = [
 export default function SidebarNav() {
     const pathname   = usePathname();
     const { isConnected, publicKey, displayName } = useWallet();
+    const [badges, setBadges] = useState<Record<string, number>>({});
+
+    // Fetch badge counts from Supabase on mount
+    useEffect(() => {
+        const fetchBadges = async () => {
+            try {
+                const res = await fetch("/api/insights/priorities?days_window=30");
+                if (!res.ok) return;
+                const data = await res.json();
+                const urgent = data?.insights?.urgent_hackathons ?? 0;
+                const total  = data?.insights?.total_hackathons ?? 0;
+                setBadges({ hackathons: total, insights: urgent });
+            } catch { /* ignore */ }
+        };
+        fetchBadges();
+    }, []);
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden">
@@ -72,8 +89,9 @@ export default function SidebarNav() {
         <p className="text-xs font-semibold text-muted-text uppercase tracking-widest px-3 py-2 mt-1">
           Menú principal
         </p>
-        {navItems.map(({ href, icon: Icon, label }) => {
+        {navItems.map(({ href, icon: Icon, label, badgeKey }) => {
           const isActive = pathname === href;
+          const badgeCount = badgeKey ? (badges[badgeKey] ?? 0) : 0;
           return (
             <Link key={href} href={href}>
               <motion.div
@@ -86,13 +104,22 @@ export default function SidebarNav() {
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-accent" : "group-hover:text-slate-200"}`} />
                 <span className="flex-1">{label}</span>
+                {badgeCount > 0 && !isActive && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    badgeKey === "insights"
+                      ? "bg-rose-500/20 text-rose-400"
+                      : "bg-accent/20 text-accent"
+                  }`}>
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
                 {isActive && (
                   <motion.div
                     layoutId="activeNav"
                     className="w-1.5 h-1.5 rounded-full bg-accent"
                   />
                 )}
-                {!isActive && (
+                {!isActive && badgeCount === 0 && (
                   <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
                 )}
               </motion.div>
