@@ -26,7 +26,8 @@ import { useWallet } from "@/lib/WalletContext";
 // NAV ITEMS CONFIG
 // -------------------------------------------------------
 const navItems = [
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/", icon: LayoutDashboard, label: "Inicio" },
+  { href: "/dashboard", icon: Cpu, label: "Dashboard Estudiante" },
   { href: "/skills", icon: Brain, label: "Skills" },
   { href: "/hackathons", icon: Zap, label: "Hackatones" },
   { href: "/aggregated", icon: Database, label: "Aggregated" },
