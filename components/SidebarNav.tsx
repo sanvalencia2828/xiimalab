@@ -44,7 +44,7 @@ const navItems = [
 // -------------------------------------------------------
 export default function SidebarNav() {
     const pathname   = usePathname();
-    const { isConnected, publicKey, displayName } = useWallet();
+    const { isConnected, publicKey, displayName, isLoaded } = useWallet();
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden">
@@ -146,7 +146,12 @@ export default function SidebarNav() {
                             }
                         </div>
                         <div className="flex-1 min-w-0">
-                            {isConnected ? (
+                            {!isLoaded ? (
+                                <div className="space-y-1.5 animate-pulse">
+                                    <div className="h-3 bg-white/10 rounded w-20"></div>
+                                    <div className="h-2 bg-white/5 rounded w-16"></div>
+                                </div>
+                            ) : isConnected ? (
                                 <>
                                     <p className="text-xs font-semibold text-emerald-400 truncate">
                                         {displayName ?? "Wallet conectada"}

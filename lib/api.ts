@@ -1,5 +1,7 @@
+import { NextResponse } from "next/server";
+
 /**
- * lib/api.ts — Centralised API base URL helper
+ * lib/api.ts — Centralised API base URL helper + standard response patterns
  *
  * Priority:
  *   1. NEXT_PUBLIC_API_URL (Vercel env var → points to live FastAPI if set)
@@ -14,6 +16,38 @@ export function getApiBase(): string | null {
     if (internal) return internal;
 
     return null; // FastAPI not available (Vercel without Docker)
+}
+
+/**
+ * Standard API Response Format — ensures consistency across all endpoints
+ * 
+ * Usage:
+ *   - Success: apiResponse(data, 200)
+ *   - Error: apiResponse(null, 400, "User-friendly message", "Optional details")
+ */
+export interface ApiResponse<T = unknown> {
+    success: boolean;
+    data?: T;
+    error?: string;        // User-friendly error message
+    details?: string;      // Internal details (dev mode only)
+}
+
+export function apiResponse<T>(
+    data: T | null,
+    statusCode: number = 200,
+    errorMessage?: string,
+    details?: string,
+): NextResponse<ApiResponse<T>> {
+    const isSuccess = statusCode >= 200 && statusCode < 300;
+    
+    const response: ApiResponse<T> = {
+        success: isSuccess,
+        ...(isSuccess && data !== null && { data }),
+        ...(!isSuccess && errorMessage && { error: errorMessage }),
+        ...(process.env.NODE_ENV === "development" && details && { details }),
+    };
+
+    return NextResponse.json(response, { status: statusCode });
 }
 
 /**

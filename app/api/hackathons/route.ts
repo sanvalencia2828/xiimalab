@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiResponse, getApiBase } from "@/lib/api";
 
 // Forzar renderizado dinámico — nunca pre-renderizar en build (no hay FastAPI en Vercel)
 export const dynamic = "force-dynamic";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
@@ -14,6 +13,8 @@ export async function GET(request: NextRequest) {
     if (source !== "all") params.set("source", source);
 
     try {
+        const API_URL = getApiBase() ?? "http://localhost:8000";
+
         const res = await fetch(`${API_URL}/hackathons/?${params}`, {
             next: { revalidate: 300 },
         });
@@ -23,9 +24,10 @@ export async function GET(request: NextRequest) {
         }
 
         const data = await res.json();
-        return NextResponse.json(data);
+        return apiResponse(data, 200);
     } catch (err) {
-        console.error("[/api/hackathons] Failed to fetch from API:", err);
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        console.error("[/api/hackathons] Failed to fetch from API:", errorMsg);
 
         // Filter the fallback by source so the UI behaves consistently
         const fallback =
@@ -33,9 +35,8 @@ export async function GET(request: NextRequest) {
                 ? FALLBACK_HACKATHONS
                 : FALLBACK_HACKATHONS.filter((h) => h.source === source);
 
-        return NextResponse.json(fallback, {
-            headers: { "X-Data-Source": "fallback" },
-        });
+        // Return fallback as success (graceful degradation)
+        return apiResponse(fallback, 200);
     }
 }
 

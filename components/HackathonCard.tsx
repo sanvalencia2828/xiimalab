@@ -146,13 +146,18 @@ export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
         >
             {/* Top glow line según match score */}
             <div
-                className="absolute top-0 left-0 right-0 h-px opacity-40"
+                className={`absolute top-0 left-0 right-0 h-[2px] opacity-60 ${h.match_score >= 90 ? 'animate-pulse shadow-[0_0_15px_rgba(52,211,153,0.8)]' : ''}`}
                 style={{
-                    background: h.match_score >= 80
-                        ? "linear-gradient(90deg, transparent, #34d39980, transparent)"
-                        : "linear-gradient(90deg, transparent, #7dd3fc40, transparent)",
+                    background: h.match_score >= 90
+                        ? "linear-gradient(90deg, transparent, #10b981, transparent)"
+                        : h.match_score >= 75
+                            ? "linear-gradient(90deg, transparent, #38bdf8, transparent)"
+                            : "linear-gradient(90deg, transparent, #f59e0b40, transparent)",
                 }}
             />
+            {h.match_score >= 90 && (
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
+            )}
 
             {/* Title row */}
             <div className="flex items-start justify-between gap-3 mb-3">

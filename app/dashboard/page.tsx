@@ -21,6 +21,7 @@ import StudentMetrics from "./components/StudentMetrics";
 import StudentProgressChart from "./components/StudentProgressChart";
 import StakingPanel from "./components/StakingPanel";
 import AchievementBadge from "./components/AchievementBadge";
+import SkillRadarChart from "./components/SkillRadarChart";
 
 interface CourseProgress {
   courseId: string;
@@ -56,10 +57,32 @@ export default function StudentDashboard() {
   const [courseProgress, setCourseProgress] = useState<CourseProgress[]>([]);
   const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [userProfile, setUserProfile] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading data
+    // Fetch User Skills from new API
+    const fetchUserSkills = async () => {
+      try {
+          const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          // Replace with real auth user ID when Context is ready
+          const res = await fetch(`${API_URL}/api/v1/user/test_user_id/skills`);
+          if (res.ok) {
+              const data = await res.json();
+              setUserProfile(data);
+          } else {
+              // Fallback
+              setUserProfile({"AI / LLM": 70, "Data Analytics": 82, "Web3 / DeFi": 65});
+          }
+      } catch (e) {
+          console.error("Failed to load user skills", e);
+          setUserProfile({"AI / LLM": 70, "Data Analytics": 82, "Web3 / DeFi": 65});
+      }
+    };
+
+    fetchUserSkills();
+
+    // Simulate loading internal data
     setTimeout(() => {
       // Mock course progress data
       setCourseProgress([
@@ -218,6 +241,18 @@ export default function StudentDashboard() {
                 </h2>
               </div>
               <StudentProgressChart courseProgress={courseProgress} />
+            </div>
+
+            {/* Radar Spider Chart (Market vs User) */}
+            <div className="mt-6">
+                {userProfile ? (
+                    <SkillRadarChart userProfile={userProfile} />
+                ) : (
+                    <div className="w-full h-80 flex flex-col items-center justify-center bg-card/40 border border-white/5 rounded-3xl backdrop-blur-md">
+                        <Loader2 className="w-8 h-8 text-accent animate-spin mb-3" />
+                        <p className="text-xs text-slate-400 animate-pulse">Sincronizando perfil neurocognitivo...</p>
+                    </div>
+                )}
             </div>
           </div>
 

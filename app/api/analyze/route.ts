@@ -1,9 +1,21 @@
-import { NextResponse } from "next/server";
+import { apiResponse, getApiBase } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-import { getApiBase } from "@/lib/api";
-const API_URL = getApiBase() ?? "";
+interface AnalyzeBody {
+    id?: string;
+    title?: string;
+    tags?: string[];
+    prize_pool?: number;
+    description?: string;
+}
+
+interface AnalyzeResponse {
+    hackathon_id?: string;
+    match_score: number;
+    missing_skills: string[];
+    project_highlight: string;
+}
 
 /**
  * POST /api/analyze
@@ -12,7 +24,13 @@ const API_URL = getApiBase() ?? "";
  */
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const body = (await request.json()) as AnalyzeBody;
+        const API_URL = getApiBase();
+
+        if (!API_URL) {
+            console.warn("[/api/analyze] API not available, returning fallback");
+            return apiResponse(FALLBACK_ANALYSIS, 200);
+        }
 
         const res = await fetch(`${API_URL}/analyze/hackathon`, {
             method: "POST",
@@ -24,25 +42,29 @@ export async function POST(request: Request) {
             throw new Error(`API error: ${res.status}`);
         }
 
-        const data = await res.json();
+        const data = (await res.json()) as AnalyzeResponse;
 
-        // Normalize field names: FastAPI returns snake_case, frontend expects camelCase
-        return NextResponse.json({
-            hackathon_id: data.hackathon_id,
-            match_score: data.match_score ?? 0,
-            missing_skills: data.missing_skills ?? [],
-            project_highlight: data.project_highlight ?? "",
-        });
-    } catch (err) {
-        console.error("[/api/analyze] Error:", err);
-        // Graceful fallback so the modal doesn't break
-        return NextResponse.json(
+        // Normalize field names: FastAPI returns snake_case
+        return apiResponse(
             {
-                match_score: 0,
-                missing_skills: [],
-                project_highlight: "No se pudo conectar con el motor de IA. Verifica que la API esté corriendo.",
+                hackathon_id: data.hackathon_id,
+                match_score: data.match_score ?? 0,
+                missing_skills: data.missing_skills ?? [],
+                project_highlight: data.project_highlight ?? "",
             },
-            { status: 200 } // return 200 so the frontend doesn't crash
+            200
         );
+    } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        console.error("[/api/analyze] Error:", errorMsg);
+
+        // Return fallback as success (graceful degradation)
+        return apiResponse(FALLBACK_ANALYSIS, 200);
     }
 }
+
+const FALLBACK_ANALYSIS: AnalyzeResponse = {
+    match_score: 0,
+    missing_skills: [],
+    project_highlight: "No se pudo conectar con el motor de IA. Verifica que la API esté corriendo.",
+};
