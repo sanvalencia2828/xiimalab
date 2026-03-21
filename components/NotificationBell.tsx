@@ -217,8 +217,11 @@ export default function NotificationBell({
                                                 onClick={() => {
                                                     if (!notif.is_read) markAsRead([notif.id]);
                                                     onNotificationClick?.(notif);
-                                                    if (notif.source_url) {
-                                                        window.open(notif.source_url, "_blank", "noopener,noreferrer");
+                                                    const url = notif.source_url;
+                                                    if (url && url.startsWith("http") && !url.includes("localhost")) {
+                                                        window.open(url, "_blank", "noopener,noreferrer");
+                                                    } else {
+                                                        window.location.href = "/hackathons";
                                                     }
                                                     setIsOpen(false);
                                                 }}
