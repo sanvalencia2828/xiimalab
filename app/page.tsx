@@ -9,6 +9,7 @@ import {
     CheckCircle2, ArrowUpRight, ExternalLink
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import PriorityBoard from "@/components/PriorityBoard";
 import NotificationBell from "@/components/NotificationBell";
 import { loadUserSkillsAction } from "@/app/actions/userSkills";
@@ -168,9 +169,13 @@ function DashboardHeader({
         >
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center">
-                        <Brain className="w-6 h-6 text-white" />
-                    </div>
+                    <Image
+                        src="/Xiima-logo.png"
+                        alt="Xiimalab Logo"
+                        width={40}
+                        height={40}
+                        className="rounded-xl"
+                    />
                     <div>
                         <h1 className="text-2xl font-bold text-white">
                             Xiima<span className="gradient-text">Hub</span>
