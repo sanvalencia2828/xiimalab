@@ -207,16 +207,19 @@ export default function NotificationBell({
                                                 initial={{ opacity: 0, x: 20 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ delay: idx * 0.05 }}
-                                                className={`p-3 rounded-xl border transition-all cursor-pointer hover:bg-white/5 ${
+                                                className={`group p-3 rounded-xl border transition-all cursor-pointer ${
+                                                    notif.source_url ? "hover:bg-white/8 hover:border-accent/30" : "hover:bg-white/5"
+                                                } ${
                                                     notif.is_read 
                                                         ? "bg-transparent border-white/5 opacity-60" 
                                                         : "bg-white/5 border-accent/20"
                                                 }`}
                                                 onClick={() => {
-                                                    if (!notif.is_read) {
-                                                        markAsRead([notif.id]);
-                                                    }
+                                                    if (!notif.is_read) markAsRead([notif.id]);
                                                     onNotificationClick?.(notif);
+                                                    if (notif.source_url) {
+                                                        window.open(notif.source_url, "_blank", "noopener,noreferrer");
+                                                    }
                                                     setIsOpen(false);
                                                 }}
                                             >
@@ -229,9 +232,14 @@ export default function NotificationBell({
                                                         {getIcon(notif.type)}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-sm text-slate-200 leading-relaxed">
-                                                            {notif.message}
-                                                        </p>
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <p className="text-sm text-slate-200 leading-relaxed">
+                                                                {notif.message}
+                                                            </p>
+                                                            {notif.source_url && (
+                                                                <ExternalLink className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5 group-hover:text-accent transition-colors" />
+                                                            )}
+                                                        </div>
                                                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                                                             <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                                                                 notif.type === "urgency" ? "bg-rose-500/10 text-rose-400" :
