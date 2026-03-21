@@ -7,7 +7,7 @@ Optimized for Premium applications with retry logic and exponential backoff.
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import httpx
 
@@ -61,7 +61,7 @@ class OpenRouterClient:
 
     async def complete(
         self,
-        messages: List[Dict[str, str]],
+        messages: List[Dict[str, Any]],
         model: str = "deepseek/deepseek-chat",
         max_tokens: int = 1000,
         temperature: float = 0.7,
