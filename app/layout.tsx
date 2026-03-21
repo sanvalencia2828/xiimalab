@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SidebarNav from "@/components/SidebarNav";
 import { WalletProvider } from "@/lib/WalletContext";
+import NotificationBell from "@/components/NotificationBell";
 
 export const metadata: Metadata = {
     title: "Xiimalab — AI & Blockchain Intelligence Hub",
@@ -31,6 +32,10 @@ export default function RootLayout({
 
                         {/* Main content area — offset by sidebar width */}
                         <main className="flex-1 ml-64 min-h-screen">
+                            {/* Global notification bell — top right */}
+                            <div className="fixed top-4 right-4 z-40">
+                                <NotificationBell />
+                            </div>
                             {children}
                         </main>
                     </div>

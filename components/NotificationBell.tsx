@@ -31,57 +31,66 @@ export default function NotificationBell({
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
     const loadNotifications = useCallback(async () => {
-        if (!walletAddress) return;
-        
         setLoading(true);
         try {
-            
-            const response = await fetch(`/api/notifications/${walletAddress}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                setNotifications(data.pending || []);
+            // Always load urgent hackathon notifications (no wallet needed)
+            const res = await fetch("/api/notifications/urgent");
+            if (res.ok) {
+                const data = await res.json();
+                let notifs = data.notifications ?? [];
+
+                // Merge wallet-specific notifications if available
+                if (walletAddress) {
+                    try {
+                        const walletRes = await fetch(`/api/notifications/${walletAddress}`);
+                        if (walletRes.ok) {
+                            const walletData = await walletRes.json();
+                            const walletNotifs = (walletData.pending ?? []).map((n: Notification) => ({
+                                ...n, id: n.id + 10000 // avoid id collision
+                            }));
+                            notifs = [...notifs, ...walletNotifs];
+                        }
+                    } catch { /* ignore */ }
+                }
+
+                // Restore read state from localStorage
+                const readIds: number[] = JSON.parse(localStorage.getItem("notif_read_ids") ?? "[]");
+                notifs = notifs.map((n: Notification) => ({ ...n, is_read: readIds.includes(n.id) }));
+
+                setNotifications(notifs);
                 setLastUpdate(new Date());
             }
         } catch (error) {
             console.error("Error loading notifications:", error);
-            // Fallback: cargar de localStorage
-            const saved = localStorage.getItem("user_notifications");
-            if (saved) {
-                setNotifications(JSON.parse(saved));
-            }
         }
         setLoading(false);
     }, [walletAddress]);
 
     useEffect(() => {
-        if (walletAddress) {
-            loadNotifications();
-            
-            // Poll cada 5 minutos
-            const interval = setInterval(loadNotifications, 5 * 60 * 1000);
-            return () => clearInterval(interval);
-        }
-    }, [walletAddress, loadNotifications]);
+        loadNotifications();
+        // Poll every 10 minutes
+        const interval = setInterval(loadNotifications, 10 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [loadNotifications]);
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const markAsRead = async (ids: number[]) => {
-        if (!walletAddress) return;
-        
-        try {
-            
-            await fetch(`/api/notifications/${walletAddress}/mark-read`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ notification_ids: ids }),
-            });
-            
-            setNotifications(prev => prev.map(n => 
-                ids.includes(n.id) ? { ...n, is_read: true } : n
-            ));
-        } catch (error) {
-            console.error("Error marking as read:", error);
+        // Persist read state in localStorage (works without wallet/FastAPI)
+        const existing: number[] = JSON.parse(localStorage.getItem("notif_read_ids") ?? "[]");
+        const merged = Array.from(new Set([...existing, ...ids]));
+        localStorage.setItem("notif_read_ids", JSON.stringify(merged));
+        setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, is_read: true } : n));
+
+        // Also try server-side if wallet available
+        if (walletAddress) {
+            try {
+                await fetch(`/api/notifications/${walletAddress}/mark-read`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notification_ids: ids }),
+                });
+            } catch { /* ignore */ }
         }
     };
 
