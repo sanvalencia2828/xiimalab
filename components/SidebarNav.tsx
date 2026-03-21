@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -26,7 +27,8 @@ import { useWallet } from "@/lib/WalletContext";
 // NAV ITEMS CONFIG
 // -------------------------------------------------------
 const navItems = [
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/", icon: LayoutDashboard, label: "Inicio" },
+  { href: "/dashboard", icon: Cpu, label: "Dashboard Estudiante" },
   { href: "/skills", icon: Brain, label: "Skills" },
   { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
   { href: "/aggregated", icon: Database, label: "Aggregated" },
@@ -169,7 +171,12 @@ export default function SidebarNav() {
                             }
                         </div>
                         <div className="flex-1 min-w-0">
-                            {isConnected ? (
+                            {!isLoaded ? (
+                                <div className="space-y-1.5 animate-pulse">
+                                    <div className="h-3 bg-white/10 rounded w-20"></div>
+                                    <div className="h-2 bg-white/5 rounded w-16"></div>
+                                </div>
+                            ) : isConnected ? (
                                 <>
                                     <p className="text-xs font-semibold text-emerald-400 truncate">
                                         {displayName ?? "Wallet conectada"}

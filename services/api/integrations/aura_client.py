@@ -173,9 +173,12 @@ async def get_aura_progress(student_address: str):
     """
     try:
         summary = await sync_student_aura_progress(student_address)
+    except asyncpg.PostgresError as exc:
+        logger.error("Database error syncing AURA progress: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail="Database service error") from exc
     except Exception as exc:
-        logger.error("Error sincronizando progreso AURA: %s", exc, exc_info=True)
-        raise HTTPException(status_code=502, detail=f"AURA sync error: {exc}") from exc
+        logger.error("Error synchronizing AURA progress: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail="AURA sync service error") from exc
 
     return {
         "student_address": summary.student_address,

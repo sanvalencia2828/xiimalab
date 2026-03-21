@@ -24,8 +24,12 @@ try:
     from agent_crew import create_router as _crew_router
     _crew = _crew_router()
     router.include_router(_crew)
+except ModuleNotFoundError as exc:
+    logging.getLogger("xiima.agents").warning("agent_crew module not found (optional): %s", exc)
+except ImportError as exc:
+    logging.getLogger("xiima.agents").warning("Failed to import agent_crew: %s", exc, exc_info=True)
 except Exception as exc:
-    logging.getLogger("xiima.agents").error(f"No se pudo cargar agent_crew: {exc}")
+    logging.getLogger("xiima.agents").error("Unexpected error loading agent_crew: %s", exc, exc_info=True)
 
 @router.get("/status")
 async def get_agents_status():
@@ -246,13 +250,20 @@ async def match_projects(payload: MatchProjectsRequest, db: AsyncSession = Depen
                                     "match_pct": base_match
                                 }
                             )
+                    except asyncpg.PostgresError as ins_exc:
+                        logging.getLogger("xiima.matchmaker").error("Database error inserting match: %s", ins_exc, exc_info=True)
+                    except ValueError as ins_exc:
+                        logging.getLogger("xiima.matchmaker").warning("Validation error inserting match: %s", ins_exc)
                     except Exception as ins_exc:
-                        logging.getLogger("xiima.matchmaker").error(f"Error inserting match: {ins_exc}")
+                        logging.getLogger("xiima.matchmaker").error("Unexpected error inserting match: %s", ins_exc, exc_info=True)
                         
         return {"status": "success", "matches_found": matches_found}
-    except Exception as e:
-        logging.getLogger("xiima.matchmaker").error(f"Error en match_projects: {e}")
-        return {"status": "error", "message": str(e)}
+    except asyncpg.PostgresError as exc:
+        logging.getLogger("xiima.matchmaker").error("Database error in match_projects: %s", exc, exc_info=True)
+        return {"status": "error", "message": "Database error"}
+    except Exception as exc:
+        logging.getLogger("xiima.matchmaker").error("Unexpected error in match_projects: %s", exc, exc_info=True)
+        return {"status": "error", "message": "Internal error"}
     finally:
         await conn.close()
 

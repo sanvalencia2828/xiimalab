@@ -50,8 +50,13 @@ async def agent_background_runner():
                 # The NotifierAgent checks pending signals (like golden_match) and notifies users
                 notifier = NotifierAgent(session)
                 await notifier.watch_signals()
-        except Exception as e:
-            print(f"⚠️ Agent Runner error: {e}")
+        except asyncio.CancelledError:
+            print("🛑 Agent runner cancelled")
+            break
+        except RuntimeError as exc:
+            print(f"⚠️ Agent Runner runtime error: {exc}")
+        except Exception as exc:
+            print(f"⚠️ Agent Runner unexpected error: {exc}")
         
         # Poll every 60 seconds
         await asyncio.sleep(60)
@@ -83,8 +88,10 @@ async def lifespan(app: FastAPI):
     # Dispose connection pool on shutdown
     try:
         await engine.dispose()
-    except Exception as e:
-        print(f"⚠️ Engine dispose failed: {e}")
+    except RuntimeError as exc:
+        print(f"⚠️ Engine dispose failed (runtime): {exc}")
+    except Exception as exc:
+        print(f"⚠️ Engine dispose failed: {exc}")
 
 
 # ─────────────────────────────────────────────

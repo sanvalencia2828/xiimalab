@@ -181,9 +181,12 @@ async def hotmart_webhook(
             xlm_amount=skill_config["xlm_amount"],
             window_days=skill_config["window_days"],
         )
+    except ValueError as exc:
+        logger.error("Invalid Stellar parameters: %s", exc, exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Invalid Stellar config: {exc}") from exc
     except Exception as exc:
-        logger.error("Error creando escrow Stellar: %s", exc, exc_info=True)
-        raise HTTPException(status_code=502, detail=f"Stellar error: {exc}") from exc
+        logger.error("Error creating Stellar escrow: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail="Stellar service temporarily unavailable") from exc
 
     # 4. Registrar en Supabase
     conn = await asyncpg.connect(DATABASE_URL)
@@ -210,6 +213,9 @@ async def hotmart_webhook(
             balance_id,
             skill_config["window_days"],
         )
+    except asyncpg.PostgresError as exc:
+        logger.error("Database error inserting escrow record: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail="Database error saving escrow") from exc
     finally:
         await conn.close()
 

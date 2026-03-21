@@ -61,6 +61,17 @@ export interface AgentInsight {
 }
 
 // ─────────────────────────────────────────────
+// Market Trends (Real-Time Growth & Demand)
+// ─────────────────────────────────────────────
+export interface MarketTrend {
+  role_name: string;
+  demand_score: number;
+  growth_percentage?: string;
+  category?: string;
+  top_projects_keywords?: string[];
+}
+
+// ─────────────────────────────────────────────
 // Project + Hackathon match (from project_hackathon_matches table)
 // ─────────────────────────────────────────────
 export interface ProjectMatch {
@@ -113,7 +124,7 @@ export interface AggregatedHackathon extends Hackathon {
   match_breakdown?:         PersonalizedMatchScore | null;
   
   // Multi-source metadata
-  source_metadata:          SourceMetadata;
+  source_metadata?:         Partial<SourceMetadata>;
 }
 
 // ─────────────────────────────────────────────

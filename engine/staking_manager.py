@@ -222,10 +222,13 @@ async def create_staking_escrow(
         }
 
     except ValueError as exc:
-        log.error(f"Validation error creating escrow: {exc}")
+        log.error("Validation error creating escrow: %s", exc)
         raise
+    except asyncpg.PostgresError as exc:
+        log.error("Database error creating escrow: %s", exc, exc_info=True)
+        raise ValueError(f"Database error: {exc}") from exc
     except Exception as exc:
-        log.error(f"Error creating staking escrow: {exc}", exc_info=True)
+        log.error("Unexpected error creating staking escrow: %s", exc, exc_info=True)
         raise
     finally:
         await conn.close()

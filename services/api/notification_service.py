@@ -381,8 +381,12 @@ async def record_recommendation_feedback(
         db.add(feedback)
         await db.commit()
         return True
-    except Exception as e:
-        log.error(f"Error registrando feedback: {e}")
+    except ValueError as exc:
+        log.error("Validation error registering feedback: %s", exc, exc_info=True)
+        await db.rollback()
+        return False
+    except Exception as exc:
+        log.error("Database error registering feedback: %s", exc, exc_info=True)
         await db.rollback()
         return False
 
@@ -424,8 +428,11 @@ async def get_feedback_history(
             }
             for record in feedback_records
         ]
-    except Exception as e:
-        log.error(f"Error obteniendo historial de feedback: {e}")
+    except IndexError as exc:
+        log.error("Index error fetching feedback history: %s", exc, exc_info=True)
+        return []
+    except Exception as exc:
+        log.error("Error fetching feedback history: %s", exc, exc_info=True)
         return []
 
 

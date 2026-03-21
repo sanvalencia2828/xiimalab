@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
+import { apiResponse, getApiBase } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-import { getApiBase } from "@/lib/api";
-const API_URL = getApiBase() ?? "";
-
 export async function GET() {
     try {
+        const API_URL = getApiBase();
+        if (!API_URL) {
+            console.warn("[/api/skills] API_URL not configured, returning fallback");
+            return apiResponse(FALLBACK_SKILLS, 200);
+        }
+
         const res = await fetch(`${API_URL}/skills/market`, {
             next: { revalidate: 3600 }, // skills change infrequently — 1h cache
         });
@@ -16,13 +19,13 @@ export async function GET() {
         }
 
         const data = await res.json();
-        return NextResponse.json(data);
+        return apiResponse(data, 200);
     } catch (err) {
-        console.error("[/api/skills] Failed to fetch from API:", err);
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        console.error("[/api/skills] Failed to fetch from API:", errorMsg);
 
-        return NextResponse.json(FALLBACK_SKILLS, {
-            headers: { "X-Data-Source": "fallback" },
-        });
+        // Return fallback data as success (graceful degradation)
+        return apiResponse(FALLBACK_SKILLS, 200);
     }
 }
 

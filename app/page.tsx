@@ -9,9 +9,11 @@ import {
     CheckCircle2, ArrowUpRight, ExternalLink
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import PriorityBoard from "@/components/PriorityBoard";
 import NotificationBell from "@/components/NotificationBell";
 import { loadUserSkillsAction } from "@/app/actions/userSkills";
+import type { MarketTrend } from "@/lib/types";
 
 interface Skill {
     name: string;
@@ -168,9 +170,13 @@ function DashboardHeader({
         >
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center">
-                        <Brain className="w-6 h-6 text-white" />
-                    </div>
+                    <Image
+                        src="/Xiima-logo.png"
+                        alt="Xiimalab Logo"
+                        width={40}
+                        height={40}
+                        className="rounded-xl"
+                    />
                     <div>
                         <h1 className="text-2xl font-bold text-white">
                             Xiima<span className="gradient-text">Hub</span>
@@ -436,7 +442,7 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
 }
 
 function MarketOverview() {
-    const [marketSkills, setMarketSkills] = useState<any[]>([]);
+    const [marketSkills, setMarketSkills] = useState<MarketTrend[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
 
@@ -512,7 +518,7 @@ function MarketOverview() {
             ) : (
                 <div className="space-y-2">
                     {marketSkills.map((skill, idx) => (
-                        <div key={skill.id || idx} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                        <div key={skill.role_name} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                             <div>
                                 <span className="text-xs font-medium text-slate-300">{skill.role_name}</span>
                                 <p className="text-[10px] text-emerald-400">{skill.growth_percentage} vs mes anterior</p>

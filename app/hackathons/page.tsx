@@ -1,10 +1,10 @@
 /**
- * app/hackatones/page.tsx — SERVER COMPONENT
+ * app/hackathons/page.tsx — SERVER COMPONENT
  * ─────────────────────────────────────────────────────────────────────────────
  * Arquitectura de hidratación:
  *   • Este archivo NO tiene "use client" — se ejecuta en el servidor.
  *   • Fetcha active_hackathons desde Supabase en build/request time.
- *   • Pasa initialData a <HackatonesClient> que maneja filtros + SSE.
+ *   • Pasa initialData a <AggregatedHackathonsClient> que maneja filtros + SSE.
  *   • Si Supabase no responde → fallback a /api/hackathons (FastAPI).
  * ─────────────────────────────────────────────────────────────────────────────
  */
