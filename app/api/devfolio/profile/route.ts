@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const DEVFOLIO_MCP_KEY = process.env.DEVFOLIO_MCP_API_KEY ?? "";
+const DEVFOLIO_MCP_KEY = process.env.DEVFOLIO_MCP_API_KEY ?? process.env.DEVFOLIO_API_KEY ?? "";
 const MCP_BASE = "https://mcp.devfolio.co/mcp";
 
 async function initSession(): Promise<string | null> {
