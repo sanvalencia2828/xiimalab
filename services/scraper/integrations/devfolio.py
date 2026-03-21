@@ -10,8 +10,8 @@ DEVFOLIO_MCP_URL = os.environ.get(
     "https://mcp.devfolio.co/mcp"
 )
 DEVFOLIO_API_KEY = os.environ.get(
-    "DEVFOLIO_API_KEY",
-    "f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e"
+    "DEVFOLIO_MCP_API_KEY",
+    os.environ.get("DEVFOLIO_API_KEY", "")
 )
 
 
