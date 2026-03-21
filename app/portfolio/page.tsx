@@ -8,6 +8,7 @@ import {
     Code, Award, TrendingUp, Target
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { getPortfolio, getPortfolioMarkdown, PortfolioResponse } from "@/app/actions/portfolio";
 import { useWallet } from "@/lib/WalletContext";
 
@@ -72,19 +73,47 @@ export default function PortfolioPage() {
 
     if (!walletAddress) {
         return (
-            <div className="min-h-screen bg-background p-6">
-                <div className="max-w-4xl mx-auto">
-                    <div className="text-center py-20">
-                        <Briefcase className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                        <h1 className="text-2xl font-bold text-white mb-2">Portfolio Generator</h1>
-                        <p className="text-slate-400 mb-6">Conecta tu wallet para generar tu portafolio</p>
-                        <Link
-                            href="/settings"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg"
-                        >
-                            Conectar Wallet
-                        </Link>
-                    </div>
+            <div className="min-h-screen bg-background p-6 relative overflow-hidden flex items-center justify-center">
+                {/* Glow Behind Image */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/10 blur-[120px] rounded-full pointer-events-none" />
+                
+                <div className="max-w-2xl mx-auto relative z-10 text-center">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        className="py-12 px-8 bg-card/40 backdrop-blur-md rounded-3xl border border-white/5 shadow-2xl"
+                    >
+                        <div className="relative w-48 h-48 mx-auto mb-6">
+                            {/* Floating Animation */}
+                            <motion.div
+                                animate={{ y: [-10, 10, -10] }}
+                                transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                            >
+                                <Image
+                                    src="/assets/portfolio-empty.png"
+                                    alt="Holographic Portfolio"
+                                    fill
+                                    className="object-contain drop-shadow-[0_0_30px_rgba(168,139,250,0.4)]"
+                                    priority
+                                />
+                            </motion.div>
+                        </div>
+                        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-accent to-purple-400 mb-4 tracking-tight">
+                            Digital Identity Vault
+                        </h1>
+                        <p className="text-slate-400 mb-8 max-w-sm mx-auto leading-relaxed">
+                            Inicializa tu portafolio encriptado Web3 y accede a tu historial de hackathons, certificaciones y tu perfil neurocognitivo.
+                        </p>
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Link
+                                href="/settings"
+                                className="inline-flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-accent to-purple-600 text-white rounded-xl font-bold shadow-[0_0_20px_rgba(168,139,250,0.5)] transition-all hover:shadow-[0_0_30px_rgba(168,139,250,0.7)]"
+                            >
+                                Conectar Wallet <Sparkles className="w-4 h-4" />
+                            </Link>
+                        </motion.div>
+                    </motion.div>
                 </div>
             </div>
         );
@@ -330,12 +359,23 @@ export default function PortfolioPage() {
 
 function StatCard({ icon: Icon, value, label, color }: { icon: any; value: string | number; label: string; color: string }) {
     return (
-        <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-                <Icon className={`w-4 h-4 ${color}`} />
-                <span className="text-xs text-slate-500">{label}</span>
+        <motion.div 
+            whileHover={{ y: -4, scale: 1.02 }}
+            className={`relative bg-card/60 backdrop-blur-md border border-white/5 rounded-2xl p-5 overflow-hidden shadow-lg group`}
+        >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-0 group-hover:opacity-5 blur-2xl rounded-full transition-opacity" />
+            
+            <div className="flex items-center gap-3 mb-3 relative z-10">
+                <div className={`p-2 rounded-xl bg-white/5 border border-white/10 ${color.replace('text', 'border')}/30`}>
+                    <Icon className={`w-5 h-5 ${color} drop-shadow-[0_0_8px_currentColor]`} />
+                </div>
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
             </div>
-            <p className={`text-2xl font-bold ${color}`}>{value}</p>
-        </div>
+            <p className={`text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-400 relative z-10`}>
+                {value}
+            </p>
+            
+            <div className={`absolute bottom-0 left-0 h-1 w-full opacity-50 ${color.replace('text', 'bg')}`} />
+        </motion.div>
     );
 }

@@ -44,12 +44,14 @@ class OpenRouterClient:
                     if resp.status_code < 500:
                         return resp
                     logger.warning(f"Attempt {attempt + 1}: Server error {resp.status_code}, retrying...")
-            except httpx.TimeoutException:
-                logger.warning(f"Attempt {attempt + 1}: Timeout, retrying...")
+            except httpx.TimeoutException as exc:
+                logger.warning("Attempt %d: Timeout - %s, retrying...", attempt + 1, str(exc))
             except httpx.ConnectError as exc:
-                logger.warning(f"Attempt {attempt + 1}: Connection error {exc}, retrying...")
+                logger.warning("Attempt %d: Connection error - %s, retrying...", attempt + 1, str(exc))
+            except httpx.RequestError as exc:
+                logger.warning("Attempt %d: Request error - %s, retrying...", attempt + 1, str(exc))
             except Exception as exc:
-                logger.error(f"Unexpected error: {exc}")
+                logger.error("Unexpected error on attempt %d: %s", attempt + 1, str(exc), exc_info=True)
                 return None
             
             if attempt < MAX_RETRIES - 1:

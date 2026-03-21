@@ -417,3 +417,23 @@ ALTER TABLE market_trends ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access to market_trends" ON market_trends FOR SELECT USING (true);
 -- Service role handles inserts/updates so it bypasses RLS
 
+-- ─────────────────────────────────────────────
+-- active_hackathons View
+-- ─────────────────────────────────────────────
+CREATE OR REPLACE VIEW active_hackathons AS
+SELECT
+    id,
+    title,
+    prize_pool,
+    tags,
+    deadline,
+    match_score,
+    source_url,
+    source,
+    scraped_at AS last_seen_at,
+    updated_at
+FROM hackathons;
+
+-- Dar acceso a anon
+GRANT SELECT ON active_hackathons TO anon, authenticated, service_role;
+

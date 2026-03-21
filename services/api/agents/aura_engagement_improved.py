@@ -71,8 +71,14 @@ class AuraEngagementAgent:
                 messages=messages,
                 model="deepseek/deepseek-chat"
             )
-        except Exception as e:
-            logger.error(f"AuraEngagementAgent failed to generate kit due to exception: {e}")
+        except json.JSONDecodeError as exc:
+            logger.error("JSON parsing error in AuraEngagementAgent: %s", exc, exc_info=True)
+            data = None
+        except ValueError as exc:
+            logger.error("Validation error in AuraEngagementAgent: %s", exc, exc_info=True)
+            data = None
+        except Exception as exc:
+            logger.error("Unexpected error in AuraEngagementAgent: %s", exc, exc_info=True)
             data = None
 
         if not data:

@@ -106,8 +106,14 @@ async def _fetch_achievements() -> str:
             skills_str = ", ".join(skills_list)
             lines.append(f"- {r['title']} — {r['issuer']} ({r['issued_date'] or 'n/a'}): {skills_str}")
         return "\n".join(lines)
+    except asyncpg.PostgresError as exc:
+        log.error("Database error fetching achievements: %s", exc, exc_info=True)
+        return ""
+    except json.JSONDecodeError as exc:
+        log.error("JSON error parsing skills: %s", exc, exc_info=True)
+        return ""
     except Exception as exc:
-        log.warning(f"Could not fetch achievements from DB: {exc}")
+        log.warning("Unexpected error fetching achievements: %s", exc, exc_info=True)
         return ""
 
 
@@ -127,8 +133,14 @@ async def _fetch_projects() -> str:
             stack_str = ", ".join(r["stack"]) if isinstance(r["stack"], list) else r["stack"]
             lines.append(f"- **{r['title']}** ({r['repo_url'] or 'no url'}): {r['description']} (Stack: {stack_str})")
         return "\n".join(lines)
+    except asyncpg.PostgresError as exc:
+        log.error("Database error fetching projects: %s", exc, exc_info=True)
+        return ""
+    except TypeError as exc:
+        log.error("Type error processing projects stack: %s", exc, exc_info=True)
+        return ""
     except Exception as exc:
-        log.warning(f"Could not fetch projects from DB: {exc}")
+        log.warning("Unexpected error fetching projects: %s", exc, exc_info=True)
         return ""
 
 
