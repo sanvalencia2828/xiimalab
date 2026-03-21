@@ -46,6 +46,7 @@ const navItems = [
 export default function SidebarNav() {
     const pathname   = usePathname();
     const { isConnected, publicKey, displayName } = useWallet();
+    const isLoaded = true; // WalletContext is always ready client-side
     const [badges, setBadges] = useState<Record<string, number>>({});
 
     // Fetch badge counts from Supabase on mount

@@ -234,7 +234,7 @@ export function AggregatedHackathonCard({
                 <p className="text-xs font-medium text-slate-400 mb-2">Available on:</p>
                 <div className="flex flex-wrap gap-2">
                   {(hackathon.source_metadata?.sources ?? []).map((source) => {
-                    const url = hackathon.source_metadata.source_urls[source];
+                    const url = hackathon.source_metadata?.source_urls?.[source];
                     return url ? (
                       <a
                         key={source}
@@ -281,7 +281,7 @@ export function AggregatedHackathonCard({
             {/* Primary CTA */}
             <ApplyButton
               hackathonId={hackathon.id}
-              sourceUrl={hackathon.source_metadata?.source_urls?.[hackathon.source_metadata?.primary_source] ?? hackathon.source_url ?? null}
+              sourceUrl={hackathon.source_metadata?.primary_source ? (hackathon.source_metadata?.source_urls?.[hackathon.source_metadata.primary_source] ?? hackathon.source_url ?? null) : (hackathon.source_url ?? null)}
             />
           </div>
         </div>

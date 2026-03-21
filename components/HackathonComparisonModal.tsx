@@ -185,8 +185,8 @@ export function HackathonComparisonModal({
                 <h3 className="text-sm font-semibold text-slate-200 mb-3">Available on:</h3>
                 <div className="grid grid-cols-1 gap-2">
                   {(hackathon.source_metadata?.sources ?? []).map((source) => {
-                    const url = hackathon.source_metadata.source_urls[source];
-                    const isPrimary = source === hackathon.source_metadata.primary_source;
+                    const url = hackathon.source_metadata?.source_urls?.[source];
+                    const isPrimary = source === hackathon.source_metadata?.primary_source;
                     return url ? (
                       <a
                         key={source}

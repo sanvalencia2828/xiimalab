@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BrainCircuit, Sparkles, TrendingUp, Award, Zap, Rocket } from "lucide-react";
+import { BrainCircuit, Sparkles, TrendingUp, Award, Zap, Rocket, Shield, Code, Loader2 } from "lucide-react";
 import MarketMatch from "@/components/MarketMatch";
 import type { MarketTrend } from "@/lib/types";
 
