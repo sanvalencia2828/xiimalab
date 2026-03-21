@@ -1,11 +1,11 @@
 "use server";
 import { getApiBase, safeFetch } from "@/lib/api";
-const _API = getApiBase() ?? "http://localhost:8000";
+// getApiBase() called inside each function to avoid module-level null
 
 import { revalidatePath } from "next/cache";
 
 export async function syncHackathons() {
-    const apiUrl = _API;
+    const apiUrl = getApiBase(); if (!apiUrl) return null as any;
     
     try {
         const response = await fetch(`${apiUrl}/hackathons/sync`, {

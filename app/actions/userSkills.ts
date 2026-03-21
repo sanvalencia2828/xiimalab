@@ -1,6 +1,6 @@
 "use server";
 import { getApiBase, safeFetch } from "@/lib/api";
-const _API = getApiBase() ?? "http://localhost:8000";
+// getApiBase() called inside each function to avoid module-level null
 
 export interface SkillData {
     name: string;
@@ -20,7 +20,7 @@ export async function saveUserSkillsAction(
     }
 
     try {
-        const apiUrl = _API;
+        const apiUrl = getApiBase(); if (!apiUrl) return null as any;
         
         const payload = {
             wallet_address: walletAddress,
@@ -64,7 +64,7 @@ export async function loadUserSkillsAction(
     }
 
     try {
-        const apiUrl = _API;
+        const apiUrl = getApiBase(); if (!apiUrl) return null as any;
         const response = await fetch(`${apiUrl}/skills/user/${walletAddress}`);
 
         if (!response.ok) {
@@ -106,7 +106,7 @@ export async function logPracticeSessionAction(
     }
 
     try {
-        const apiUrl = _API;
+        const apiUrl = getApiBase(); if (!apiUrl) return null as any;
         const response = await fetch(
             `${apiUrl}/skills/user/${walletAddress}/practice?skill_name=${encodeURIComponent(skillName)}&minutes=${minutes}`,
             { method: "POST" }

@@ -35,7 +35,7 @@ export default function NotificationBell({
         
         setLoading(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            
             const response = await fetch(`/api/notifications/${walletAddress}`);
             
             if (response.ok) {
@@ -70,7 +70,7 @@ export default function NotificationBell({
         if (!walletAddress) return;
         
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            
             await fetch(`/api/notifications/${walletAddress}/mark-read`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Forzar renderizado dinámico — nunca pre-renderizar en build (no hay FastAPI en Vercel)
 export const dynamic = "force-dynamic";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = ""; // FastAPI not used in Vercel
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);

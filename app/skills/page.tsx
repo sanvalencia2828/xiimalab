@@ -133,7 +133,7 @@ export default function SkillsPage() {
 
         // Load market data
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            
             const response = await fetch(`/api/neuro/market-analysis`);
             if (response.ok) {
                 const data = await response.json();

@@ -473,7 +473,7 @@ function MarketOverview() {
     const handleSync = async () => {
         setSyncing(true);
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/market/sync`, { method: "POST" });
+            await fetch('/api/market/trends'); // sync via internal route
             // Wait a few seconds for background agent to process, then refetch
             setTimeout(fetchTrends, 5000);
         } catch (error) {

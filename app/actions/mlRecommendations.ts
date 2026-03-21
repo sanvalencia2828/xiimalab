@@ -1,8 +1,6 @@
 "use server";
 import { getApiBase, safeFetch } from "@/lib/api";
-const _API = getApiBase() ?? "http://localhost:8000";
-
-const API_URL = _API;
+// _API resolved at call time via getApiBase()
 
 export interface MLRecommendation {
     hackathon_id: string;
@@ -39,7 +37,7 @@ export interface MLRecommendationsResponse {
 
 export async function getMLRecommendations(walletAddress: string, limit: number = 5): Promise<MLRecommendationsResponse> {
     try {
-        const response = await fetch(`${API_URL}/ml/recommendations/${walletAddress}?limit=${limit}`, {
+        const response = await fetch(`${getApiBase() ?? ""}/ml/recommendations/${walletAddress}?limit=${limit}`, {
             next: { revalidate: 300 },
         });
 
@@ -75,7 +73,7 @@ export async function getMLRecommendations(walletAddress: string, limit: number 
 
 export async function getSkillGapsAnalysis(walletAddress: string) {
     try {
-        const response = await fetch(`${API_URL}/ml/skill-gaps/${walletAddress}`, {
+        const response = await fetch(`${getApiBase() ?? ""}/ml/skill-gaps/${walletAddress}`, {
             next: { revalidate: 600 },
         });
 
