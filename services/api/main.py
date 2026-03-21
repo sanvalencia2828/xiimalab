@@ -5,14 +5,15 @@ from contextlib import asynccontextmanager
 import sys
 import os
 import asyncio
+import logging
 
 # Ensure local imports take precedence over absolute imports from engine/
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 
-from db import engine, Base
+from db import engine, Base, SessionLocal
 from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge, devfolio, aggregated, milestones
 from routes.hackathons import router as hackathons_router
 from routes.aggregated import router as aggregated_router
@@ -32,6 +33,48 @@ from routes.agents import router as agents_router
 # from routes.projects import router as projects_router  # [DISABLED] routes/projects.py no existe
 from routes.profile import router as profile_router
 # from routes.github import router as github_router  # [DISABLED] routes/github.py no existe aún
+
+log = logging.getLogger("xiima.main")
+
+# APScheduler for background tasks
+try:
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.triggers.interval import IntervalTrigger
+    SCHEDULER_AVAILABLE = True
+except ImportError:
+    SCHEDULER_AVAILABLE = False
+    log.warning("APScheduler not available, scheduled tasks disabled")
+
+scheduler = AsyncIOScheduler() if SCHEDULER_AVAILABLE else None
+
+
+async def scheduled_dorahacks_sync():
+    """Background task: sync DoraHacks every 6 hours."""
+    from services.sync_dorahacks import sync_dorahacks
+    
+    log.info("[Scheduler] Starting scheduled DoraHacks sync...")
+    try:
+        async with SessionLocal() as session:
+            result = await sync_dorahacks(session)
+            await session.commit()
+            log.info(f"[Scheduler] DoraHacks sync complete: {result}")
+    except Exception as exc:
+        log.error(f"[Scheduler] DoraHacks sync failed: {exc}")
+
+
+def setup_scheduler():
+    """Configure APScheduler for periodic tasks."""
+    if not SCHEDULER_AVAILABLE or scheduler is None:
+        return
+    
+    scheduler.add_job(
+        scheduled_dorahacks_sync,
+        trigger=IntervalTrigger(hours=6),
+        id="dorahacks_sync",
+        name="DoraHacks Hackathon Sync",
+        replace_existing=True,
+    )
+    log.info("[Scheduler] DoraHacks sync scheduled every 6 hours")
 
 
 # ─────────────────────────────────────────────
@@ -63,14 +106,11 @@ async def agent_background_runner():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # [SIMPLIFIED] Commented out DB initialization to prevent startup hang
-    # if PostgreSQL is unavailable. Tables will be created on first request
-    # or manually via alembic migrations.
-    # try:
-    #     async with engine.begin() as conn:
-    #         await conn.run_sync(Base.metadata.create_all)
-    # except Exception as e:
-    #     print(f"⚠️ DB init failed (non-blocking): {e}")
+    # Start APScheduler for background tasks
+    if scheduler is not None:
+        setup_scheduler()
+        scheduler.start()
+        log.info("[Scheduler] APScheduler started")
     
     # Start the background runner
     runner_task = asyncio.create_task(agent_background_runner())
@@ -78,6 +118,11 @@ async def lifespan(app: FastAPI):
     print("✅ FastAPI lifespan: startup complete")
     yield
     print("🛑 FastAPI lifespan: shutdown")
+    
+    # Shutdown APScheduler
+    if scheduler is not None and scheduler.running:
+        scheduler.shutdown(wait=False)
+        log.info("[Scheduler] APScheduler shutdown")
     
     # Cancel the background runner
     runner_task.cancel()
@@ -237,3 +282,38 @@ async def api_health():
     GET /api/health → {"status": "ok"}
     """
     return {"status": "ok"}
+
+
+# ─────────────────────────────────────────────
+# Admin endpoints
+# ─────────────────────────────────────────────
+@app.post("/api/v1/admin/sync-dorahacks", tags=["admin"])
+async def admin_sync_dorahacks():
+    """
+    Manually trigger DoraHacks sync.
+    POST /api/v1/admin/sync-dorahacks
+    """
+    from datetime import datetime
+    from db import SessionLocal
+    from services.sync_dorahacks import sync_dorahacks
+    
+    start_time = datetime.now()
+    log.info("[Admin] Manual DoraHacks sync triggered")
+    
+    try:
+        async with SessionLocal() as session:
+            result = await sync_dorahacks(session)
+            await session.commit()
+            return {
+                "success": True,
+                "message": "DoraHacks sync completed",
+                "result": result,
+                "elapsed_seconds": (datetime.now() - start_time).total_seconds(),
+            }
+    except Exception as exc:
+        log.error(f"[Admin] DoraHacks sync failed: {exc}")
+        return {
+            "success": False,
+            "message": f"Sync failed: {str(exc)}",
+            "elapsed_seconds": (datetime.now() - start_time).total_seconds(),
+        }
