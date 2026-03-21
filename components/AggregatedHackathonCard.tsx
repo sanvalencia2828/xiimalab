@@ -68,8 +68,8 @@ export function AggregatedHackathonCard({
             )}
           </div>
           {/* Confidence Badge */}
-          <div className={`px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${confidenceColor(hackathon.source_metadata.source_confidence)}`}>
-            {Math.round(hackathon.source_metadata.source_confidence * 100)}%
+          <div className={`px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${confidenceColor(hackathon.source_metadata?.source_confidence ?? 0)}`}>
+            {Math.round((hackathon.source_metadata?.source_confidence ?? 0) * 100)}%
           </div>
         </div>
 
@@ -139,9 +139,9 @@ export function AggregatedHackathonCard({
         {/* Source Badges */}
         <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
           <SourceBadges
-            sources={hackathon.source_metadata.sources}
-            sourceUrls={hackathon.source_metadata.source_urls}
-            primarySource={hackathon.source_metadata.primary_source}
+            sources={hackathon.source_metadata?.sources || []}
+            sourceUrls={hackathon.source_metadata?.source_urls || {}}
+            primarySource={hackathon.source_metadata?.primary_source || ""}
             compact
           />
         </div>
@@ -178,12 +178,12 @@ export function AggregatedHackathonCard({
             )}
 
             {/* Available On Links */}
-            {hackathon.source_metadata.sources.length > 1 && (
+            {hackathon.source_metadata?.sources && hackathon.source_metadata.sources.length > 1 && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs font-medium text-slate-400 mb-2">Available on:</p>
                 <div className="flex flex-wrap gap-2">
                   {hackathon.source_metadata.sources.map((source) => {
-                    const url = hackathon.source_metadata.source_urls[source];
+                    const url = hackathon.source_metadata?.source_urls?.[source];
                     return url ? (
                       <a
                         key={source}
@@ -216,24 +216,22 @@ export function AggregatedHackathonCard({
             {isExpanded ? "Less details" : "More details"}
           </button>
 
-          {/* Primary CTA */}
-          {hackathon.source_metadata.source_urls[
-            hackathon.source_metadata.primary_source
-          ] && (
-            <a
-              href={
-                hackathon.source_metadata.source_urls[
-                  hackathon.source_metadata.primary_source
-                ]
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/20 text-accent hover:bg-accent/30 text-xs font-medium rounded-lg transition-colors"
-            >
-              <Zap className="w-3 h-3" />
-              Apply
-            </a>
-          )}
+          {(() => {
+            const primary = hackathon.source_metadata?.primary_source;
+            const url = primary ? hackathon.source_metadata?.source_urls?.[primary] : undefined;
+            if (!url) return null;
+            return (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/20 text-accent hover:bg-accent/30 text-xs font-medium rounded-lg transition-colors"
+              >
+                <Zap className="w-3 h-3" />
+                Apply
+              </a>
+            );
+          })()}
         </div>
       </div>
     </motion.div>

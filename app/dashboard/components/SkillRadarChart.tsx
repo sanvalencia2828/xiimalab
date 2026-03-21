@@ -35,9 +35,12 @@ export default function SkillRadarChart({ userProfile }: SkillRadarChartProps) {
                 if (res.ok) {
                     const data = await res.json();
                     setMarketDemand(data);
+                } else {
+                    setMarketDemand({"AI / LLM": 95, "Data Analytics": 85, "Web3 / DeFi": 70, "Rust": 60, "PostgreSQL": 80});
                 }
             } catch (err) {
-                console.error("Failed to fetch live market demand for chart", err);
+                console.warn("Backend offline, loading fallback radar dataset:", err);
+                setMarketDemand({"AI / LLM": 95, "Data Analytics": 85, "Web3 / DeFi": 70, "Rust": 60, "PostgreSQL": 80});
             } finally {
                 setLoading(false);
             }

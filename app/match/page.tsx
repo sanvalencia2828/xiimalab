@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BrainCircuit, Sparkles, TrendingUp, Award, Zap, Code, Shield, Loader2 } from "lucide-react";
 import MarketMatch from "@/components/MarketMatch";
+import type { MarketTrend } from "@/lib/types";
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -29,7 +30,7 @@ const getStyleForTrend = (role: string, idx: number) => {
 };
 
 export default function MatchPage() {
-    const [liveTrends, setLiveTrends] = useState<any[]>([]);
+    const [liveTrends, setLiveTrends] = useState<MarketTrend[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -41,10 +42,15 @@ export default function MatchPage() {
                     const data = await res.json();
                     if (data.trends && data.trends.length > 0) {
                         setLiveTrends(data.trends.slice(0, 4));
+                    } else {
+                        setLiveTrends([{ role_name: "Web3 Developer", demand_score: 95 }, { role_name: "AI Engineer", demand_score: 90 }, { role_name: "Data Analyst", demand_score: 80 }]);
                     }
+                } else {
+                    setLiveTrends([{ role_name: "Web3 Developer", demand_score: 95 }, { role_name: "AI Engineer", demand_score: 90 }, { role_name: "Data Analyst", demand_score: 80 }]);
                 }
             } catch (err) {
-                console.error("Failed to fetch live trends", err);
+                console.warn("Failed to fetch live trends, using fallbacks:", err);
+                setLiveTrends([{ role_name: "Web3 Developer", demand_score: 95 }, { role_name: "AI Engineer", demand_score: 90 }, { role_name: "Data Analyst", demand_score: 80 }]);
             } finally {
                 setLoading(false);
             }
@@ -134,7 +140,7 @@ export default function MatchPage() {
                                 const Icon = style.icon;
                                 return (
                                     <motion.div
-                                        key={trend.id || idx}
+                                        key={trend.role_name}
                                         variants={itemVariants}
                                         whileHover={{ y: -2, scale: 1.01, transition: { duration: 0.2 } }}
                                         className={`relative bg-card/60 backdrop-blur-md border ${style.border} rounded-2xl p-5 overflow-hidden cursor-default shadow-lg`}

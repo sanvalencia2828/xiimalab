@@ -13,6 +13,7 @@ import Image from "next/image";
 import PriorityBoard from "@/components/PriorityBoard";
 import NotificationBell from "@/components/NotificationBell";
 import { loadUserSkillsAction } from "@/app/actions/userSkills";
+import type { MarketTrend } from "@/lib/types";
 
 interface Skill {
     name: string;
@@ -441,7 +442,7 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
 }
 
 function MarketOverview() {
-    const [marketSkills, setMarketSkills] = useState<any[]>([]);
+    const [marketSkills, setMarketSkills] = useState<MarketTrend[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
 
@@ -517,7 +518,7 @@ function MarketOverview() {
             ) : (
                 <div className="space-y-2">
                     {marketSkills.map((skill, idx) => (
-                        <div key={skill.id || idx} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                        <div key={skill.role_name} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                             <div>
                                 <span className="text-xs font-medium text-slate-300">{skill.role_name}</span>
                                 <p className="text-[10px] text-emerald-400">{skill.growth_percentage} vs mes anterior</p>
