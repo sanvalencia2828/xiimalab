@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from typing import List, Dict, Any
 
 from db import get_db
-from models import MarketTrend
+from models import MarketTrend, Hackathon
 from agents.market_scout import MarketScoutAgent
+from services.analytics import get_skill_relevance_report
 import logging
 import time
 import asyncpg
@@ -156,3 +157,59 @@ async def get_user_skills(user_id: str, db: AsyncSession = Depends(get_db)):
         logger.error(f"Error fetching user skills for {user_id}: {e}")
         # Fallback to prevent UI breakage during tests
         return {"AI / LLM": 70, "Data Analytics": 82, "Web3 / DeFi": 65}
+
+
+SKILL_RELEVANCE_CACHE_TTL = 3600
+skill_relevance_cache = {
+    "data": None,
+    "timestamp": 0
+}
+
+
+@router.get("/skill-relevance")
+async def get_skill_relevance(db: AsyncSession = Depends(get_db)):
+    """
+    Returns the skill relevance report calculated from active hackathons.
+    
+    Analysis based on:
+    - Frequency: How many hackathons require this skill
+    - Complexity: Technical complexity of the skill (0-1 scale)
+    - Score = frequency * 0.6 + complexity * 0.4
+    
+    Results are cached for 1 hour.
+    """
+    global skill_relevance_cache
+    now = time.time()
+    
+    if skill_relevance_cache["data"] is not None and (now - skill_relevance_cache["timestamp"] < SKILL_RELEVANCE_CACHE_TTL):
+        return skill_relevance_cache["data"]
+    
+    try:
+        result = await db.execute(
+            select(Hackathon).where(Hackathon.deadline >= func.current_date())
+        )
+        hackathons = result.scalars().all()
+        
+        hackathon_dicts = [
+            {
+                "id": h.id,
+                "title": h.title,
+                "tags": h.tags or [],
+                "prize_pool": h.prize_pool,
+                "deadline": h.deadline,
+            }
+            for h in hackathons
+        ]
+        
+        relevance_data = await get_skill_relevance_report(hackathon_dicts)
+        
+        skill_relevance_cache["data"] = relevance_data
+        skill_relevance_cache["timestamp"] = now
+        
+        return relevance_data
+        
+    except Exception as e:
+        logger.error(f"Error calculating skill relevance: {str(e)}")
+        if skill_relevance_cache["data"]:
+            return skill_relevance_cache["data"]
+        raise HTTPException(status_code=500, detail="Failed to calculate skill relevance")
