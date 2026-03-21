@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Trophy, Clock, TrendingUp, ExternalLink, Zap, Tag, Eye, Send, CheckCircle2, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Clock, TrendingUp, ExternalLink, Zap, Tag, Eye, Send, CheckCircle2, Loader2, BrainCircuit } from "lucide-react";
+import AIMatchModal from "@/components/AIMatchModal";
 
 type ApplyState = "idle" | "loading" | "applied";
 
@@ -69,6 +70,7 @@ export function AggregatedHackathonCard({
   onExpandClick,
 }: AggregatedHackathonCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showAIMatch, setShowAIMatch] = useState(false);
 
   const daysLeft = Math.ceil(
     (new Date(hackathon.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -265,12 +267,35 @@ export function AggregatedHackathonCard({
             {isExpanded ? "Less details" : "More details"}
           </button>
 
-          {/* Primary CTA */}
-          <ApplyButton
-            hackathonId={hackathon.id}
-            sourceUrl={hackathon.source_metadata?.source_urls?.[hackathon.source_metadata?.primary_source] ?? hackathon.source_url ?? null}
-          />
+          <div className="flex items-center gap-2">
+            {/* AI Match button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAIMatch(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all"
+            >
+              <BrainCircuit className="w-3 h-3" />
+              AI Match
+            </motion.button>
+
+            {/* Primary CTA */}
+            <ApplyButton
+              hackathonId={hackathon.id}
+              sourceUrl={hackathon.source_metadata?.source_urls?.[hackathon.source_metadata?.primary_source] ?? hackathon.source_url ?? null}
+            />
+          </div>
         </div>
+
+        {/* AI Match Modal */}
+        {showAIMatch && (
+          <AIMatchModal
+            hackathonTitle={hackathon.title}
+            hackathonTags={hackathon.tags ?? []}
+            hackathonPrize={hackathon.prize_pool ?? 0}
+            hackathonDeadline={hackathon.deadline ?? ""}
+            onClose={() => setShowAIMatch(false)}
+          />
+        )}
       </div>
     </motion.div>
   );
