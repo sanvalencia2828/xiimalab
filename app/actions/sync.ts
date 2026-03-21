@@ -1,9 +1,11 @@
 "use server";
+import { getApiBase, safeFetch } from "@/lib/api";
+const _API = getApiBase() ?? "http://localhost:8000";
 
 import { revalidatePath } from "next/cache";
 
 export async function syncHackathons() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const apiUrl = _API;
     
     try {
         const response = await fetch(`${apiUrl}/hackathons/sync`, {

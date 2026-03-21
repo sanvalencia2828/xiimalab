@@ -63,8 +63,8 @@ export default function CoachRoadmap({ hackathonId, roadmap, hackathonTitle = "H
                 roadmap,
                 "Un proyecto innovador basado en el roadmap del coach."
             );
-            if (res && !res.error) {
-                setAssets(res);
+            if (res && !res.error && typeof res.readme === "string") {
+                setAssets(res as { readme: string; elevator_pitch: string });
             }
         } finally {
             setIsGenerating(false);

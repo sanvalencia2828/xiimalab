@@ -1,93 +1,54 @@
 "use server";
 
-export async function generateProjectAssetsAction(hackathonTitle: string, roadmap: any, projectIdea: string) {
-    try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agents/coach/assets`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                hackathon_title: hackathonTitle,
-                roadmap: roadmap,
-                project_idea: projectIdea
-            }),
-        });
+import { getApiBase, safeFetch } from "@/lib/api";
 
-        if (!response.ok) {
-            throw new Error("Failed to generate assets");
-        }
+export async function generateProjectAssetsAction(hackathonTitle: string, roadmap: unknown, projectIdea: string): Promise<{ error?: string; [key: string]: unknown }> {
+    const base = getApiBase();
+    if (!base) return { error: "Backend no disponible en este entorno" };
 
-        return await response.json();
-    } catch (error) {
-        console.error("Action Error:", error);
-        return { error: "Failed to connect to AI Coach" };
-    }
+    const data = await safeFetch<{ [key: string]: unknown }>(`${base}/api/agents/coach/assets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hackathon_title: hackathonTitle, roadmap, project_idea: projectIdea }),
+    });
+    return data ?? { error: "No se pudo conectar al AI Coach" };
 }
 
-export async function generateNetworkingStrategyAction(hackathonTitle: string, matchScore: number, techStack: string[]) {
-    try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agents/connector/networking-strategy`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                hackathon_title: hackathonTitle,
-                match_score: matchScore,
-                tech_stack: techStack
-            }),
-        });
+export async function generateNetworkingStrategyAction(hackathonTitle: string, matchScore: number, techStack: string[]): Promise<{ error?: string; [key: string]: unknown }> {
+    const base = getApiBase();
+    if (!base) return { error: "Backend no disponible en este entorno" };
 
-        if (!response.ok) {
-            throw new Error(`Failed to generate networking strategy: ${response.status}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error("Action Error (Connector):", error);
-        return { error: "Failed to connect to Connector Agent" };
-    }
+    const data = await safeFetch<{ [key: string]: unknown }>(`${base}/api/agents/connector/networking-strategy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hackathon_title: hackathonTitle, match_score: matchScore, tech_stack: techStack }),
+    });
+    return data ?? { error: "No se pudo conectar al Connector Agent" };
 }
 
-// ── Agent Management Actions ──────────────────────────────────────────────────
+interface AgentStatusItem { name: string; status: string; last_seen: string; }
 
-export async function getAgentsStatusAction() {
-    try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agents/status`, {
-            method: "GET",
-            // Evitar caché para obtener el status real siempre
-            cache: "no-store",
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to get agents status: ${response.status}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error("Action Error (getAgentsStatus):", error);
-        return { error: "Failed to connect to API, ensure backend is running" };
+export async function getAgentsStatusAction(): Promise<{ agents: AgentStatusItem[]; status: string; message?: string; error?: string }> {
+    const base = getApiBase();
+    if (!base) {
+        return {
+            agents: [],
+            status: "offline",
+            error: "Backend Docker no disponible — ejecuta docker compose up en tu máquina local",
+        };
     }
+
+    const data = await safeFetch<{ agents: AgentStatusItem[]; status: string }>(`${base}/api/agents/status`, { cache: "no-store" });
+    return data ?? { agents: [], status: "offline", error: "Backend no responde" };
 }
 
-export async function runAgentAction(endpointId: string) {
-    try {
-        // endpointId is something like "notifier/run" or "orchestrator/coordinate"
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/agents/${endpointId}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+export async function runAgentAction(endpointId: string): Promise<{ error?: string; [key: string]: unknown }> {
+    const base = getApiBase();
+    if (!base) return { error: "Backend no disponible — requiere Docker local" };
 
-        if (!response.ok) {
-            throw new Error(`Failed to execute agent ${endpointId}: ${response.status}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error("Action Error (runAgentAction):", error);
-        return { error: `Failed to trigger ${endpointId}` };
-    }
+    const data = await safeFetch<{ [key: string]: unknown }>(`${base}/api/agents/${endpointId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+    });
+    return data ?? { error: `No se pudo ejecutar ${endpointId}` };
 }

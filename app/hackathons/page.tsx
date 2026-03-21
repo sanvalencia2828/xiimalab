@@ -22,9 +22,9 @@ async function fetchHackathons(): Promise<ActiveHackathon[]> {
     // 1. Intentar Supabase directamente
     if (supabase) {
         const { data, error } = await supabase
-            .from("active_hackathons")
-            .select("id, title, prize_pool, tags, deadline, match_score, source_url, source, last_seen_at")
-            .order("last_seen_at", { ascending: false })
+            .from("hackathons")
+            .select("id, title, prize_pool, tags, deadline, match_score, source_url, source, scraped_at")
+            .order("match_score", { ascending: false })
             .limit(50);
 
         if (!error && data && data.length > 0) {

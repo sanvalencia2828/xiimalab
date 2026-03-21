@@ -2,7 +2,9 @@
 
 import type { AggregatedHackathon } from "@/lib/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { getApiBase } from "@/lib/api";
+const _API_BASE_RAW = getApiBase();
+const API_BASE = _API_BASE_RAW ?? "http://localhost:8000";
 
 /**
  * Server action to fetch aggregated hackathons from multiple sources.
@@ -71,12 +73,22 @@ export async function getAggregatedHackathons(params: {
     };
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error("[getAggregatedHackathons] Error:", errorMessage);
-    return {
-      hackathons: [],
-      total: 0,
-      error: errorMessage,
-    };
+    console.warn("[getAggregatedHackathons] FastAPI unavailable, using internal fallback:", errorMessage);
+
+    // Fallback: use internal /api/hackathons (Supabase-backed)
+    try {
+      const vercelUrl = process.env.VERCEL_URL;
+      const base = vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000";
+      const res = await fetch(`${base}/api/hackathons?limit=50`, { next: { revalidate: 300 } });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          return { hackathons: data as AggregatedHackathon[], total: data.length };
+        }
+      }
+    } catch { /* ignore */ }
+
+    return { hackathons: [], total: 0, error: "Sin datos disponibles" };
   }
 }
 
