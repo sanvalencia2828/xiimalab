@@ -53,12 +53,11 @@ export default function SidebarNav() {
       <div className="p-6 border-b border-border relative">
         <div className="flex items-center gap-3">
           {/* Logo mark */}
-          <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-dim flex items-center justify-center shadow-glow shrink-0">
-            <Cpu className="w-5 h-5 text-background" />
-            <motion.div
-              className="absolute inset-0 rounded-xl bg-accent/30"
-              animate={{ scale: [1, 1.1, 1], opacity: [0.4, 0, 0.4] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+          <div className="relative w-9 h-9 shrink-0">
+            <img
+              src="/xiimalab-logo.png"
+              alt="Xiimalab"
+              className="w-9 h-9 object-contain"
             />
           </div>
           <div>
