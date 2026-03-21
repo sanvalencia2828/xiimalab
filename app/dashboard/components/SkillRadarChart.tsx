@@ -30,8 +30,8 @@ export default function SkillRadarChart({ userProfile }: SkillRadarChartProps) {
         setIsMounted(true);
         const fetchDemand = async () => {
             try {
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-                const res = await fetch(`${API_URL}/api/v1/market/live-demand`);
+                const _base = ''; // FastAPI not available
+                const res = await fetch(`/api/v1/market/live-demand`);
                 if (res.ok) {
                     const data = await res.json();
                     setMarketDemand(data);
