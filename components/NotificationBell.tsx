@@ -11,6 +11,8 @@ interface Notification {
     id: number;
     type: string;
     hackathon_id?: string;
+    source?: string | null;
+    source_url?: string;
     message: string;
     created_at: string;
     is_read: boolean;
@@ -110,6 +112,18 @@ export default function NotificationBell({
             case "deadline": return "Deadline";
             default: return "Info";
         }
+    };
+
+    const getSourceBadge = (source?: string | null) => {
+        if (!source) return null;
+        const config: Record<string, { label: string; color: string }> = {
+            dorahacks: { label: "DoraHacks", color: "bg-green-500/15 text-green-400 border border-green-500/20" },
+            devfolio:  { label: "Devfolio",  color: "bg-blue-500/15 text-blue-400 border border-blue-500/20" },
+            devpost:   { label: "Devpost",   color: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/20" },
+        };
+        const s = config[source.toLowerCase()];
+        if (!s) return null;
+        return <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${s.color}`}>{s.label}</span>;
     };
 
     return (
@@ -218,7 +232,7 @@ export default function NotificationBell({
                                                         <p className="text-sm text-slate-200 leading-relaxed">
                                                             {notif.message}
                                                         </p>
-                                                        <div className="flex items-center gap-2 mt-2">
+                                                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                                                             <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                                                                 notif.type === "urgency" ? "bg-rose-500/10 text-rose-400" :
                                                                 notif.type === "high_match" ? "bg-emerald-500/10 text-emerald-400" :
@@ -226,6 +240,7 @@ export default function NotificationBell({
                                                             }`}>
                                                                 {getTypeLabel(notif.type)}
                                                             </span>
+                                                            {getSourceBadge(notif.source)}
                                                             <span className="text-[10px] text-slate-500">
                                                                 {formatTime(notif.created_at)}
                                                             </span>
