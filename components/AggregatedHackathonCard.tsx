@@ -115,9 +115,11 @@ export function AggregatedHackathonCard({
             )}
           </div>
           {/* Confidence Badge */}
-          <div className={`px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${confidenceColor(hackathon.source_metadata.source_confidence)}`}>
-            {Math.round(hackathon.source_metadata.source_confidence * 100)}%
-          </div>
+          {hackathon.source_metadata?.source_confidence != null && (
+            <div className={`px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${confidenceColor(hackathon.source_metadata.source_confidence)}`}>
+              {Math.round(hackathon.source_metadata.source_confidence * 100)}%
+            </div>
+          )}
         </div>
 
         {/* Prize + Deadline + Match Score */}

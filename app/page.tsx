@@ -446,7 +446,7 @@ function MarketOverview() {
 
     const fetchTrends = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/market/trends`);
+            const res = await fetch(`/api/market/trends`);
             const data = await res.json();
             if (data.success && data.trends && data.trends.length > 0) {
                 setMarketSkills(data.trends);
