@@ -1,8 +1,10 @@
 "use client";
 
-import { motion, type Variants } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { FolderKanban } from "lucide-react";
 import ProjectCard, { type ProjectCardProps } from "@/components/ProjectCard";
+import ProjectHackathonPanel from "@/components/ProjectHackathonPanel";
 
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -60,6 +62,8 @@ const PROJECTS: ProjectCardProps[] = [
 ];
 
 export default function ProjectsPage() {
+    const [selectedProject, setSelectedProject] = useState<ProjectCardProps | null>(null);
+
     return (
         <div className="p-6 min-h-screen">
             <motion.div
@@ -79,21 +83,58 @@ export default function ProjectsPage() {
                 </h1>
                 <p className="text-slate-400 text-sm">
                     Proyectos activos · Stack de IA, DevOps y Blockchain
+                    {!selectedProject && (
+                        <span className="ml-2 text-accent/70">— Click en un proyecto para ver hackatones recomendados ⚡</span>
+                    )}
                 </p>
             </motion.div>
 
-            <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 xl:grid-cols-2 gap-6"
-            >
-                {PROJECTS.map((project) => (
-                    <motion.div key={project.title} variants={itemVariants}>
-                        <ProjectCard {...project} />
-                    </motion.div>
-                ))}
-            </motion.div>
+            <div className="flex gap-6 items-start">
+                {/* Project grid */}
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid grid-cols-1 xl:grid-cols-2 gap-6 flex-1 min-w-0"
+                >
+                    {PROJECTS.map((project) => (
+                        <motion.div
+                            key={project.title}
+                            variants={itemVariants}
+                            onClick={() => setSelectedProject(
+                                selectedProject?.title === project.title ? null : project
+                            )}
+                            className="cursor-pointer"
+                        >
+                            <div className={`rounded-2xl transition-all duration-200 ${
+                                selectedProject?.title === project.title
+                                    ? "ring-2 ring-offset-2 ring-offset-background"
+                                    : "hover:ring-1 hover:ring-accent/30"
+                            }`}
+                            style={selectedProject?.title === project.title
+                                ? { outline: `2px solid ${project.accentColor ?? "#7dd3fc"}40` }
+                                : {}
+                            }>
+                                <ProjectCard {...project} />
+                            </div>
+                        </motion.div>
+                    ))}
+                </motion.div>
+
+                {/* Hackathon panel */}
+                <AnimatePresence>
+                    {selectedProject && (
+                        <div className="sticky top-6">
+                            <ProjectHackathonPanel
+                                projectTitle={selectedProject.title}
+                                projectStack={selectedProject.stack}
+                                accentColor={selectedProject.accentColor}
+                                onClose={() => setSelectedProject(null)}
+                            />
+                        </div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }
