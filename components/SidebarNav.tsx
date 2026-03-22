@@ -20,6 +20,8 @@ import {
     Target,
     Briefcase,
     Database,
+    Menu,
+    X,
 } from "lucide-react";
 import { useWallet } from "@/lib/WalletContext";
 
@@ -48,6 +50,7 @@ export default function SidebarNav() {
     const { isConnected, publicKey, displayName } = useWallet();
     const isLoaded = true; // WalletContext is always ready client-side
     const [badges, setBadges] = useState<Record<string, number>>({});
+    const [isOpen, setIsOpen] = useState(false);
 
     // Fetch badge counts from Supabase on mount
     useEffect(() => {
@@ -65,7 +68,30 @@ export default function SidebarNav() {
     }, []);
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden">
+    <>
+      {/* Mobile toggle button */}
+      <button
+        onClick={() => setIsOpen(o => !o)}
+        className="fixed top-4 left-4 z-[60] block md:hidden bg-card border border-border rounded-xl p-2.5 shadow-lg"
+        aria-label="Toggle menu"
+      >
+        {isOpen ? <X className="w-5 h-5 text-slate-300" /> : <Menu className="w-5 h-5 text-slate-300" />}
+      </button>
+
+      {/* Overlay (mobile only) */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[45] bg-black/60 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+    <aside className={`
+      fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden
+      transition-transform duration-300 ease-in-out
+      -translate-x-full md:translate-x-0
+      ${isOpen ? "translate-x-0" : ""}
+    `}>
       {/* Subtle gradient overlay at top */}
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
 
@@ -96,7 +122,7 @@ export default function SidebarNav() {
           const isActive = pathname === href;
           const badgeCount = badgeKey ? (badges[badgeKey] ?? 0) : 0;
           return (
-            <Link key={href} href={href}>
+            <Link key={href} href={href} onClick={() => setIsOpen(false)}>
               <motion.div
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.97 }}
@@ -197,5 +223,6 @@ export default function SidebarNav() {
                 </Link>
             </div>
         </aside>
+    </>
     );
 }
