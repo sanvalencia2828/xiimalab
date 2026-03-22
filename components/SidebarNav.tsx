@@ -87,10 +87,10 @@ export default function SidebarNav() {
       )}
 
     <aside className={`
-      fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden
+      fixed left-0 top-0 h-full w-72 md:w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden
       transition-transform duration-300 ease-in-out
       -translate-x-full md:translate-x-0
-      ${isOpen ? "translate-x-0" : ""}
+      ${isOpen ? "translate-x-0 shadow-2xl" : ""}
     `}>
       {/* Subtle gradient overlay at top */}
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
