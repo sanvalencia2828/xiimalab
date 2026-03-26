@@ -25,7 +25,8 @@ import asyncpg
 DATABASE_URL: str = os.environ.get(
     "DATABASE_URL", "postgresql://xiima:secret@localhost:5432/xiimalab"
 )
-DEVFOLIO_MCP_URL = "https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e"
+DEVFOLIO_MCP_API_KEY = os.environ.get("DEVFOLIO_MCP_API_KEY", "")
+DEVFOLIO_MCP_URL = f"https://mcp.devfolio.co/mcp?apiKey={DEVFOLIO_MCP_API_KEY}"
 TIMEOUT_SECONDS = 30
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

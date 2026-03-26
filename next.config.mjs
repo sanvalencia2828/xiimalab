@@ -14,6 +14,17 @@ const nextConfig = {
             { protocol: "https", hostname: "**" },
         ],
     },
+
+    // Proxy: redirige /stream/* al backend FastAPI para SSE en tiempo real
+    async rewrites() {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        return [
+            {
+                source: "/stream/:path*",
+                destination: `${apiUrl}/stream/:path*`,
+            },
+        ];
+    },
 };
 
 export default nextConfig;

@@ -18,26 +18,57 @@ const FALLBACK: DevfolioHackathon[] = [
     { id: "df4", title: "Data Analytics Buildathon", prizePool: 25000, tags: ["Python", "Pandas", "SQL", "Tableau"], deadline: "2026-07-15", url: "https://devfolio.co" },
 ];
 
+const DEVFOLIO_API_KEY = process.env.DEVFOLIO_MCP_API_KEY ?? "";
+const MCP_URL = `https://mcp.devfolio.co/mcp?apiKey=${DEVFOLIO_API_KEY}`;
+
 export async function GET() {
+    if (!DEVFOLIO_API_KEY) {
+        return NextResponse.json(FALLBACK);
+    }
+
     try {
-        const res = await fetch(
-            "https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e",
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: 1,
-                    method: "tools/call",
-                    params: { name: "list_hackathons", arguments: {} },
-                }),
-            }
-        );
+        const res = await fetch(MCP_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: "tools/call",
+                params: { name: "list_hackathons", arguments: {} },
+            }),
+        });
 
         if (!res.ok) throw new Error(`Devfolio ${res.status}`);
 
-        const json = await res.json();
-        const items: any[] = json?.result?.content ?? json?.content ?? [];
+        const text = await res.text();
+        let items: any[] = [];
+
+        // Handle SSE or JSON response
+        if (text.startsWith("event:") || text.startsWith("data:")) {
+            for (const line of text.split("\n")) {
+                if (line.startsWith("data:")) {
+                    const raw = line.slice(5).trim();
+                    if (raw && raw !== "[DONE]") {
+                        try {
+                            const parsed = JSON.parse(raw);
+                            const content = parsed?.result?.content ?? [];
+                            for (const c of content) {
+                                if (c.type === "text") {
+                                    const inner = JSON.parse(c.text);
+                                    items = Array.isArray(inner) ? inner : inner?.hackathons ?? [];
+                                }
+                            }
+                        } catch {}
+                    }
+                }
+            }
+        } else {
+            const json = JSON.parse(text);
+            items = json?.result?.content ?? json?.content ?? [];
+        }
 
         const hackathons: DevfolioHackathon[] = items.map((item: any, i: number) => ({
             id: item.id ?? item.slug ?? `devfolio-${i}`,
@@ -53,3 +84,4 @@ export async function GET() {
         return NextResponse.json(FALLBACK);
     }
 }
+
