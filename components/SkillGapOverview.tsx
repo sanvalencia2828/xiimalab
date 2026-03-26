@@ -53,6 +53,7 @@ const SKILL_METADATA: Record<string, { difficulty: "Foundation" | "Intermediate"
     "Web3.js": { difficulty: "Advanced", category: "Web3", timeToDays: 14 },
     "Stellar": { difficulty: "Advanced", category: "Blockchain", timeToDays: 14 },
     "Machine Learning": { difficulty: "Advanced", category: "AI/ML", timeToDays: 21 },
+    "Data Science & AI": { difficulty: "Intermediate", category: "AI/ML", timeToDays: 14 },
     "TensorFlow": { difficulty: "Advanced", category: "AI/ML", timeToDays: 21 },
     "Kubernetes": { difficulty: "Advanced", category: "DevOps", timeToDays: 21 },
 };

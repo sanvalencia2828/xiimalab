@@ -277,6 +277,30 @@ LEARNING_RESOURCES: dict[str, dict[str, Any]] = {
             ]
         }
     },
+
+    "Data Science & AI": {
+        "difficulty": "Intermediate",
+        "category": "AI/ML",
+        "priority": True,
+        "resources": {
+            "courses": [
+                {"name": "Python for Applied Data Science & AI (Coursera)", "url": "https://www.coursera.org/learn/python-for-applied-data-science-ai", "type": "free", "duration": "25h", "priority": True},
+                {"name": "IBM Data Science Professional", "url": "https://www.coursera.org/professional-certificates/ibm-data-science", "type": "paid", "duration": "80h"},
+                {"name": "Andrew Ng ML Course", "url": "https://www.coursera.org/learn/machine-learning", "type": "free", "duration": "60h"},
+            ],
+            "tutorials": [
+                {"name": "Kaggle Learn", "url": "https://www.kaggle.com/learn", "type": "interactive"},
+                {"name": "Real Python — Data Science", "url": "https://realpython.com/tutorials/data-science/", "type": "articles"},
+                {"name": "Pandas Documentation", "url": "https://pandas.pydata.org/docs/getting_started/", "type": "official"},
+            ],
+            "projects": [
+                "Analizar datos de hackathons con Pandas",
+                "Build a predictive model for hackathon success",
+                "Create data visualizations with Matplotlib/Seaborn",
+                "Build an ML-powered skill recommender",
+            ]
+        }
+    },
     
     "Hardhat": {
         "difficulty": "Advanced",
