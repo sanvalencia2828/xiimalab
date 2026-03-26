@@ -437,3 +437,65 @@ FROM hackathons;
 -- Dar acceso a anon
 GRANT SELECT ON active_hackathons TO anon, authenticated, service_role;
 
+-- ─────────────────────────────────────────────
+-- Roadmap Persistence Tables
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_roadmaps (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    wallet_address VARCHAR(64) NOT NULL,
+    hackathon_id VARCHAR(64) NOT NULL,
+    skill VARCHAR(128) NOT NULL,
+    target_level INTEGER NOT NULL DEFAULT 60,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(wallet_address, hackathon_id, skill)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_roadmaps_wallet ON user_roadmaps(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_user_roadmaps_hackathon ON user_roadmaps(hackathon_id);
+
+CREATE OR REPLACE TRIGGER trg_user_roadmaps_updated_at
+    BEFORE UPDATE ON user_roadmaps
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Roadmap Steps (individual learning steps within a roadmap)
+CREATE TABLE IF NOT EXISTS roadmap_steps (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    roadmap_id UUID NOT NULL REFERENCES user_roadmaps(id) ON DELETE CASCADE,
+    step_index INTEGER NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    duration VARCHAR(32) NOT NULL DEFAULT '0h',
+    step_type VARCHAR(32) NOT NULL DEFAULT 'Doc',  -- 'Video', 'Project', 'Doc'
+    description TEXT,
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(roadmap_id, step_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_roadmap_steps_roadmap ON roadmap_steps(roadmap_id);
+CREATE INDEX IF NOT EXISTS idx_roadmap_steps_completed ON roadmap_steps(is_completed) WHERE is_completed = FALSE;
+
+CREATE OR REPLACE TRIGGER trg_roadmap_steps_updated_at
+    BEFORE UPDATE ON roadmap_steps
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Enable RLS for roadmap tables
+ALTER TABLE user_roadmaps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE roadmap_steps ENABLE ROW LEVEL SECURITY;
+
+-- Policies: users can only access their own data
+CREATE POLICY "Users can manage their own roadmaps" ON user_roadmaps
+    FOR ALL USING (true);
+
+CREATE POLICY "Users can manage their own roadmap steps" ON roadmap_steps
+    FOR ALL USING (true);
+
+-- Grant access to anon for reads (needed for dashboard)
+CREATE POLICY "Allow public read access to user_roadmaps" ON user_roadmaps FOR SELECT USING (true);
+CREATE POLICY "Allow public read access to roadmap_steps" ON roadmap_steps FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access to user_roadmaps" ON user_roadmaps FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert access to roadmap_steps" ON roadmap_steps FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access to roadmap_steps" ON roadmap_steps FOR UPDATE USING (true);
+
