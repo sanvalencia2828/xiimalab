@@ -116,15 +116,63 @@ export interface AggregatedHackathon extends Hackathon {
   event_type?:              string | null;        // "virtual" | "in-person" | "hybrid"
   description?:             string | null;
   participation_count_estimate?: number | null;
-  
+
   // Phase 3 Scoring
   urgency_score?:           number | null;
   value_score?:             number | null;
   personalized_score?:      number | null;       // Only if wallet provided
   match_breakdown?:         PersonalizedMatchScore | null;
-  
+
   // Multi-source metadata
   source_metadata?:         Partial<SourceMetadata>;
+}
+
+// ─────────────────────────────────────────────
+// MongoDB Realm Models
+// ─────────────────────────────────────────────
+export interface RealmUserProfile {
+  _id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+  preferences: {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+  };
+}
+
+export interface RealmHackathon {
+  _id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  prizePool: number;
+  tags: string[];
+  skills: string[];
+  matchScore?: number;
+  urgencyScore?: number;
+  valueScore?: number;
+  priority?: number;
+}
+
+export interface RealmUserAchievement {
+  _id: string;
+  userId: string;
+  title: string;
+  description: string;
+  earnedAt: string;
+  imageUrl?: string;
+  skillsDemonstrated: string[];
+}
+
+export interface RealmSkillDemand {
+  _id: string;
+  skill: string;
+  frequency: number;
+  trend: 'rising' | 'stable' | 'declining';
+  lastUpdated: string;
 }
 
 // ─────────────────────────────────────────────
