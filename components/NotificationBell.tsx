@@ -11,6 +11,8 @@ interface Notification {
     id: number;
     type: string;
     hackathon_id?: string;
+    source?: string | null;
+    source_url?: string;
     message: string;
     created_at: string;
     is_read: boolean;
@@ -31,57 +33,66 @@ export default function NotificationBell({
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
     const loadNotifications = useCallback(async () => {
-        if (!walletAddress) return;
-        
         setLoading(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const response = await fetch(`/api/notifications/${walletAddress}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                setNotifications(data.pending || []);
+            // Always load urgent hackathon notifications (no wallet needed)
+            const res = await fetch("/api/notifications/urgent");
+            if (res.ok) {
+                const data = await res.json();
+                let notifs = data.notifications ?? [];
+
+                // Merge wallet-specific notifications if available
+                if (walletAddress) {
+                    try {
+                        const walletRes = await fetch(`/api/notifications/${walletAddress}`);
+                        if (walletRes.ok) {
+                            const walletData = await walletRes.json();
+                            const walletNotifs = (walletData.pending ?? []).map((n: Notification) => ({
+                                ...n, id: n.id + 10000 // avoid id collision
+                            }));
+                            notifs = [...notifs, ...walletNotifs];
+                        }
+                    } catch { /* ignore */ }
+                }
+
+                // Restore read state from localStorage
+                const readIds: number[] = JSON.parse(localStorage.getItem("notif_read_ids") ?? "[]");
+                notifs = notifs.map((n: Notification) => ({ ...n, is_read: readIds.includes(n.id) }));
+
+                setNotifications(notifs);
                 setLastUpdate(new Date());
             }
         } catch (error) {
             console.error("Error loading notifications:", error);
-            // Fallback: cargar de localStorage
-            const saved = localStorage.getItem("user_notifications");
-            if (saved) {
-                setNotifications(JSON.parse(saved));
-            }
         }
         setLoading(false);
     }, [walletAddress]);
 
     useEffect(() => {
-        if (walletAddress) {
-            loadNotifications();
-            
-            // Poll cada 5 minutos
-            const interval = setInterval(loadNotifications, 5 * 60 * 1000);
-            return () => clearInterval(interval);
-        }
-    }, [walletAddress, loadNotifications]);
+        loadNotifications();
+        // Poll every 10 minutes
+        const interval = setInterval(loadNotifications, 10 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [loadNotifications]);
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const markAsRead = async (ids: number[]) => {
-        if (!walletAddress) return;
-        
-        try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            await fetch(`/api/notifications/${walletAddress}/mark-read`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ notification_ids: ids }),
-            });
-            
-            setNotifications(prev => prev.map(n => 
-                ids.includes(n.id) ? { ...n, is_read: true } : n
-            ));
-        } catch (error) {
-            console.error("Error marking as read:", error);
+        // Persist read state in localStorage (works without wallet/FastAPI)
+        const existing: number[] = JSON.parse(localStorage.getItem("notif_read_ids") ?? "[]");
+        const merged = Array.from(new Set([...existing, ...ids]));
+        localStorage.setItem("notif_read_ids", JSON.stringify(merged));
+        setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, is_read: true } : n));
+
+        // Also try server-side if wallet available
+        if (walletAddress) {
+            try {
+                await fetch(`/api/notifications/${walletAddress}/mark-read`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notification_ids: ids }),
+                });
+            } catch { /* ignore */ }
         }
     };
 
@@ -101,6 +112,18 @@ export default function NotificationBell({
             case "deadline": return "Deadline";
             default: return "Info";
         }
+    };
+
+    const getSourceBadge = (source?: string | null) => {
+        if (!source) return null;
+        const config: Record<string, { label: string; color: string }> = {
+            dorahacks: { label: "DoraHacks", color: "bg-green-500/15 text-green-400 border border-green-500/20" },
+            devfolio:  { label: "Devfolio",  color: "bg-blue-500/15 text-blue-400 border border-blue-500/20" },
+            devpost:   { label: "Devpost",   color: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/20" },
+        };
+        const s = config[source.toLowerCase()];
+        if (!s) return null;
+        return <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${s.color}`}>{s.label}</span>;
     };
 
     return (
@@ -184,16 +207,22 @@ export default function NotificationBell({
                                                 initial={{ opacity: 0, x: 20 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ delay: idx * 0.05 }}
-                                                className={`p-3 rounded-xl border transition-all cursor-pointer hover:bg-white/5 ${
+                                                className={`group p-3 rounded-xl border transition-all cursor-pointer ${
+                                                    notif.source_url ? "hover:bg-white/8 hover:border-accent/30" : "hover:bg-white/5"
+                                                } ${
                                                     notif.is_read 
                                                         ? "bg-transparent border-white/5 opacity-60" 
                                                         : "bg-white/5 border-accent/20"
                                                 }`}
                                                 onClick={() => {
-                                                    if (!notif.is_read) {
-                                                        markAsRead([notif.id]);
-                                                    }
+                                                    if (!notif.is_read) markAsRead([notif.id]);
                                                     onNotificationClick?.(notif);
+                                                    const url = notif.source_url;
+                                                    if (url && url.startsWith("http") && !url.includes("localhost")) {
+                                                        window.open(url, "_blank", "noopener,noreferrer");
+                                                    } else {
+                                                        window.location.href = "/hackathons";
+                                                    }
                                                     setIsOpen(false);
                                                 }}
                                             >
@@ -206,10 +235,15 @@ export default function NotificationBell({
                                                         {getIcon(notif.type)}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-sm text-slate-200 leading-relaxed">
-                                                            {notif.message}
-                                                        </p>
-                                                        <div className="flex items-center gap-2 mt-2">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <p className="text-sm text-slate-200 leading-relaxed">
+                                                                {notif.message}
+                                                            </p>
+                                                            {notif.source_url && (
+                                                                <ExternalLink className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5 group-hover:text-accent transition-colors" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                                                             <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                                                                 notif.type === "urgency" ? "bg-rose-500/10 text-rose-400" :
                                                                 notif.type === "high_match" ? "bg-emerald-500/10 text-emerald-400" :
@@ -217,6 +251,7 @@ export default function NotificationBell({
                                                             }`}>
                                                                 {getTypeLabel(notif.type)}
                                                             </span>
+                                                            {getSourceBadge(notif.source)}
                                                             <span className="text-[10px] text-slate-500">
                                                                 {formatTime(notif.created_at)}
                                                             </span>

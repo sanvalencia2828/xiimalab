@@ -1,8 +1,56 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Trophy, Clock, TrendingUp, ExternalLink, Zap, Tag, Eye } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Clock, TrendingUp, ExternalLink, Zap, Tag, Eye, Send, CheckCircle2, Loader2, BrainCircuit } from "lucide-react";
+import AIMatchModal from "@/components/AIMatchModal";
+
+type ApplyState = "idle" | "loading" | "applied";
+
+function ApplyButton({ hackathonId, sourceUrl }: { hackathonId: string; sourceUrl: string | null }) {
+    const [state, setState] = useState<ApplyState>("idle");
+
+    const handleApply = async () => {
+        if (state !== "idle") return;
+        setState("loading");
+        try {
+            const res = await fetch("/api/hackathons/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ hackathon_id: hackathonId }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setState("applied");
+            if (sourceUrl) window.open(sourceUrl, "_blank", "noopener noreferrer");
+        } catch {
+            setState("idle");
+        }
+    };
+
+    return (
+        <motion.button
+            whileHover={state === "idle" ? { scale: 1.03 } : {}}
+            whileTap={state === "idle" ? { scale: 0.97 } : {}}
+            onClick={handleApply}
+            disabled={state !== "idle"}
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                state === "applied"
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 cursor-default"
+                    : state === "loading"
+                    ? "bg-accent/10 text-accent border-accent/20 cursor-not-allowed opacity-70"
+                    : "bg-accent/10 text-accent border-accent/30 hover:bg-accent/20"
+            }`}
+        >
+            {state === "applied" ? (
+                <><CheckCircle2 className="w-3 h-3" /> ¡Aplicaste!</>
+            ) : state === "loading" ? (
+                <><Loader2 className="w-3 h-3 animate-spin" /> Aplicando...</>
+            ) : (
+                <><Send className="w-3 h-3" /> Aplicar</>
+            )}
+        </motion.button>
+    );
+}
 import type { AggregatedHackathon } from "@/lib/types";
 import { SourceBadges } from "./SourceBadges";
 
@@ -22,6 +70,7 @@ export function AggregatedHackathonCard({
   onExpandClick,
 }: AggregatedHackathonCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showAIMatch, setShowAIMatch] = useState(false);
 
   const daysLeft = Math.ceil(
     (new Date(hackathon.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -68,9 +117,11 @@ export function AggregatedHackathonCard({
             )}
           </div>
           {/* Confidence Badge */}
-          <div className={`px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${confidenceColor(hackathon.source_metadata?.source_confidence ?? 0)}`}>
-            {Math.round((hackathon.source_metadata?.source_confidence ?? 0) * 100)}%
-          </div>
+          {hackathon.source_metadata?.source_confidence != null && (
+            <div className={`px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${confidenceColor(hackathon.source_metadata.source_confidence)}`}>
+              {Math.round(hackathon.source_metadata.source_confidence * 100)}%
+            </div>
+          )}
         </div>
 
         {/* Prize + Deadline + Match Score */}
@@ -139,9 +190,9 @@ export function AggregatedHackathonCard({
         {/* Source Badges */}
         <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
           <SourceBadges
-            sources={hackathon.source_metadata?.sources || []}
-            sourceUrls={hackathon.source_metadata?.source_urls || {}}
-            primarySource={hackathon.source_metadata?.primary_source || ""}
+            sources={hackathon.source_metadata?.sources ?? []}
+            sourceUrls={hackathon.source_metadata?.source_urls ?? {}}
+            primarySource={hackathon.source_metadata?.primary_source ?? ""}
             compact
           />
         </div>
@@ -178,11 +229,11 @@ export function AggregatedHackathonCard({
             )}
 
             {/* Available On Links */}
-            {hackathon.source_metadata?.sources && hackathon.source_metadata.sources.length > 1 && (
+            {(hackathon.source_metadata?.sources?.length ?? 0) > 1 && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs font-medium text-slate-400 mb-2">Available on:</p>
                 <div className="flex flex-wrap gap-2">
-                  {hackathon.source_metadata.sources.map((source) => {
+                  {(hackathon.source_metadata?.sources ?? []).map((source) => {
                     const url = hackathon.source_metadata?.source_urls?.[source];
                     return url ? (
                       <a
@@ -216,23 +267,35 @@ export function AggregatedHackathonCard({
             {isExpanded ? "Less details" : "More details"}
           </button>
 
-          {(() => {
-            const primary = hackathon.source_metadata?.primary_source;
-            const url = primary ? hackathon.source_metadata?.source_urls?.[primary] : undefined;
-            if (!url) return null;
-            return (
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/20 text-accent hover:bg-accent/30 text-xs font-medium rounded-lg transition-colors"
-              >
-                <Zap className="w-3 h-3" />
-                Apply
-              </a>
-            );
-          })()}
+          <div className="flex items-center gap-2">
+            {/* AI Match button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAIMatch(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all"
+            >
+              <BrainCircuit className="w-3 h-3" />
+              AI Match
+            </motion.button>
+
+            {/* Primary CTA */}
+            <ApplyButton
+              hackathonId={hackathon.id}
+              sourceUrl={hackathon.source_metadata?.primary_source ? (hackathon.source_metadata?.source_urls?.[hackathon.source_metadata.primary_source] ?? hackathon.source_url ?? null) : (hackathon.source_url ?? null)}
+            />
+          </div>
         </div>
+
+        {/* AI Match Modal */}
+        {showAIMatch && (
+          <AIMatchModal
+            hackathonTitle={hackathon.title}
+            hackathonTags={hackathon.tags ?? []}
+            hackathonPrize={hackathon.prize_pool ?? 0}
+            hackathonDeadline={hackathon.deadline ?? ""}
+            onClose={() => setShowAIMatch(false)}
+          />
+        )}
       </div>
     </motion.div>
   );

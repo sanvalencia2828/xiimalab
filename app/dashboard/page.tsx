@@ -64,9 +64,8 @@ export default function StudentDashboard() {
     // Fetch User Skills from new API
     const fetchUserSkills = async () => {
       try {
-          const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-          // Replace with real auth user ID when Context is ready
-          const res = await fetch(`${API_URL}/api/v1/user/test_user_id/skills`);
+          // Use Supabase skill_demands directly (FastAPI not available on Vercel)
+          const res = await fetch(`/api/market/trends`);
           if (res.ok) {
               const data = await res.json();
               setUserProfile(data);

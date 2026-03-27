@@ -1,10 +1,109 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { BrainCircuit, Sparkles, TrendingUp, Award, Zap, Code, Shield, Loader2 } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { BrainCircuit, Sparkles, TrendingUp, Award, Zap, Rocket, Shield, Code, Loader2 } from "lucide-react";
 import MarketMatch from "@/components/MarketMatch";
 import type { MarketTrend } from "@/lib/types";
+
+// ── AURA Boost Button ──────────────────────────────────────────────────────
+interface Particle { id: number; x: number; y: number; vx: number; vy: number; color: string; }
+
+function AuraBoostButton() {
+    const [boosting, setBoosting] = useState(false);
+    const [boosted, setBoosted] = useState(false);
+    const [particles, setParticles] = useState<Particle[]>([]);
+    const colors = ["#7dd3fc", "#a78bfa", "#34d399", "#f59e0b", "#f472b6"];
+
+    const handleBoost = useCallback(() => {
+        if (boosting || boosted) return;
+        setBoosting(true);
+
+        // Generate burst particles
+        const burst: Particle[] = Array.from({ length: 24 }, (_, i) => ({
+            id: i,
+            x: 50,
+            y: 50,
+            vx: (Math.random() - 0.5) * 200,
+            vy: (Math.random() - 0.5) * 200,
+            color: colors[Math.floor(Math.random() * colors.length)],
+        }));
+        setParticles(burst);
+
+        setTimeout(() => {
+            setBoosting(false);
+            setBoosted(true);
+            setParticles([]);
+        }, 1200);
+    }, [boosting, boosted]);
+
+    return (
+        <div className="relative flex flex-col items-center gap-3 py-6">
+            {/* Particles */}
+            <AnimatePresence>
+                {particles.map((p) => (
+                    <motion.div
+                        key={p.id}
+                        initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                        animate={{ x: p.vx, y: p.vy, opacity: 0, scale: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.1, ease: "easeOut" }}
+                        style={{ backgroundColor: p.color }}
+                        className="absolute w-2 h-2 rounded-full pointer-events-none"
+                    />
+                ))}
+            </AnimatePresence>
+
+            {/* Label */}
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-widest">
+                {boosted ? "¡AURA Boost activo!" : "Potencia tu perfil"}
+            </p>
+
+            {/* Button */}
+            <motion.button
+                onClick={handleBoost}
+                disabled={boosting || boosted}
+                whileHover={!boosted ? { scale: 1.05 } : {}}
+                whileTap={!boosted ? { scale: 0.95 } : {}}
+                animate={boosting ? { scale: [1, 1.12, 1, 1.08, 1] } : {}}
+                transition={{ duration: 0.6 }}
+                className={`relative flex items-center gap-2.5 px-6 py-3 rounded-2xl text-sm font-bold transition-all overflow-hidden ${
+                    boosted
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default"
+                        : boosting
+                        ? "bg-accent/30 text-accent border border-accent/40 cursor-wait"
+                        : "bg-gradient-to-r from-accent/20 to-purple-500/20 text-white border border-accent/30 hover:border-accent/60 shadow-lg shadow-accent/10"
+                }`}
+            >
+                {/* Shimmer effect */}
+                {!boosted && (
+                    <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12"
+                        animate={{ x: ["-100%", "200%"] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
+                    />
+                )}
+                <motion.div
+                    animate={boosting ? { rotate: 360 } : {}}
+                    transition={{ duration: 0.6, repeat: boosting ? Infinity : 0, ease: "linear" }}
+                >
+                    {boosted ? <Sparkles className="w-4 h-4" /> : <Rocket className="w-4 h-4" />}
+                </motion.div>
+                {boosted ? "AURA Boost Activado ✨" : boosting ? "Activando AURA..." : "AURA Boost"}
+            </motion.button>
+
+            {boosted && (
+                <motion.p
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs text-emerald-400/80 text-center max-w-xs"
+                >
+                    Tu perfil está siendo optimizado. Los match scores se actualizarán en el próximo análisis.
+                </motion.p>
+            )}
+        </div>
+    );
+}
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -36,8 +135,7 @@ export default function MatchPage() {
     useEffect(() => {
         const fetchTrends = async () => {
             try {
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-                const res = await fetch(`${API_URL}/api/v1/market/trends`);
+                const res = await fetch(`/api/market/trends`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.trends && data.trends.length > 0) {
@@ -188,6 +286,23 @@ export default function MatchPage() {
                     >
                         Las recomendaciones mostradas arriba se auto-sincronizan con el módulo IA de Market Scout.
                     </motion.p>
+
+                    {/* AURA Boost */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="mt-4 bg-card border border-accent/20 rounded-2xl overflow-hidden"
+                    >
+                        <div className="px-5 pt-5 pb-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Sparkles className="w-4 h-4 text-accent" />
+                                <h3 className="text-sm font-bold text-white">AURA Boost</h3>
+                            </div>
+                            <p className="text-xs text-slate-400">
+                                Activa el motor de optimización para mejorar tu match score automáticamente.
+                            </p>
+                        </div>
+                        <AuraBoostButton />
+                    </motion.div>
                 </motion.div>
             </div>
         </div>

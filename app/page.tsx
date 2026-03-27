@@ -258,7 +258,7 @@ function HackathonsSection() {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-400" />
-                    <h2 className="text-lg font-bold text-white">Análisis de Relevancia del Mercado</h2>
+                    <h2 className="text-lg font-bold text-white">Misiones Activas</h2>
                 </div>
                 <Link
                     href="/hackathons"

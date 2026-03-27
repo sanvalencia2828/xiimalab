@@ -1,6 +1,6 @@
 "use server";
 import { getApiBase, safeFetch } from "@/lib/api";
-const _API = getApiBase() ?? "http://localhost:8000";
+// getApiBase() called inside each function to avoid module-level null
 
 export async function generateAuraEngagementKitAction(
     projectTitle: string, 
@@ -9,7 +9,7 @@ export async function generateAuraEngagementKitAction(
     techStack: string[]
 ) {
     try {
-        const apiUrl = _API;
+        const apiUrl = getApiBase(); if (!apiUrl) return null as any;
         const response = await fetch(`${apiUrl}/api/agents/aura/engagement-kit`, {
             method: "POST",
             headers: {
@@ -49,7 +49,7 @@ export async function submitToAuraEngagementPoolAction(studentAddress: string, c
 
 export async function processImageAction(formData: FormData, studentAddress: string) {
     try {
-        const apiUrl = _API;
+        const apiUrl = getApiBase(); if (!apiUrl) return null as any;
         const response = await fetch(`${apiUrl}/api/aura/process-image`, {
             method: "POST",
             body: formData,

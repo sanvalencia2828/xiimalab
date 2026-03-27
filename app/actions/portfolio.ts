@@ -1,8 +1,6 @@
 "use server";
 import { getApiBase, safeFetch } from "@/lib/api";
-const _API = getApiBase() ?? "http://localhost:8000";
-
-const API_URL = _API;
+// _API resolved at call time via getApiBase()
 
 export interface PortfolioData {
     wallet_address: string;
@@ -56,7 +54,7 @@ export interface PortfolioResponse {
 
 export async function getPortfolio(walletAddress: string): Promise<PortfolioResponse> {
     try {
-        const response = await fetch(`${API_URL}/portfolio/${walletAddress}`, {
+        const response = await fetch(`${getApiBase() ?? ""}/portfolio/${walletAddress}`, {
             next: { revalidate: 300 },
         });
 
@@ -93,7 +91,7 @@ export async function getPortfolio(walletAddress: string): Promise<PortfolioResp
 
 export async function getPortfolioMarkdown(walletAddress: string): Promise<{ markdown: string; filename: string }> {
     try {
-        const response = await fetch(`${API_URL}/portfolio/${walletAddress}/markdown`);
+        const response = await fetch(`${getApiBase() ?? ""}/portfolio/${walletAddress}/markdown`);
 
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`);

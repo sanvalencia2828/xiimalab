@@ -25,6 +25,7 @@ from routes.ml_recommendations import router as ml_router
 from routes.portfolio import router as portfolio_router
 from routes.market import router as market_router
 from routes.learning_resources import router as learning_router
+from routes.match import router as match_router
 from hotmart_bridge import router as hotmart_router
 # from skill_validator import router as skill_validator_router  # [DISABLED] conflicto con engine/skill_validator.py - renombra a skill_validator_routes.py para arreglarlo
 from integrations.aura_client import router as aura_router
@@ -188,6 +189,7 @@ app.include_router(notifications_router, prefix="/notifications", tags=["notific
 app.include_router(ml_router, prefix="/ml", tags=["ml-recommendations"])
 app.include_router(portfolio_router, prefix="/portfolio", tags=["portfolio"])
 app.include_router(market_router, prefix="/api/v1", tags=["market"])
+app.include_router(match_router,  prefix="/api/v1", tags=["AI Matchmaker"])
 
 
 # ─────────────────────────────────────────────

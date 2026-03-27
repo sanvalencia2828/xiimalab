@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
     LayoutDashboard,
@@ -19,6 +20,8 @@ import {
     Target,
     Briefcase,
     Database,
+    Menu,
+    X,
 } from "lucide-react";
 import SystemStatus from "./SystemStatus";
 import { useWallet } from "@/lib/WalletContext";
@@ -30,10 +33,10 @@ const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Inicio" },
   { href: "/dashboard", icon: Cpu, label: "Dashboard Estudiante" },
   { href: "/skills", icon: Brain, label: "Skills" },
-  { href: "/hackathons", icon: Zap, label: "Hackatones" },
+  { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
   { href: "/aggregated", icon: Database, label: "Aggregated" },
   { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
-  { href: "/match", icon: BarChart3, label: "Market Match" },
+  { href: "/match", icon: BarChart3, label: "Market Match", badgeKey: "insights" },
   { href: "/profile", icon: Target, label: "Mi Perfil" },
   { href: "/ecommerce", icon: ShoppingBag, label: "Staking" },
   { href: "/projects", icon: FolderKanban, label: "Proyectos" },
@@ -45,10 +48,51 @@ const navItems = [
 // -------------------------------------------------------
 export default function SidebarNav() {
     const pathname   = usePathname();
-    const { isConnected, publicKey, displayName, isLoaded } = useWallet();
+    const { isConnected, publicKey, displayName } = useWallet();
+    const isLoaded = true; // WalletContext is always ready client-side
+    const [badges, setBadges] = useState<Record<string, number>>({});
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Fetch badge counts from Supabase on mount
+    useEffect(() => {
+        const fetchBadges = async () => {
+            try {
+                const res = await fetch("/api/insights/priorities?days_window=30");
+                if (!res.ok) return;
+                const data = await res.json();
+                const urgent = data?.insights?.urgent_hackathons ?? 0;
+                const total  = data?.insights?.total_hackathons ?? 0;
+                setBadges({ hackathons: total, insights: urgent });
+            } catch { /* ignore */ }
+        };
+        fetchBadges();
+    }, []);
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden">
+    <>
+      {/* Mobile toggle button */}
+      <button
+        onClick={() => setIsOpen(o => !o)}
+        className="fixed top-4 left-4 z-[60] block md:hidden bg-card border border-border rounded-xl p-2.5 shadow-lg"
+        aria-label="Toggle menu"
+      >
+        {isOpen ? <X className="w-5 h-5 text-slate-300" /> : <Menu className="w-5 h-5 text-slate-300" />}
+      </button>
+
+      {/* Overlay (mobile only) */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[45] bg-black/60 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+    <aside className={`
+      fixed left-0 top-0 h-full w-72 md:w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden
+      transition-transform duration-300 ease-in-out
+      -translate-x-full md:translate-x-0
+      ${isOpen ? "translate-x-0 shadow-2xl" : ""}
+    `}>
       {/* Subtle gradient overlay at top */}
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
 
@@ -56,13 +100,11 @@ export default function SidebarNav() {
       <div className="p-6 border-b border-border relative">
         <div className="flex items-center gap-3">
           {/* Logo mark */}
-          <div className="relative w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shadow-glow shrink-0">
-            <Image
-              src="/Xiima-logo.png"
-              alt="Xiimalab Logo"
-              width={36}
-              height={36}
-              className="object-contain"
+          <div className="relative w-9 h-9 shrink-0">
+            <img
+              src="/xiimalab-logo.png"
+              alt="Xiimalab"
+              className="w-9 h-9 object-contain"
             />
           </div>
           <div>
@@ -77,10 +119,11 @@ export default function SidebarNav() {
         <p className="text-xs font-semibold text-muted-text uppercase tracking-widest px-3 py-2 mt-1">
           Menú principal
         </p>
-        {navItems.map(({ href, icon: Icon, label }) => {
+        {navItems.map(({ href, icon: Icon, label, badgeKey }) => {
           const isActive = pathname === href;
+          const badgeCount = badgeKey ? (badges[badgeKey] ?? 0) : 0;
           return (
-            <Link key={href} href={href}>
+            <Link key={href} href={href} onClick={() => setIsOpen(false)}>
               <motion.div
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.97 }}
@@ -91,13 +134,22 @@ export default function SidebarNav() {
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-accent" : "group-hover:text-slate-200"}`} />
                 <span className="flex-1">{label}</span>
+                {badgeCount > 0 && !isActive && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    badgeKey === "insights"
+                      ? "bg-rose-500/20 text-rose-400"
+                      : "bg-accent/20 text-accent"
+                  }`}>
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
                 {isActive && (
                   <motion.div
                     layoutId="activeNav"
                     className="w-1.5 h-1.5 rounded-full bg-accent"
                   />
                 )}
-                {!isActive && (
+                {!isActive && badgeCount === 0 && (
                   <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
                 )}
               </motion.div>
@@ -151,5 +203,6 @@ export default function SidebarNav() {
                 </Link>
             </div>
         </aside>
+    </>
     );
 }

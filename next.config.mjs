@@ -15,13 +15,19 @@ const nextConfig = {
         ],
     },
 
-    // Proxy: redirige /stream/* al backend FastAPI para SSE en tiempo real
+    // Proxy SSE y rutas del backend FastAPI (puerto 8000)
+    // En Vercel, NEXT_PUBLIC_API_URL apunta al backend desplegado.
+    // En local, el EventSource("/stream/...") se redirige a localhost:8000.
     async rewrites() {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         return [
             {
                 source: "/stream/:path*",
-                destination: `${apiUrl}/stream/:path*`,
+                destination: `${backendUrl}/stream/:path*`,
+            },
+            {
+                source: "/api/backend/:path*",
+                destination: `${backendUrl}/:path*`,
             },
         ];
     },

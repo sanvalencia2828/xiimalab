@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 async function fetchStakingStatus(userId: string): Promise<any> {
   try {
     // Usar la API interna (proxy al FastAPI)
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+    const base = ""; // use relative routes
     const res = await fetch(`${base}/api/staking/status/${userId}`, {
       next: { revalidate: 60 }, // Revalidar cada minuto
     });

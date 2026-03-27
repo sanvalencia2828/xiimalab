@@ -139,7 +139,7 @@ export default function SkillsPage() {
                 fetch(`/api/neuro/market-analysis`),
                 getSkillRelevanceAction(),
             ]);
-            
+
             if (marketResponse.ok) {
                 const data = await marketResponse.json();
                 setMarketSkills(data.top_skills_by_demand || []);

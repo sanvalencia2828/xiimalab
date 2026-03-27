@@ -4,6 +4,8 @@ import { apiResponse, getApiBase } from "@/lib/api";
 // Forzar renderizado dinámico — nunca pre-renderizar en build (no hay FastAPI en Vercel)
 export const dynamic = "force-dynamic";
 
+const API_URL = ""; // FastAPI not used in Vercel
+
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const source = searchParams.get("source") ?? "all";

@@ -4,9 +4,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
     Trophy, Tag, Clock, TrendingUp, ExternalLink,
-    Bot, Globe, Send, CheckCircle2, Loader2,
+    Bot, Globe, Send, CheckCircle2, Loader2, BrainCircuit,
 } from "lucide-react";
 import type { ActiveHackathon } from "@/lib/supabase";
+import AIMatchModal from "@/components/AIMatchModal";
 
 // ─────────────────────────────────────────────
 // Tag color map
@@ -138,6 +139,7 @@ export interface HackathonCardProps {
 
 export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
     const tags = Array.isArray(h.tags) ? h.tags : [];
+    const [showAIMatch, setShowAIMatch] = useState(false);
 
     return (
         <motion.div
@@ -223,10 +225,28 @@ export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
                 </div>
             )}
 
-            {/* Apply button */}
-            <div className="flex justify-end">
+            {/* Footer actions */}
+            <div className="flex items-center justify-between pt-2">
+                <motion.button
+                    whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAIMatch(true)}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all"
+                >
+                    <BrainCircuit className="w-3 h-3" />
+                    AI Match
+                </motion.button>
                 <ApplyButton hackathonId={h.id} sourceUrl={h.source_url} />
             </div>
+
+            {showAIMatch && (
+                <AIMatchModal
+                    hackathonTitle={h.title}
+                    hackathonTags={tags}
+                    hackathonPrize={h.prize_pool ?? 0}
+                    hackathonDeadline={h.deadline ?? ""}
+                    onClose={() => setShowAIMatch(false)}
+                />
+            )}
         </motion.div>
     );
 }
