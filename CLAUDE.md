@@ -44,7 +44,7 @@ Los siguientes hooks se ejecutan automáticamente — **respétalos y actúa sob
 
 
 ### Servicios externos activos
-- **Devfolio MCP API** → `https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e`
+- **Devfolio MCP API** → `https://mcp.devfolio.co/mcp?apiKey=dbc8a11b0904ec8e6f792e7a271ff9a2d067e970c55ce6e70e288bdd67e2e66d`
   - Protocolo: JSON-RPC 2.0 via HTTP POST
   - Tool disponible: `list_hackathons` — devuelve hackatones reales con título, premio, tags, deadline
 - **Anthropic Claude 3.5** → `ANTHROPIC_API_KEY` en `.env`, usado por FastAPI en `/analyze/hackathon`

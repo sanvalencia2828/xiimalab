@@ -8,7 +8,10 @@
       "Bash(cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\\services\\api\" && python -m py_compile *)",
       "Bash(cd \"C:\\Users\\santi\\OneDrive\\Documentos\\Xiimalab\\services\\api\" && python -m flake8 --max-line-length=120 --ignore=E501,W503 2>&1 | head -20)",
       "Bash(git diff --stat HEAD 2>&1)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Read(//c/Users/santi/OneDrive/Documentos/Xiimalab/$APPDATA/Claude/**)",
+      "Read(//c/Users/santi/OneDrive/Documentos/Xiimalab/$HOME/**)",
+      "Bash(curl -s -X POST \"https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e\" -H \"Content-Type: application/json\" -d '{\"\"\"\"jsonrpc\"\"\"\":\"\"\"\"2.0\"\"\"\",\"\"\"\"id\"\"\"\":1,\"\"\"\"method\"\"\"\":\"\"\"\"initialize\"\"\"\",\"\"\"\"params\"\"\"\":{\"\"\"\"protocolVersion\"\"\"\":\"\"\"\"2024-11-05\"\"\"\",\"\"\"\"capabilities\"\"\"\":{},\"\"\"\"clientInfo\"\"\"\":{\"\"\"\"name\"\"\"\":\"\"\"\"claude-code\"\"\"\",\"\"\"\"version\"\"\"\":\"\"\"\"1.0\"\"\"\"}}}')"
     ]
   },
   "hooks": {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SidebarNav from "@/components/SidebarNav";
 import { WalletProvider } from "@/lib/WalletContext";
+import { RealmProvider } from "@/lib/RealmContext";
 
 export const metadata: Metadata = {
     title: "Xiimalab — AI & Blockchain Intelligence Hub",
@@ -25,15 +26,17 @@ export default function RootLayout({
         <html lang="es" className="dark">
             <body className="bg-background text-slate-100 font-sans antialiased">
                 <WalletProvider>
-                    <div className="flex min-h-screen">
-                        {/* Fixed Sidebar */}
-                        <SidebarNav />
+                    <RealmProvider>
+                        <div className="flex min-h-screen">
+                            {/* Fixed Sidebar */}
+                            <SidebarNav />
 
-                        {/* Main content area — offset by sidebar width */}
-                        <main className="flex-1 ml-64 min-h-screen">
-                            {children}
-                        </main>
-                    </div>
+                            {/* Main content area — offset by sidebar width */}
+                            <main className="flex-1 ml-64 min-h-screen">
+                                {children}
+                            </main>
+                        </div>
+                    </RealmProvider>
                 </WalletProvider>
             </body>
         </html>
