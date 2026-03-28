@@ -1,0 +1,15 @@
+{
+  "/api/backend": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "pathRewrite": {
+      "^/api/backend": ""
+    },
+    "changeOrigin": true
+  },
+  "/stream": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

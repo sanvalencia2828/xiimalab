@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #030712;
+  --color-card: #111827;
+  --color-card-hover: #1a2535;
+  --color-accent: #7dd3fc;
+  --color-accent-bright: #38bdf8;
+  --color-accent-dim: #0ea5e9;
+  --color-border: #1f2937;
+  --color-muted: #374151;
+  --color-muted-text: #6b7280;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-stellar: #8b5cf6;
+  --color-avalanche: #ef4444;
+  --color-blockchain: #f59e0b;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(125, 211, 252, 0.25);
+  --shadow-glow-strong: 0 0 40px rgba(125, 211, 252, 0.45);
+  --shadow-glow-success: 0 0 20px rgba(16, 185, 129, 0.3);
+
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #030712;
+    color: #f1f5f9;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #111827;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #374151;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #7dd3fc;
+  }
+}
+
+@utility glow-accent {
+  box-shadow: 0 0 20px rgba(125, 211, 252, 0.25);
+}
+
+@utility glow-accent-strong {
+  box-shadow: 0 0 40px rgba(125, 211, 252, 0.45);
+}
+
+@utility glow-success {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+@utility gradient-text {
+  background: linear-gradient(135deg, #7dd3fc, #38bdf8, #0ea5e9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility gradient-border {
+  position: relative;
+}
+
+@utility shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(125, 211, 252, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
