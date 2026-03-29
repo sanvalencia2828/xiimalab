@@ -29,20 +29,28 @@ async function fetchDevfolioHackathons(page = 1, perPage = 50): Promise<Devfolio
   const json = await res.json();
   const items: any[] = json?.result ?? [];
 
-  return items.map((h: any) => ({
-    id: h.uuid ?? h.slug ?? `devfolio-${Math.random()}`,
-    title: h.name ?? "Hackathon",
-    tagline: h.tagline ?? "",
-    prizePool: Number(h.prize_pool ?? 0),
-    tags: Array.isArray(h.themes)
-      ? h.themes.map((t: any) => t.name ?? t)
-      : [],
-    deadline: h.ends_at ?? "",
-    startDate: h.starts_at ?? "",
-    url: h.slug ? `https://devfolio.co/hackathons/${h.slug}` : "https://devfolio.co/hackathons",
-    isOnline: Boolean(h.is_online),
-    isOpen: Boolean(h.is_registration_open ?? true),
-  }));
+  const now = Date.now();
+
+  return items
+    .filter((h: any) => {
+      // Keep only hackathons that haven't ended yet
+      const endsAt = h.ends_at ? new Date(h.ends_at).getTime() : Infinity;
+      return endsAt > now;
+    })
+    .map((h: any) => ({
+      id: h.uuid ?? h.slug ?? `devfolio-${Math.random()}`,
+      title: h.name ?? "Hackathon",
+      tagline: h.tagline ?? "",
+      prizePool: Number(h.prize_pool ?? 0),
+      tags: Array.isArray(h.themes)
+        ? h.themes.map((t: any) => t.name ?? t)
+        : [],
+      deadline: h.ends_at ?? "",
+      startDate: h.starts_at ?? "",
+      url: h.slug ? `https://devfolio.co/hackathons/${h.slug}` : "https://devfolio.co/hackathons",
+      isOnline: Boolean(h.is_online),
+      isOpen: Boolean(h.is_registration_open ?? true),
+    }));
 }
 
 export async function GET(request: Request) {
