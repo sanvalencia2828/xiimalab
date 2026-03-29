@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -18,68 +19,34 @@ const FALLBACK: DevfolioHackathon[] = [
     { id: "df4", title: "Data Analytics Buildathon", prizePool: 25000, tags: ["Python", "Pandas", "SQL", "Tableau"], deadline: "2026-07-15", url: "https://devfolio.co" },
 ];
 
-const DEVFOLIO_API_KEY = process.env.DEVFOLIO_MCP_API_KEY ?? "";
-const MCP_URL = `https://mcp.devfolio.co/mcp?apiKey=${DEVFOLIO_API_KEY}`;
-
 export async function GET() {
-    if (!DEVFOLIO_API_KEY) {
+    // Read from Supabase — no Docker/FastAPI needed
+    if (!supabase) {
         return NextResponse.json(FALLBACK);
     }
 
     try {
-        const res = await fetch(MCP_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream",
-            },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: 1,
-                method: "tools/call",
-                params: { name: "list_hackathons", arguments: {} },
-            }),
-        });
+        const { data, error } = await supabase
+            .from("hackathons")
+            .select("id, title, prize_pool, tags, deadline, source_url")
+            .eq("source", "devfolio")
+            .order("deadline", { ascending: true })
+            .limit(50);
 
-        if (!res.ok) throw new Error(`Devfolio ${res.status}`);
-
-        const text = await res.text();
-        let items: any[] = [];
-
-        // Handle SSE or JSON response
-        if (text.startsWith("event:") || text.startsWith("data:")) {
-            for (const line of text.split("\n")) {
-                if (line.startsWith("data:")) {
-                    const raw = line.slice(5).trim();
-                    if (raw && raw !== "[DONE]") {
-                        try {
-                            const parsed = JSON.parse(raw);
-                            const content = parsed?.result?.content ?? [];
-                            for (const c of content) {
-                                if (c.type === "text") {
-                                    const inner = JSON.parse(c.text);
-                                    items = Array.isArray(inner) ? inner : inner?.hackathons ?? [];
-                                }
-                            }
-                        } catch {}
-                    }
-                }
-            }
-        } else {
-            const json = JSON.parse(text);
-            items = json?.result?.content ?? json?.content ?? [];
+        if (error || !data || data.length === 0) {
+            return NextResponse.json(FALLBACK);
         }
 
-        const hackathons: DevfolioHackathon[] = items.map((item: any, i: number) => ({
-            id: item.id ?? item.slug ?? `devfolio-${i}`,
-            title: item.title ?? item.name ?? "Hackathon",
-            prizePool: Number(item.prize_pool ?? item.prizePool ?? 0),
-            tags: Array.isArray(item.tags) ? item.tags : [],
-            deadline: item.deadline ?? item.ends_at ?? "",
-            url: item.url ?? item.devfolio_url ?? "https://devfolio.co",
+        const hackathons: DevfolioHackathon[] = data.map((h) => ({
+            id: h.id,
+            title: h.title,
+            prizePool: h.prize_pool ?? 0,
+            tags: Array.isArray(h.tags) ? h.tags : [],
+            deadline: h.deadline ?? "",
+            url: h.source_url ?? "https://devfolio.co",
         }));
 
-        return NextResponse.json(hackathons.length ? hackathons : FALLBACK);
+        return NextResponse.json(hackathons);
     } catch {
         return NextResponse.json(FALLBACK);
     }
