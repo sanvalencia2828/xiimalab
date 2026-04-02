@@ -64,24 +64,24 @@ function HackatonSkeleton() {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-card border border-border rounded-2xl p-5 animate-pulse">
+                <div key={i} className="card-premium p-5">
                     <div className="flex items-start gap-3 mb-3">
-                        <div className="h-4 w-4 rounded bg-muted shrink-0" />
+                        <div className="h-4 w-4 rounded skeleton shrink-0" />
                         <div className="flex-1 space-y-2">
-                            <div className="h-4 w-3/4 rounded bg-muted" />
-                            <div className="h-3 w-16 rounded bg-muted" />
+                            <div className="h-4 w-3/4 rounded skeleton" />
+                            <div className="h-3 w-16 rounded skeleton" />
                         </div>
                     </div>
                     <div className="flex gap-4 mb-3">
-                        <div className="h-3 w-20 rounded bg-muted" />
-                        <div className="h-3 w-16 rounded bg-muted" />
-                        <div className="h-3 w-20 rounded bg-muted ml-auto" />
+                        <div className="h-3 w-20 rounded skeleton" />
+                        <div className="h-3 w-16 rounded skeleton" />
+                        <div className="h-3 w-20 rounded skeleton ml-auto" />
                     </div>
                     <div className="flex gap-2 mb-3">
-                        {[1, 2, 3].map((j) => <div key={j} className="h-5 w-14 rounded-md bg-muted" />)}
+                        {[1, 2, 3].map((j) => <div key={j} className="h-5 w-14 rounded-md skeleton" />)}
                     </div>
                     <div className="flex justify-end">
-                        <div className="h-7 w-20 rounded-lg bg-muted" />
+                        <div className="h-7 w-20 rounded-lg skeleton" />
                     </div>
                 </div>
             ))}
@@ -115,12 +115,12 @@ export default async function HackatonesPage() {
 
                     {/* Contador — renderizado en servidor */}
                     <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-accent/10 text-accent border border-accent/20">
-                            <Database className="w-3.5 h-3.5" />
+                        <span className="badge-accent flex items-center gap-1.5">
+                            <Database className="w-3 h-3" />
                             {initialData.length} en base de datos
                         </span>
-                        <span className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <Zap className="w-3.5 h-3.5" />
+                        <span className="badge-emerald flex items-center gap-1.5">
+                            <Zap className="w-3 h-3" />
                             Live Feed
                         </span>
                     </div>
