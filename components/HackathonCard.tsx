@@ -36,10 +36,10 @@ function tagColor(tag: string): string {
 }
 
 function matchColor(score: number): string {
-    if (score >= 90) return "text-emerald-400";
+    if (score >= 90) return "gradient-text";
     if (score >= 75) return "text-sky-400";
     if (score >= 60) return "text-amber-400";
-    return "text-red-400";
+    return "text-rose-400";
 }
 
 // ─────────────────────────────────────────────
@@ -72,7 +72,7 @@ function SourceBadge({ source }: { source: string }) {
     const cfg = configs[source.toLowerCase()] ?? configs.devpost;
     const Icon = cfg.icon;
     return (
-        <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border shrink-0 ${cfg.className}`}>
+        <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border shrink-0 backdrop-blur-sm ${cfg.className}`}>
             <Icon className="w-2.5 h-2.5" />
             {cfg.label}
         </span>
@@ -116,7 +116,7 @@ function ApplyButton({ hackathonId, sourceUrl }: { hackathonId: string; sourceUr
                     ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 cursor-default"
                     : state === "loading"
                     ? "bg-accent/10 text-accent border-accent/20 cursor-not-allowed opacity-70"
-                    : "bg-accent/10 text-accent border-accent/30 hover:bg-accent/20"
+                    : "btn-ghost text-accent border-accent/30 hover:bg-accent/15"
             }`}
         >
             {state === "applied" ? (
@@ -144,11 +144,11 @@ export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
     return (
         <motion.div
             whileHover={{ y: -2, transition: { duration: 0.2 } }}
-            className="bg-card border border-border rounded-2xl p-5 group relative overflow-hidden"
+            className={`card-premium p-5 group relative overflow-hidden transition-shadow duration-300 hover:glow-accent ${h.match_score >= 90 ? 'pulse-glow glow-success' : ''}`}
         >
             {/* Top glow line según match score */}
             <div
-                className={`absolute top-0 left-0 right-0 h-[2px] opacity-60 ${h.match_score >= 90 ? 'animate-pulse shadow-[0_0_15px_rgba(52,211,153,0.8)]' : ''}`}
+                className={`absolute top-0 left-0 right-0 h-[3px] ${h.match_score >= 90 ? 'animate-pulse shadow-[0_0_15px_rgba(52,211,153,0.8)]' : 'opacity-60'}`}
                 style={{
                     background: h.match_score >= 90
                         ? "linear-gradient(90deg, transparent, #10b981, transparent)"
@@ -157,6 +157,7 @@ export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
                             : "linear-gradient(90deg, transparent, #f59e0b40, transparent)",
                 }}
             />
+            <div className="absolute top-0 left-0 right-0 h-[3px] shimmer-bg pointer-events-none" />
             {h.match_score >= 90 && (
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
             )}
@@ -187,7 +188,7 @@ export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
             {/* Stats row */}
             <div className="flex items-center gap-4 mb-3 text-xs">
                 <div className="flex items-center gap-1.5">
-                    <span className="text-amber-400 font-bold">
+                    <span className="gradient-text-gold font-bold">
                         ${(h.prize_pool ?? 0).toLocaleString()}
                     </span>
                     <span className="text-muted-text">Prize Pool</span>
@@ -213,7 +214,7 @@ export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
                     {tags.slice(0, 5).map((tag) => (
                         <span
                             key={tag}
-                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border font-medium ${tagColor(tag)}`}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border font-medium backdrop-blur-sm ${tagColor(tag)}`}
                         >
                             <Tag className="w-2.5 h-2.5" />
                             {tag}
@@ -230,7 +231,7 @@ export default function HackathonCard({ hackathon: h }: HackathonCardProps) {
                 <motion.button
                     whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                     onClick={() => setShowAIMatch(true)}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all"
+                    className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:glow-purple transition-all"
                 >
                     <BrainCircuit className="w-3 h-3" />
                     AI Match
