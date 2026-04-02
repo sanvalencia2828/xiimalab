@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="es" className="dark">
-            <body className="bg-background text-slate-100 font-sans antialiased">
+            <body className="bg-background text-slate-100 font-sans antialiased bg-grid">
                 <WalletProvider>
                     <RealmProvider>
                         <div className="flex min-h-screen">

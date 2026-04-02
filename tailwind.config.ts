@@ -26,6 +26,7 @@ const config: Config = {
             },
             fontFamily: {
                 sans: ["Inter", "system-ui", "sans-serif"],
+                mono: ["JetBrains Mono", "monospace"],
             },
             boxShadow: {
                 card: "0 4px 24px rgba(0,0,0,0.4)",
@@ -36,11 +37,16 @@ const config: Config = {
             animation: {
                 pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                 shimmer: "shimmer 2s linear infinite",
+                float: "float 4s ease-in-out infinite",
             },
             keyframes: {
                 shimmer: {
                     "0%": { backgroundPosition: "-200% 0" },
                     "100%": { backgroundPosition: "200% 0" },
+                },
+                float: {
+                    "0%, 100%": { transform: "translateY(0px)" },
+                    "50%": { transform: "translateY(-6px)" },
                 },
             },
         },
