@@ -109,10 +109,15 @@ export default function PriorityBoard({ compact = false }: PriorityBoardProps) {
 
     if (loading) {
         return (
-            <div className="bg-card border border-border rounded-2xl p-6 flex items-center justify-center min-h-[300px]">
+            <div className="card-premium p-6 flex items-center justify-center min-h-[300px]">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-accent animate-spin" />
+                    <div className="w-12 h-12 rounded-xl card-premium flex items-center justify-center pulse-glow">
+                        <Loader2 className="w-6 h-6 text-accent animate-spin" />
+                    </div>
                     <p className="text-xs text-slate-500">Analizando hackatones…</p>
+                    <div className="w-48 h-1 progress-track mt-2">
+                        <div className="progress-fill bg-gradient-to-r from-accent to-purple-500 w-2/3" />
+                    </div>
                 </div>
             </div>
         );
@@ -120,15 +125,17 @@ export default function PriorityBoard({ compact = false }: PriorityBoardProps) {
 
     if (error || !insights) {
         return (
-            <div className="bg-card border border-border rounded-2xl p-6">
+            <div className="card-premium p-6">
                 <div className="flex items-center gap-2 text-rose-400 mb-2">
-                    <AlertCircle className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                        <AlertCircle className="w-4 h-4" />
+                    </div>
                     <span className="text-sm font-medium">Error cargando datos</span>
                 </div>
                 <p className="text-xs text-slate-400">{error ?? "Intenta de nuevo"}</p>
                 <button
                     onClick={loadInsights}
-                    className="mt-3 px-4 py-2 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-lg hover:bg-indigo-500/20 transition-colors"
+                    className="btn-ghost mt-3 text-indigo-400 text-xs font-bold"
                 >
                     Reintentar
                 </button>
@@ -288,12 +295,12 @@ function SkillRelevancePanel({ skills, total }: { skills: SkillRelevance[]; tota
                     </div>
 
                     {/* Prize coverage bar */}
-                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="progress-track">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${(s.prize_coverage / maxPrize) * 100}%` }}
                             transition={{ delay: idx * 0.04 + 0.1, duration: 0.6, ease: "easeOut" }}
-                            className={`h-full rounded-full ${
+                            className={`progress-fill ${
                                 idx === 0 ? "bg-gradient-to-r from-amber-400 to-yellow-300" :
                                 idx === 1 ? "bg-gradient-to-r from-slate-400 to-slate-300" :
                                 idx === 2 ? "bg-gradient-to-r from-orange-600 to-orange-400" :
@@ -325,12 +332,12 @@ function StatsHeader({ insights }: { insights: MarketInsights }) {
     return (
         <div className="grid grid-cols-4 gap-3">
             {stats.map((stat) => (
-                <div key={stat.label} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                <div key={stat.label} className="card-premium rounded-xl p-3 hover:glow-accent transition-all duration-300 group">
                     <div className="flex items-center gap-1.5 mb-1">
-                        <stat.icon className={`w-3.5 h-3.5 ${stat.color}`} />
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{stat.label}</span>
+                        <stat.icon className={`w-3.5 h-3.5 ${stat.color} group-hover:scale-110 transition-transform`} />
+                        <span className="section-label">{stat.label}</span>
                     </div>
-                    <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className={`stat-number ${stat.color}`}>{stat.value}</p>
                 </div>
             ))}
         </div>
@@ -425,7 +432,7 @@ function PriorityCard({ hackathon, index, recommendation }: PriorityCardProps) {
                     href={hackathon.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-1 py-2 bg-accent/10 hover:bg-accent/20 text-accent text-xs font-bold rounded-lg transition-colors"
+                    className="btn-primary w-full flex items-center justify-center gap-1.5 py-2 text-xs"
                 >
                     Aplicar <ExternalLink className="w-3 h-3" />
                 </a>
@@ -463,12 +470,12 @@ function TagAnalysis({ tags }: { tags: TagInsight[] }) {
                             <span className="text-purple-400">avg {tag.avg_match_score}%</span>
                         </div>
                     </div>
-                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="progress-track">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${(tag.count / maxCount) * 100}%` }}
                             transition={{ delay: idx * 0.05, duration: 0.5 }}
-                            className="h-full bg-gradient-to-r from-accent to-purple-500"
+                            className="progress-fill bg-gradient-to-r from-accent to-purple-500"
                         />
                     </div>
                 </div>
@@ -490,7 +497,7 @@ function SkillRelevanceCard({ skill, index }: { skill: MarketSkillRelevance; ind
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="flex items-center gap-4 p-3 bg-white/5 rounded-xl border border-white/5 hover:border-indigo-500/20 transition-colors"
+            className="flex items-center gap-4 p-3 card-premium hover:border-indigo-500/20 transition-all duration-300"
         >
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
                 <span className="text-xs font-bold text-indigo-400">{index + 1}</span>
@@ -509,12 +516,12 @@ function SkillRelevanceCard({ skill, index }: { skill: MarketSkillRelevance; ind
                         </span>
                     )}
                 </div>
-                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="progress-track">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${skill.score}%` }}
                         transition={{ delay: index * 0.05 + 0.1, duration: 0.5 }}
-                        className={`h-full ${barColor} rounded-full`}
+                        className={`progress-fill ${barColor}`}
                     />
                 </div>
             </div>

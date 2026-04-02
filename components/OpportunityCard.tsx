@@ -81,10 +81,10 @@ export function OpportunityCard({ data, userSkills = [] }: { data: HackathonData
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ y: -4 }}
-            className={`relative flex flex-col bg-card/80 backdrop-blur-md border rounded-2xl overflow-hidden shadow-lg transition-all duration-500 ${
-                isApplied ? "border-emerald-500/50 bg-emerald-500/5" : 
-                isGolden ? "border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.2)]" : 
-                data.gradient
+            className={`relative flex flex-col card-premium overflow-hidden shadow-lg transition-all duration-500 ${
+                isApplied ? "!border-emerald-500/50 bg-emerald-500/5" :
+                isGolden ? "!border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.2)]" :
+                data.gradient ?? ""
             }`}
         >
             {/* Golden Particle Effect Mockup */}
@@ -144,7 +144,7 @@ export function OpportunityCard({ data, userSkills = [] }: { data: HackathonData
                 {/* Etiquetas */}
                 <div className="flex flex-wrap gap-2 mt-auto mb-4">
                     {data.tags.map((tag) => (
-                        <span key={tag} className="px-2 py-1 text-[10px] font-semibold tracking-wide uppercase bg-white/5 border border-white/10 rounded-md text-slate-300">
+                        <span key={tag} className="px-2 py-1 text-[10px] font-semibold tracking-wide uppercase card-premium rounded-md text-slate-300 backdrop-blur-sm">
                             {tag}
                         </span>
                     ))}
@@ -210,18 +210,18 @@ export function OpportunityCard({ data, userSkills = [] }: { data: HackathonData
             </div>
 
             {/* Acción CTA */}
-            <div className="p-4 border-t border-white/5 bg-black/20">
+            <div className="p-4 border-t border-white/[0.06] bg-black/20">
                 <button
                     onClick={handleApply}
                     disabled={status === "applying" || status === "applied"}
                     className={`w-full relative overflow-hidden flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
                         isApplied
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-default"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-default glow-success"
                             : isMissingWallet
                             ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
                             : isApplying
                             ? "bg-accent/50 text-white cursor-not-allowed"
-                            : "bg-accent text-white hover:bg-accent/90 hover:shadow-lg hover:shadow-accent/20 active:scale-95"
+                            : "btn-primary w-full active:scale-95"
                     }`}
                 >
                     <AnimatePresence mode="wait">

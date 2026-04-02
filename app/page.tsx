@@ -115,8 +115,15 @@ export default function UnifiedDashboard() {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="w-10 h-10 text-accent animate-spin mx-auto mb-4" />
-                    <p className="text-slate-400">Cargando tu inteligencia...</p>
+                    <div className="w-16 h-16 mx-auto mb-6 rounded-2xl card-premium flex items-center justify-center pulse-glow">
+                        <Loader2 className="w-8 h-8 text-accent animate-spin" />
+                    </div>
+                    <p className="text-sm text-slate-400">Cargando tu inteligencia...</p>
+                    <div className="mt-4 flex justify-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent/40 animate-pulse" style={{ animationDelay: '0ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent/40 animate-pulse" style={{ animationDelay: '200ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent/40 animate-pulse" style={{ animationDelay: '400ms' }} />
+                    </div>
                 </div>
             </div>
         );
@@ -214,7 +221,7 @@ function DashboardHeader({
 
                 {/* Wallet */}
                 {walletAddress ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl">
+                    <div className="flex items-center gap-2 px-3 py-2 card-premium rounded-xl">
                         <Wallet className="w-4 h-4 text-emerald-400" />
                         <span className="text-xs font-mono text-slate-300">
                             {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
@@ -223,10 +230,10 @@ function DashboardHeader({
                 ) : (
                     <Link
                         href="/settings"
-                        className="flex items-center gap-2 px-3 py-2 bg-accent/10 border border-accent/20 rounded-xl hover:bg-accent/20 transition-colors"
+                        className="btn-primary flex items-center gap-2"
                     >
-                        <Wallet className="w-4 h-4 text-accent" />
-                        <span className="text-xs font-medium text-accent">Conectar</span>
+                        <Wallet className="w-4 h-4" />
+                        <span className="text-xs font-medium">Conectar</span>
                     </Link>
                 )}
 
@@ -239,7 +246,7 @@ function DashboardHeader({
 
 function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: string | number; label: string; color: string }) {
     return (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/5 rounded-lg">
+        <div className="flex items-center gap-2 px-3 py-1.5 card-premium rounded-xl hover:glow-accent transition-all duration-300">
             <Icon className={`w-4 h-4 ${color}`} />
             <span className={`text-sm font-bold ${color}`}>{value}</span>
             <span className="text-[10px] text-slate-500">{label}</span>
@@ -253,16 +260,18 @@ function HackathonsSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-card border border-border rounded-2xl p-5"
+            className="card-premium p-5"
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-amber-400" />
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                        <Trophy className="w-4 h-4 text-amber-400" />
+                    </div>
                     <h2 className="text-lg font-bold text-white">Misiones Activas</h2>
                 </div>
                 <Link
                     href="/hackathons"
-                    className="flex items-center gap-1 text-xs text-accent hover:text-accent-bright transition-colors"
+                    className="btn-ghost flex items-center gap-1 text-xs text-accent"
                 >
                     Ver todos <ChevronRight className="w-3 h-3" />
                 </Link>
@@ -285,9 +294,9 @@ function QuickActionsSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-card border border-border rounded-2xl p-5"
+            className="card-premium p-5"
         >
-            <h3 className="text-sm font-bold text-slate-200 mb-4">Acciones Rápidas</h3>
+            <h3 className="section-label mb-4">Acciones Rápidas</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {actions.map((action, idx) => (
                     <motion.div
@@ -298,9 +307,9 @@ function QuickActionsSection() {
                     >
                         <Link
                             href={action.href}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border ${action.bg} hover:opacity-80 transition-all group`}
+                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border ${action.bg} hover:scale-[1.03] hover:shadow-lg transition-all duration-200 group`}
                         >
-                            <action.icon className={`w-6 h-6 ${action.color}`} />
+                            <action.icon className={`w-6 h-6 ${action.color} group-hover:scale-110 transition-transform`} />
                             <span className="text-xs font-medium text-slate-300 group-hover:text-white text-center">
                                 {action.label}
                             </span>
@@ -326,7 +335,7 @@ function ProfileSection({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-gradient-to-br from-accent/10 via-purple-500/5 to-transparent border border-accent/20 rounded-2xl p-5"
+            className="card-glow p-5"
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -349,25 +358,25 @@ function ProfileSection({
                         {Math.round((neuroplasticity || 0.72) * 100)}%
                     </span>
                 </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="progress-track">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${(neuroplasticity || 0.72) * 100}%` }}
                         transition={{ delay: 0.3, duration: 1 }}
-                        className="h-full bg-gradient-to-r from-accent to-purple-500"
+                        className="progress-fill bg-gradient-to-r from-accent to-purple-500"
                     />
                 </div>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                    <p className="text-lg font-bold text-purple-400">{skillsCount}</p>
-                    <p className="text-[10px] text-slate-500">Skills</p>
+                <div className="card-premium rounded-xl p-3 text-center">
+                    <p className="stat-number text-purple-400">{skillsCount}</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Skills</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                    <p className="text-lg font-bold text-blue-400">{avgSkillLevel}%</p>
-                    <p className="text-[10px] text-slate-500">Nivel Avg</p>
+                <div className="card-premium rounded-xl p-3 text-center">
+                    <p className="stat-number text-blue-400">{avgSkillLevel}%</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Nivel Avg</p>
                 </div>
             </div>
 
@@ -391,11 +400,13 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-card border border-border rounded-2xl p-5"
+            className="card-premium p-5"
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-blue-400" />
+                    <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                        <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
+                    </div>
                     <h3 className="text-sm font-bold text-white">Top Skills</h3>
                 </div>
                 <Link
@@ -418,14 +429,14 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
                                 {skill.level}%
                             </span>
                         </div>
-                        <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div className="progress-track">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${skill.level}%` }}
                                 transition={{ delay: 0.1 + idx * 0.05, duration: 0.5 }}
-                                className={`h-full ${
-                                    skill.level >= 70 ? "bg-emerald-500" :
-                                    skill.level >= 40 ? "bg-amber-500" : "bg-slate-500"
+                                className={`progress-fill ${
+                                    skill.level >= 70 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                                    skill.level >= 40 ? "bg-gradient-to-r from-amber-500 to-amber-400" : "bg-slate-500"
                                 }`}
                             />
                         </div>
@@ -435,7 +446,7 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
 
             <Link
                 href="/skills"
-                className="mt-4 flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-colors"
+                className="btn-ghost mt-4 flex items-center justify-center gap-2 py-2"
             >
                 <Plus className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-xs text-slate-400">Agregar skill</span>
@@ -560,11 +571,13 @@ function MarketOverview() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-card border border-border rounded-2xl p-5"
+            className="card-premium p-5"
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-indigo-400" />
+                    <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                        <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
+                    </div>
                     <h3 className="text-sm font-bold text-white">Mercado en Alza</h3>
                 </div>
                 <Link
@@ -619,12 +632,12 @@ function MarketOverview() {
                                         <span>Tu nivel: {item.userLevel}%</span>
                                         <span>Relevancia: {item.relevance}%</span>
                                     </div>
-                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="progress-track">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${item.userLevel}%` }}
                                             transition={{ delay: idx * 0.05 + 0.1, duration: 0.5 }}
-                                            className="h-full bg-purple-500 rounded-full"
+                                            className="progress-fill bg-gradient-to-r from-purple-500 to-indigo-400"
                                         />
                                     </div>
                                 </div>
