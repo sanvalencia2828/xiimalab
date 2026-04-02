@@ -73,7 +73,7 @@ export default function SidebarNav() {
       {/* Mobile toggle button */}
       <button
         onClick={() => setIsOpen(o => !o)}
-        className="fixed top-4 left-4 z-[60] block md:hidden bg-card border border-border rounded-xl p-2.5 shadow-lg"
+        className="fixed top-4 left-4 z-[60] block md:hidden card-premium p-2.5 shadow-lg"
         aria-label="Toggle menu"
       >
         {isOpen ? <X className="w-5 h-5 text-slate-300" /> : <Menu className="w-5 h-5 text-slate-300" />}
@@ -88,19 +88,21 @@ export default function SidebarNav() {
       )}
 
     <aside className={`
-      fixed left-0 top-0 h-full w-72 md:w-64 bg-card border-r border-border flex flex-col z-50 overflow-hidden
+      fixed left-0 top-0 h-full w-72 md:w-64 card-premium !rounded-none flex flex-col z-50 overflow-hidden
       transition-transform duration-300 ease-in-out
       -translate-x-full md:translate-x-0
       ${isOpen ? "translate-x-0 shadow-2xl" : ""}
     `}>
+      {/* Subtle grid pattern overlay */}
+      <div className="absolute inset-0 bg-grid pointer-events-none opacity-50" />
       {/* Subtle gradient overlay at top */}
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
 
       {/* Logo area */}
-      <div className="p-6 border-b border-border relative">
+      <div className="p-6 border-b border-white/[0.06] relative">
         <div className="flex items-center gap-3">
           {/* Logo mark */}
-          <div className="relative w-9 h-9 shrink-0">
+          <div className="relative w-9 h-9 shrink-0 transition-shadow duration-300 rounded-lg hover:glow-accent">
             <img
               src="/xiimalab-logo.png"
               alt="Xiimalab"
@@ -108,7 +110,7 @@ export default function SidebarNav() {
             />
           </div>
           <div>
-            <h1 className="text-base font-bold text-white tracking-tight">Xiimalab</h1>
+            <h1 className="text-base font-bold tracking-tight gradient-text">Xiimalab</h1>
             <p className="text-xs text-muted-text">AI · Blockchain · Web3</p>
           </div>
         </div>
@@ -116,7 +118,7 @@ export default function SidebarNav() {
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        <p className="text-xs font-semibold text-muted-text uppercase tracking-widest px-3 py-2 mt-1">
+        <p className="section-label px-3 py-2 mt-1">
           Menú principal
         </p>
         {navItems.map(({ href, icon: Icon, label, badgeKey }) => {
@@ -128,18 +130,14 @@ export default function SidebarNav() {
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.97 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer group relative ${isActive
-                    ? "bg-accent/15 text-accent border border-accent/20"
-                    : "text-slate-400 hover:text-slate-100 hover:bg-muted/50"
+                    ? "bg-accent/10 text-accent glow-accent border-l-[3px] border-accent/60"
+                    : "text-slate-400 hover:text-slate-100 hover:bg-white/[0.04]"
                   }`}
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-accent" : "group-hover:text-slate-200"}`} />
                 <span className="flex-1">{label}</span>
                 {badgeCount > 0 && !isActive && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                    badgeKey === "insights"
-                      ? "bg-rose-500/20 text-rose-400"
-                      : "bg-accent/20 text-accent"
-                  }`}>
+                  <span className={badgeKey === "insights" ? "badge-rose" : "badge-accent"}>
                     {badgeCount > 99 ? "99+" : badgeCount}
                   </span>
                 )}
@@ -159,12 +157,12 @@ export default function SidebarNav() {
       </nav>
 
             {/* System Status with real API ping */}
-            <div className="p-4 border-t border-border">
+            <div className="p-4 border-t border-white/[0.06]">
                 <SystemStatus />
 
                 {/* Wallet pill */}
                 <Link href="/settings">
-                    <div className={`mt-3 flex items-center gap-2.5 px-2 py-2 rounded-xl transition-colors cursor-pointer ${
+                    <div className={`mt-3 flex items-center gap-2.5 px-2 py-2 card-premium transition-colors cursor-pointer ${
                         isConnected ? "hover:bg-emerald-500/5" : "hover:bg-amber-500/5"
                     }`}>
                         <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
