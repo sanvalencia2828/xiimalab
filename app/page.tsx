@@ -51,12 +51,12 @@ export default function UnifiedDashboard() {
 
     const initializeDashboard = async () => {
         setLoading(true);
-        
+
         // Load wallet
         const savedWallet = localStorage.getItem("stellar_pubkey");
         if (savedWallet) {
             setWalletAddress(savedWallet);
-            
+
             // Load skills from PostgreSQL via API
             const result = await loadUserSkillsAction(savedWallet);
             if (result.skills && result.skills.length > 0) {
@@ -107,8 +107,8 @@ export default function UnifiedDashboard() {
         }
     }, [skills]);
 
-    const avgSkillLevel = skills.length > 0 
-        ? Math.round(skills.reduce((a, s) => a + s.level, 0) / skills.length) 
+    const avgSkillLevel = skills.length > 0
+        ? Math.round(skills.reduce((a, s) => a + s.level, 0) / skills.length)
         : 0;
 
     if (loading) {
@@ -132,16 +132,16 @@ export default function UnifiedDashboard() {
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-7xl mx-auto p-6 space-y-6">
-                
+
                 {/* Header */}
-                <DashboardHeader 
+                <DashboardHeader
                     walletAddress={walletAddress}
                     stats={stats}
                 />
 
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
+
                     {/* Left Column - Priority & Actions */}
                     <div className="lg:col-span-2 space-y-6">
                         <BestMatchHero />
@@ -151,7 +151,7 @@ export default function UnifiedDashboard() {
 
                     {/* Right Column - Profile & Skills */}
                     <div className="space-y-6">
-                        <ProfileSection 
+                        <ProfileSection
                             skillsCount={skills.length}
                             avgSkillLevel={avgSkillLevel}
                             neuroplasticity={stats.neuroplasticity}
@@ -165,10 +165,10 @@ export default function UnifiedDashboard() {
     );
 }
 
-function DashboardHeader({ 
-    walletAddress, 
-    stats 
-}: { 
+function DashboardHeader({
+    walletAddress,
+    stats
+}: {
     walletAddress: string | null;
     stats: DashboardStats;
 }) {
@@ -199,22 +199,22 @@ function DashboardHeader({
             <div className="flex items-center gap-4">
                 {/* Stats badges */}
                 <div className="hidden md:flex items-center gap-3">
-                    <StatBadge 
-                        icon={Trophy} 
-                        value={stats.urgentHackathons} 
-                        label="Urgentes" 
+                    <StatBadge
+                        icon={Trophy}
+                        value={stats.urgentHackathons}
+                        label="Urgentes"
                         color="text-rose-400"
                     />
-                    <StatBadge 
-                        icon={Target} 
-                        value={`${stats.avgMatchScore}%`} 
-                        label="Match" 
+                    <StatBadge
+                        icon={Target}
+                        value={`${stats.avgMatchScore}%`}
+                        label="Match"
                         color="text-accent"
                     />
-                    <StatBadge 
-                        icon={Brain} 
-                        value={`${Math.round(stats.neuroplasticity * 100)}%`} 
-                        label="Plasticidad" 
+                    <StatBadge
+                        icon={Brain}
+                        value={`${Math.round(stats.neuroplasticity * 100)}%`}
+                        label="Plasticidad"
                         color="text-purple-400"
                     />
                 </div>
@@ -321,11 +321,11 @@ function QuickActionsSection() {
     );
 }
 
-function ProfileSection({ 
-    skillsCount, 
+function ProfileSection({
+    skillsCount,
     avgSkillLevel,
-    neuroplasticity 
-}: { 
+    neuroplasticity
+}: {
     skillsCount: number;
     avgSkillLevel: number;
     neuroplasticity: number;
@@ -422,10 +422,9 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
                     <div key={skill.name}>
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-xs text-slate-300">{skill.name}</span>
-                            <span className={`text-xs font-bold ${
-                                skill.level >= 70 ? "text-emerald-400" :
-                                skill.level >= 40 ? "text-amber-400" : "text-slate-400"
-                            }`}>
+                            <span className={`text-xs font-bold ${skill.level >= 70 ? "text-emerald-400" :
+                                    skill.level >= 40 ? "text-amber-400" : "text-slate-400"
+                                }`}>
                                 {skill.level}%
                             </span>
                         </div>
@@ -434,10 +433,9 @@ function SkillsOverview({ skills }: { skills: Skill[] }) {
                                 initial={{ width: 0 }}
                                 animate={{ width: `${skill.level}%` }}
                                 transition={{ delay: 0.1 + idx * 0.05, duration: 0.5 }}
-                                className={`progress-fill ${
-                                    skill.level >= 70 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
-                                    skill.level >= 40 ? "bg-gradient-to-r from-amber-500 to-amber-400" : "bg-slate-500"
-                                }`}
+                                className={`progress-fill ${skill.level >= 70 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" :
+                                        skill.level >= 40 ? "bg-gradient-to-r from-amber-500 to-amber-400" : "bg-slate-500"
+                                    }`}
                             />
                         </div>
                     </div>
@@ -496,7 +494,7 @@ function MarketOverview() {
             const gaps: SkillGap[] = relevanceResult.relevance_report.slice(0, 6).map((r: SkillRelevance) => {
                 let userLevel = 0;
                 const skillLower = r.skill.toLowerCase();
-                
+
                 userSkillMap.forEach((level, name) => {
                     if ((name.includes(skillLower) || skillLower.includes(name)) && userLevel === 0) {
                         userLevel = level;
@@ -504,7 +502,7 @@ function MarketOverview() {
                 });
 
                 const gap = Math.max(0, r.score - userLevel);
-                
+
                 let priority: "high" | "medium" | "low" = "medium";
                 if (r.trend === "up" && gap > 30) priority = "high";
                 else if (gap < 15) priority = "low";
@@ -601,11 +599,10 @@ function MarketOverview() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.05 }}
-                            className={`p-3 rounded-xl border transition-all cursor-pointer ${
-                                expandedSkill === item.skill 
-                                    ? "bg-indigo-500/10 border-indigo-500/30" 
+                            className={`p-3 rounded-xl border transition-all cursor-pointer ${expandedSkill === item.skill
+                                    ? "bg-indigo-500/10 border-indigo-500/30"
                                     : "bg-white/5 border-white/5 hover:border-indigo-500/20"
-                            }`}
+                                }`}
                             onClick={() => setExpandedSkill(expandedSkill === item.skill ? null : item.skill)}
                         >
                             <div className="flex items-start justify-between mb-2">
@@ -646,9 +643,8 @@ function MarketOverview() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-slate-500">Brecha:</span>
-                                    <span className={`text-xs font-bold ${
-                                        item.gap > 30 ? "text-rose-400" : item.gap > 15 ? "text-amber-400" : "text-emerald-400"
-                                    }`}>
+                                    <span className={`text-xs font-bold ${item.gap > 30 ? "text-rose-400" : item.gap > 15 ? "text-amber-400" : "text-emerald-400"
+                                        }`}>
                                         {item.gap}%
                                     </span>
                                 </div>
