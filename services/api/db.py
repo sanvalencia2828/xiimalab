@@ -6,21 +6,41 @@ import os
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = os.environ.get(
+_RAW_DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql+asyncpg://xiima:secret@localhost:5432/xiimalab",
+    "sqlite+aiosqlite:///./xiimalab_dev.db",
 )
 
+# Normalizar URL para asyncpg / aiosqlite según el driver disponible
+if _RAW_DATABASE_URL.startswith("sqlite:///"):
+    DATABASE_URL = _RAW_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+elif _RAW_DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = _RAW_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+else:
+    DATABASE_URL = _RAW_DATABASE_URL
+
 # ─────────────────────────────────────────────
-# Engine — connection pool tuned for a small service
+# Engine — parámetros distintos para SQLite vs PostgreSQL
 # ─────────────────────────────────────────────
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_size=5,
-    max_overflow=10,
-    pool_pre_ping=True,  # detect stale connections
-)
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+
+if _is_sqlite:
+    from sqlalchemy.pool import StaticPool
+
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+else:
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,  # detect stale connections
+    )
 
 SessionLocal = async_sessionmaker(
     bind=engine,

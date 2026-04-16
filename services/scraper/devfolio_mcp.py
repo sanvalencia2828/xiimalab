@@ -196,19 +196,25 @@ class DevfolioMCPClient:
         tool_names = [t.get("name", "") for t in tools]
         log.info(f"Herramientas MCP disponibles: {tool_names}")
 
-        # Candidatos en orden de preferencia
-        tool_candidates = []
-        for name in tool_names:
-            name_lower = name.lower()
-            if "hackathon" in name_lower:
-                tool_candidates.append(name)
+        # Prioridad: herramientas conocidas primero (del live-testing), luego búsqueda genérica
+        KNOWN_HACKATHON_TOOLS = [
+            "fetchUserActiveHackathons",   # oficial Devfolio MCP (verificado)
+            "get_hackathons",
+            "list_hackathons",
+            "search_hackathons",
+            "getHackathons",
+        ]
 
-        # Si no encontramos por nombre, intentar los comunes
+        # Agregar cualquier herramienta con "hackathon" en el nombre que el server devuelva
+        for name in tool_names:
+            if "hackathon" in name.lower() and name not in KNOWN_HACKATHON_TOOLS:
+                KNOWN_HACKATHON_TOOLS.append(name)
+
+        # Filtrar a los que realmente están disponibles en este servidor
+        tool_candidates = [t for t in KNOWN_HACKATHON_TOOLS if t in tool_names]
         if not tool_candidates:
-            tool_candidates = [
-                "get_hackathons", "list_hackathons",
-                "search_hackathons", "getHackathons",
-            ]
+            # Fallback: intentar todos los conocidos
+            tool_candidates = KNOWN_HACKATHON_TOOLS
 
         for tool_name in tool_candidates:
             try:
