@@ -112,10 +112,10 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
                     exit={{ opacity: 0, scale: 0.92, y: 20 }}
                     transition={{ duration: 0.25, ease: "easeOut" }}
                     onClick={e => e.stopPropagation()}
-                    className="bg-card border border-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+                    className="card-premium w-full max-w-md overflow-hidden shadow-2xl"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between p-5 border-b border-border bg-accent/5">
+                    <div className="flex items-center justify-between p-5 border-b border-white/[0.06] bg-accent/5">
                         <div className="flex items-center gap-2">
                             <BrainCircuit className="w-5 h-5 text-accent" />
                             <span className="font-bold text-white text-sm">AI Match Analysis</span>
@@ -127,7 +127,7 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
                     </div>
 
                     {/* Hackathon title */}
-                    <div className="px-5 py-3 border-b border-border/50">
+                    <div className="px-5 py-3 border-b border-white/[0.06]">
                         <p className="text-xs text-slate-500 mb-0.5">Evaluando compatibilidad con</p>
                         <p className="text-sm font-semibold text-white line-clamp-1">{hackathonTitle}</p>
                     </div>
@@ -145,7 +145,7 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
                                 <motion.button
                                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                                     onClick={runAnalysis}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-accent/15 hover:bg-accent/25 text-accent border border-accent/30 rounded-xl text-sm font-semibold transition-all"
+                                    className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm"
                                 >
                                     <BrainCircuit className="w-4 h-4" />
                                     Analizar Match
@@ -155,8 +155,13 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
 
                         {status === "loading" && (
                             <div className="flex flex-col items-center gap-3 py-8">
-                                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                                <div className="w-14 h-14 rounded-2xl card-premium flex items-center justify-center pulse-glow">
+                                    <Loader2 className="w-7 h-7 animate-spin text-accent" />
+                                </div>
                                 <p className="text-sm text-slate-400">Claude analizando tu perfil...</p>
+                                <div className="w-32 progress-track">
+                                    <div className="progress-fill bg-gradient-to-r from-accent to-purple-500 shimmer-bg w-2/3" />
+                                </div>
                             </div>
                         )}
 

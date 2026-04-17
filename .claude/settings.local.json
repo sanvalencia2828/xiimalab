@@ -11,7 +11,21 @@
       "Bash(npm install:*)",
       "Read(//c/Users/santi/OneDrive/Documentos/Xiimalab/$APPDATA/Claude/**)",
       "Read(//c/Users/santi/OneDrive/Documentos/Xiimalab/$HOME/**)",
-      "Bash(curl -s -X POST \"https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e\" -H \"Content-Type: application/json\" -d '{\"\"\"\"jsonrpc\"\"\"\":\"\"\"\"2.0\"\"\"\",\"\"\"\"id\"\"\"\":1,\"\"\"\"method\"\"\"\":\"\"\"\"initialize\"\"\"\",\"\"\"\"params\"\"\"\":{\"\"\"\"protocolVersion\"\"\"\":\"\"\"\"2024-11-05\"\"\"\",\"\"\"\"capabilities\"\"\"\":{},\"\"\"\"clientInfo\"\"\"\":{\"\"\"\"name\"\"\"\":\"\"\"\"claude-code\"\"\"\",\"\"\"\"version\"\"\"\":\"\"\"\"1.0\"\"\"\"}}}')"
+      "Bash(curl -s -X POST \"https://mcp.devfolio.co/mcp?apiKey=f8fdb3b311ae080e2678c4a566f139eb123b27be06fedc0098d4cc946690665e\" -H \"Content-Type: application/json\" -d '{\"\"\"\"jsonrpc\"\"\"\":\"\"\"\"2.0\"\"\"\",\"\"\"\"id\"\"\"\":1,\"\"\"\"method\"\"\"\":\"\"\"\"initialize\"\"\"\",\"\"\"\"params\"\"\"\":{\"\"\"\"protocolVersion\"\"\"\":\"\"\"\"2024-11-05\"\"\"\",\"\"\"\"capabilities\"\"\"\":{},\"\"\"\"clientInfo\"\"\"\":{\"\"\"\"name\"\"\"\":\"\"\"\"claude-code\"\"\"\",\"\"\"\"version\"\"\"\":\"\"\"\"1.0\"\"\"\"}}}')",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''services/api/main.py'', doraise=True\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''services/scraper/integrations/devfolio.py'', doraise=True\\)\")",
+      "Bash(npx tsc:*)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/santi/OneDrive/Documentos/Xiimalab/**)",
+      "Bash(done)",
+      "Bash(wc:*)",
+      "Bash(grep -r @angular /c/Users/santi/OneDrive/Documentos/Xiimalab/components --include=*.tsx --include=*.ts)",
+      "Bash(npm ls:*)",
+      "Bash(npx ng:*)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('services/scraper/integrations/devfolio.py', doraise=True\\); print\\('devfolio.py OK'\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('services/scraper/integrations/devfolio_engine.py', doraise=True\\); print\\('devfolio_engine.py OK'\\)\")",
+      "Bash(npm uninstall *)"
     ]
   },
   "hooks": {

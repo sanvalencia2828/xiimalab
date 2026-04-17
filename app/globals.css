@@ -1,97 +1,328 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================
+   Xiimalab — Technical UI System
+   Principios: neutro primero, color = señal, densidad > aire,
+   bordes > glows, mono para datos, radius 6px.
+   ============================================================= */
+
 @layer base {
-  * {
-    box-sizing: border-box;
+  :root {
+    --bg:            10 11 15;      /* #0a0b0f  canvas */
+    --surface:       17 19 25;      /* #111319  cards */
+    --surface-2:     23 26 33;      /* #171a21  hover / nested */
+    --border:        38 42 52;      /* #262a34  separadores */
+    --border-strong: 55 60 72;      /* #373c48  bordes activos */
+    --text:          237 239 243;   /* #edeff3  primario */
+    --text-dim:      148 155 169;   /* #949baa  secundario */
+    --text-mute:     94 100 114;    /* #5e6472  metadatos */
+
+    --accent:        94 165 255;    /* #5ea5ff  azul sobrio */
+    --success:       74 192 123;    /* #4ac07b */
+    --warning:       226 167 71;    /* #e2a747 */
+    --danger:        224 95 95;     /* #e05f5f */
+    --purple:        139 92 246;    /* #8b5cf6  brand stellar */
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 
   body {
-    background-color: #030712;
-    color: #f1f5f9;
+    background: rgb(var(--bg));
+    color: rgb(var(--text));
     font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv02','cv03','cv04','cv11','ss01';
+    font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
     overflow-x: hidden;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #111827;
-  }
-
+  /* Scrollbar técnica — neutra, no cyan */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: #374151;
-    border-radius: 3px;
+    background: rgb(var(--border-strong));
+    border-radius: 99px;
+    border: 2px solid rgb(var(--bg));
   }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--text-mute)); }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: #7dd3fc;
-  }
+  ::selection { background: rgba(94,165,255,0.22); color: rgb(var(--text)); }
+
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
 }
 
+/* =============================================================
+   Clases legacy mantenidas (mismo nombre, nueva implementación).
+   No hay que tocar componentes: cambia la estética al cambiar
+   aquí la definición.
+   ============================================================= */
 @layer utilities {
-  .glow-accent {
-    box-shadow: 0 0 20px rgba(125, 211, 252, 0.25);
+  /* === SURFACES / CARDS ===
+     Antes: gradient + backdrop-blur + radius 16px + hover con tint cyan.
+     Ahora: fondo sólido, borde 1px, radius 6px, hover por borde. */
+  .card-premium {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--border));
+    border-radius: 6px;
+    transition: border-color 120ms ease, background-color 120ms ease;
   }
-
-  .glow-accent-strong {
-    box-shadow: 0 0 40px rgba(125, 211, 252, 0.45);
+  .card-premium:hover {
+    background: rgb(var(--surface-2));
+    border-color: rgb(var(--border-strong));
   }
-
-  .glow-success {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
-  }
-
-  .gradient-text {
-    background: linear-gradient(135deg, #7dd3fc, #38bdf8, #0ea5e9);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .gradient-border {
+  .card-glow {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--border));
+    border-radius: 6px;
     position: relative;
   }
+  .card-glow::before { content: none; } /* neutraliza el radial decorativo */
 
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    padding: 1px;
-    background: linear-gradient(135deg, #7dd3fc22, #38bdf844, #7dd3fc22);
-    border-radius: inherit;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+  .gradient-border { position: relative; }
+  .gradient-border::before { content: none; } /* neutraliza */
+
+  /* === GLOWS — convertidos en no-op ===
+     Mantenemos los nombres para no romper componentes. */
+  .glow-accent,
+  .glow-accent-strong,
+  .glow-purple,
+  .glow-success,
+  .glow-rose { box-shadow: none; }
+
+  /* === TEXTO ===
+     Los gradient-text se reemplazan por texto plano blanco.
+     La jerarquía la marca el peso tipográfico, no el color. */
+  .gradient-text,
+  .gradient-text-purple,
+  .gradient-text-gold {
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
+    background-clip: initial;
+    color: rgb(var(--text));
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
+  /* === BUTTONS ===
+     Antes: gradient cyan + box-shadow coloreado + translateY hover.
+     Ahora: sólido neutro, radius 6px, sin transform. */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 14px;
+    background: rgb(var(--text));
+    color: rgb(var(--bg));
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: background-color 120ms ease;
+    box-shadow: none;
+  }
+  .btn-primary:hover {
+    background: #ffffff;
+    box-shadow: none;
+    transform: none;
+  }
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    background: rgb(var(--surface));
+    color: rgb(var(--text-dim));
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid rgb(var(--border));
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .btn-ghost:hover {
+    background: rgb(var(--surface-2));
+    border-color: rgb(var(--border-strong));
+    color: rgb(var(--text));
+  }
+
+  /* === BADGES ===
+     Mono + tabular + radius 4px. Color = señal, nunca decoración. */
+  .badge-accent {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    border-radius: 4px;
+    color: rgb(var(--accent));
+    background: rgba(94,165,255,0.08);
+    border: 1px solid rgba(94,165,255,0.25);
+  }
+  .badge-purple {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    color: rgb(var(--purple));
+    background: rgba(139,92,246,0.08);
+    border: 1px solid rgba(139,92,246,0.25);
+  }
+  .badge-rose {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    color: rgb(var(--danger));
+    background: rgba(224,95,95,0.08);
+    border: 1px solid rgba(224,95,95,0.25);
+  }
+  .badge-emerald {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    color: rgb(var(--success));
+    background: rgba(74,192,123,0.08);
+    border: 1px solid rgba(74,192,123,0.25);
+  }
+  .badge-amber {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    color: rgb(var(--warning));
+    background: rgba(226,167,71,0.08);
+    border: 1px solid rgba(226,167,71,0.25);
+  }
+
+  /* === ANIMATIONS ===
+     Se mantienen sólo las útiles (skeleton loader).
+     Las decorativas quedan pero con intensidad mínima para no pesar. */
   .shimmer-bg {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(125, 211, 252, 0.08) 50%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
     background-size: 200% 100%;
     animation: shimmer 2.5s linear infinite;
   }
+  .pulse-glow { animation: none; }
+  .animate-float { animation: none; }
 
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
+    0%   { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
-}
 
-/* v1774089726 */
+  /* === GRID BACKGROUND — decoración eliminada === */
+  .bg-grid { background-image: none; }
+
+  /* === STAT / LABELS ===
+     Números en mono + tabular. Labels técnicas en minúscula salvo kbd. */
+  .stat-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: rgb(var(--text));
+  }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--text-mute));
+  }
+
+  /* === PROGRESS BARS — sin "shine" decorativo === */
+  .progress-track {
+    height: 4px;
+    background: rgb(var(--border));
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: rgb(var(--accent));
+    position: relative;
+  }
+  .progress-fill::after { content: none; }
+
+  /* === SKELETON — mantenida, loader legítimo === */
+  .skeleton {
+    background: linear-gradient(90deg, rgb(var(--surface)) 0%, rgb(var(--surface-2)) 50%, rgb(var(--surface)) 100%);
+    background-size: 200% 100%;
+    animation: skeleton 1.4s ease-in-out infinite;
+    border-radius: 4px;
+  }
+  @keyframes skeleton {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* =============================================================
+     Utilidades nuevas — para adoptar progresivamente.
+     ============================================================= */
+
+  /* Datos numéricos alineados */
+  .num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+  /* Label tipo KBD/uppercase (único uso de uppercase permitido) */
+  .label-kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--text-mute));
+  }
+
+  /* Separador 1px estable */
+  .divider { height: 1px; background: rgb(var(--border)); }
+
+  /* Fila hover para tablas densas */
+  .row-hover { transition: background-color 80ms ease; }
+  .row-hover:hover { background: rgb(var(--surface-2)); }
+
+  /* Surface genérica (alternativa a card-premium) */
+  .surface {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--border));
+    border-radius: 6px;
+  }
+
+  /* Focus ring consistente */
+  .ring-focus:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(var(--bg)), 0 0 0 4px rgb(var(--accent));
+  }
+}

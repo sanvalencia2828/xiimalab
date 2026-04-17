@@ -67,7 +67,7 @@ async def test_devfolio_mcp():
             
             print("\n\n🔄 Normalizando hackathones...")
             normalized_count = 0
-            for raw in hackathones[:3]:
+            for raw in hackathons[:3]:
                 normalized = normalize_devfolio_hackathon(raw)
                 if normalized:
                     normalized_count += 1

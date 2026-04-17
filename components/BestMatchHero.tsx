@@ -60,11 +60,16 @@ export default function BestMatchHero({ hackathons: propHackathons }: BestMatchH
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/20 p-6"
+                className="relative overflow-hidden card-glow p-6"
             >
-                <div className="flex items-center justify-center gap-3 py-8">
-                    <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+                <div className="flex flex-col items-center justify-center gap-3 py-8">
+                    <div className="w-10 h-10 rounded-xl card-premium flex items-center justify-center pulse-glow">
+                        <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+                    </div>
                     <span className="text-sm text-slate-400">Analizando nuevas oportunidades para ti...</span>
+                    <div className="w-40 progress-track mt-1">
+                        <div className="progress-fill bg-gradient-to-r from-indigo-500 to-purple-500 w-1/2 shimmer-bg" />
+                    </div>
                 </div>
             </motion.div>
         );
@@ -75,10 +80,10 @@ export default function BestMatchHero({ hackathons: propHackathons }: BestMatchH
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800/50 to-slate-900/50 border border-slate-700/50 p-6"
+                className="relative overflow-hidden card-premium p-6"
             >
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-500/20 rounded-xl">
+                    <div className="p-2.5 card-premium rounded-xl">
                         <Sparkles className="w-5 h-5 text-slate-400" />
                     </div>
                     <div>
@@ -169,7 +174,7 @@ export default function BestMatchHero({ hackathons: propHackathons }: BestMatchH
                     <div className="shrink-0">
                         <Link
                             href={`/hackathons?id=${bestMatch.id}`}
-                            className="group flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-sm font-bold text-white transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-105"
+                            className="btn-primary group flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-sm text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-105"
                         >
                             Ir al desafío
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

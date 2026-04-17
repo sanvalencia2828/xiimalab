@@ -1,22 +1,22 @@
 """
-Devfolio API Scraper — JSON-RPC client for hackathon listings.
+Devfolio API Scraper — MCP client for hackathon listings.
 
-Uses Devfolio MCP API via JSON-RPC 2.0 over HTTP POST.
+Uses Devfolio MCP API via JSON-RPC 2.0 over HTTP POST (streamable HTTP).
+Protocol: initialize → tools/list → tools/call
 Extracts: title, prize_pool, deadline, tags[], source_url
 Saves to hackathons table with source='devfolio'.
-
-Follows same pattern as devpost_engine.py.
 """
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List
 
-import aiohttp
+import httpx
 import asyncpg
 
 # ─────────────────────────────────────────────
@@ -26,7 +26,7 @@ DATABASE_URL: str = os.environ.get(
     "DATABASE_URL", "postgresql://xiima:secret@localhost:5432/xiimalab"
 )
 DEVFOLIO_MCP_API_KEY = os.environ.get("DEVFOLIO_MCP_API_KEY", "")
-DEVFOLIO_MCP_URL = f"https://mcp.devfolio.co/mcp?apiKey={DEVFOLIO_MCP_API_KEY}"
+DEVFOLIO_MCP_BASE = "https://mcp.devfolio.co/mcp"
 TIMEOUT_SECONDS = 30
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -34,64 +34,101 @@ log = logging.getLogger("xiima.devfolio")
 
 
 # ─────────────────────────────────────────────
-# Devfolio MCP Client
+# MCP Client (JSON-RPC 2.0 over HTTP)
 # ─────────────────────────────────────────────
-async def _call_devfolio_mcp(method: str, params: Dict[str, Any] = None) -> Any:
-    """Call Devfolio MCP API via JSON-RPC 2.0."""
-    payload = {
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": params or {},
-        "id": "xiima-" + datetime.now().isoformat(),
+def _parse_sse(text: str) -> Any:
+    """Parse SSE response and extract JSON result."""
+    result = None
+    for line in text.splitlines():
+        if line.startswith("data:"):
+            raw = line[5:].strip()
+            if raw and raw != "[DONE]":
+                try:
+                    parsed = json.loads(raw)
+                    if "result" in parsed:
+                        result = parsed["result"]
+                except json.JSONDecodeError:
+                    pass
+    return result
+
+
+async def _mcp_rpc(client: httpx.AsyncClient, url: str, method: str,
+                   params: dict | None = None, session_id: str | None = None,
+                   request_id: int = 1) -> tuple[Any, str | None]:
+    """Send JSON-RPC 2.0 request. Returns (result, session_id)."""
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
     }
+    if session_id:
+        headers["Mcp-Session-Id"] = session_id
 
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(
-                DEVFOLIO_MCP_URL,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=TIMEOUT_SECONDS),
-                headers={"Content-Type": "application/json"}
-            ) as response:
-                if response.status != 200:
-                    log.error(f"Devfolio API error {response.status}: {await response.text()}")
-                    return None
+    payload: dict[str, Any] = {"jsonrpc": "2.0", "method": method, "id": request_id}
+    if params:
+        payload["params"] = params
 
-                result = await response.json()
+    response = await client.post(url, json=payload, headers=headers)
+    response.raise_for_status()
 
-                if "error" in result:
-                    log.error(f"Devfolio RPC error: {result['error']}")
-                    return None
+    new_session = (
+        response.headers.get("Mcp-Session-Id")
+        or response.headers.get("mcp-session-id")
+        or session_id
+    )
 
-                return result.get("result")
-        except Exception as exc:
-            log.error(f"Devfolio API connection error: {exc}")
-            return None
+    text = response.text.strip()
+    ct = response.headers.get("content-type", "")
+
+    if "text/event-stream" in ct or text.startswith("event:") or text.startswith("data:"):
+        return _parse_sse(text), new_session
+
+    try:
+        data = response.json()
+        if "error" in data:
+            raise RuntimeError(f"MCP error: {data['error']}")
+        return data.get("result"), new_session
+    except Exception:
+        return _parse_sse(text), new_session
+
+
+def _extract_hackathons(result: Any) -> list[dict]:
+    """Extract hackathon list from MCP tool call response."""
+    if isinstance(result, list):
+        return result
+    if isinstance(result, dict):
+        for item in result.get("content", []):
+            if item.get("type") == "text":
+                try:
+                    parsed = json.loads(item["text"])
+                    if isinstance(parsed, list):
+                        return parsed
+                    if isinstance(parsed, dict):
+                        for key in ("hackathons", "data", "results", "items"):
+                            if key in parsed and isinstance(parsed[key], list):
+                                return parsed[key]
+                except (json.JSONDecodeError, KeyError):
+                    pass
+        for key in ("hackathons", "data", "results", "items"):
+            if key in result and isinstance(result[key], list):
+                return result[key]
+    return []
 
 
 # ─────────────────────────────────────────────
 # Data processing
 # ─────────────────────────────────────────────
 def _generate_id(title: str) -> str:
-    """Generate stable ID from title."""
-    import hashlib
     return hashlib.md5(title.lower().strip().encode()).hexdigest()[:12]
 
 
 def _parse_prize(prize_text: str) -> int:
-    """Parse prize text to integer USD value."""
     if not prize_text:
         return 0
-
-    # Remove currency symbols and commas
-    prize_text = prize_text.replace("$", "").replace(",", "").strip()
-
-    # Handle K/M suffixes
+    prize_text = str(prize_text).replace("$", "").replace(",", "").strip()
     if prize_text.endswith("K"):
         return int(float(prize_text[:-1]) * 1000)
     elif prize_text.endswith("M"):
         return int(float(prize_text[:-1]) * 1000000)
-
     try:
         return int(float(prize_text))
     except (ValueError, TypeError):
@@ -99,18 +136,14 @@ def _parse_prize(prize_text: str) -> int:
 
 
 def _parse_deadline(deadline_str: str) -> str:
-    """Parse deadline to ISO date format."""
     if not deadline_str:
         return "2099-12-31"
-
     try:
-        # Try parsing common formats
-        dt = datetime.fromisoformat(deadline_str.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(str(deadline_str).replace("Z", "+00:00"))
         return dt.date().isoformat()
     except ValueError:
         try:
-            # Try parsing timestamp
-            dt = datetime.fromtimestamp(int(deadline_str)/1000)
+            dt = datetime.fromtimestamp(int(deadline_str) / 1000)
             return dt.date().isoformat()
         except (ValueError, TypeError):
             return "2099-12-31"
@@ -120,51 +153,75 @@ def _parse_deadline(deadline_str: str) -> str:
 # Main scrape function
 # ─────────────────────────────────────────────
 async def scrape_devfolio_hackathons() -> List[Dict]:
-    """
-    Fetch hackathons from Devfolio MCP API.
-
-    Expected Devfolio API response structure:
-    {
-        "hackathons": [
-            {
-                "title": "ETHGlobal Hackathon",
-                "prize": "$50,000",
-                "tags": ["ethereum", "blockchain", "defi"],
-                "deadline": "2026-05-15T23:59:59Z",
-                "url": "https://devfolio.co/hackathons/ethglobal-2026"
-            }
-        ]
-    """
-    log.info("🚀 Starting Devfolio API scrape run…")
-
-    # Call Devfolio MCP API method to list hackathons
-    # This assumes there's a method like "list_hackathons" available
-    result = await _call_devfolio_mcp("list_hackathons")
-
-    if not result or "hackathons" not in result:
-        log.warning("No hackathons found in Devfolio API response")
+    """Fetch hackathons from Devfolio MCP API using correct protocol."""
+    if not DEVFOLIO_MCP_API_KEY:
+        log.error("DEVFOLIO_MCP_API_KEY not set — skipping")
         return []
 
-    hackathons = result["hackathons"]
-    parsed_items = []
+    log.info("Starting Devfolio MCP scrape...")
+    url = f"{DEVFOLIO_MCP_BASE}?apiKey={DEVFOLIO_MCP_API_KEY}"
 
-    for item in hackathons:
-        title = item.get("title", "").strip()
+    async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+        try:
+            # 1. Initialize session
+            _, session_id = await _mcp_rpc(client, url, "initialize", {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "clientInfo": {"name": "xiimalab-engine", "version": "1.0.0"},
+            })
+
+            # 2. Initialized notification
+            try:
+                headers = {"Content-Type": "application/json"}
+                if session_id:
+                    headers["Mcp-Session-Id"] = session_id
+                await client.post(url, json={
+                    "jsonrpc": "2.0", "method": "notifications/initialized"
+                }, headers=headers)
+            except Exception:
+                pass
+
+            # 3. Discover tools
+            tools_result, session_id = await _mcp_rpc(
+                client, url, "tools/list", session_id=session_id, request_id=2
+            )
+            tool_names = [t.get("name", "") for t in (tools_result or {}).get("tools", [])]
+            log.info(f"MCP tools: {tool_names}")
+
+            # 4. Find and call hackathon tool
+            hack_tool = next((n for n in tool_names if "hackathon" in n.lower()), "list_hackathons")
+            call_result, _ = await _mcp_rpc(
+                client, url, "tools/call",
+                {"name": hack_tool, "arguments": {}},
+                session_id=session_id, request_id=3
+            )
+
+            raw_hackathons = _extract_hackathons(call_result)
+            log.info(f"Retrieved {len(raw_hackathons)} raw hackathons from Devfolio")
+
+        except Exception as exc:
+            log.error(f"Devfolio MCP error: {exc}", exc_info=True)
+            return []
+
+    # Parse raw items
+    parsed_items = []
+    for item in raw_hackathons:
+        title = (item.get("title") or item.get("name") or "").strip()
         if not title:
             continue
-
+        slug = item.get("slug") or item.get("id") or _generate_id(title)
         parsed_items.append({
-            "id": _generate_id(title),
+            "id": f"devfolio-{slug}",
             "title": title,
-            "prize_pool": _parse_prize(item.get("prize", "0")),
-            "tags": item.get("tags", []),
-            "deadline": _parse_deadline(item.get("deadline", "")),
-            "match_score": 0,  # Will be updated by AI engine
-            "source_url": item.get("url", ""),
+            "prize_pool": _parse_prize(str(item.get("prize", item.get("prize_amount", "0")))),
+            "tags": item.get("tags") or item.get("technologies") or [],
+            "deadline": _parse_deadline(str(item.get("deadline", item.get("ends_at", "")))),
+            "match_score": 0,
+            "source_url": item.get("url") or f"https://devfolio.co/hackathons/{slug}",
             "source": "devfolio",
         })
 
-    log.info(f"✅ Parsed {len(parsed_items)} hackathons from Devfolio API")
+    log.info(f"Parsed {len(parsed_items)} hackathons from Devfolio")
     return parsed_items
 
 

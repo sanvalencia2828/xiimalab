@@ -1,5 +1,11 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Xiimalab — Technical UI tokens.
+ * Los nombres de color se mantienen para compatibilidad con todos los
+ * componentes existentes; sólo cambian sus valores hacia una paleta
+ * neutra + señal (estilo Linear / Vercel / Grafana).
+ */
 const config: Config = {
     content: [
         "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,39 +14,66 @@ const config: Config = {
     theme: {
         extend: {
             colors: {
-                background: "#030712",
-                card: "#111827",
-                "card-hover": "#1a2535",
-                accent: "#7dd3fc",
-                "accent-bright": "#38bdf8",
-                "accent-dim": "#0ea5e9",
-                border: "#1f2937",
-                muted: "#374151",
-                "muted-text": "#6b7280",
-                success: "#10b981",
-                warning: "#f59e0b",
-                danger: "#ef4444",
+                // Canvas / superficies
+                background: "#0a0b0f",
+                card: "#111319",
+                "card-hover": "#171a21",
+                border: "#262a34",
+                muted: "#373c48",
+                "muted-text": "#949baa",
+
+                // Acento — azul sobrio, no cyan fluorescente
+                accent: "#5ea5ff",
+                "accent-bright": "#7ab6ff",
+                "accent-dim": "#4a7fcc",
+
+                // Señal funcional
+                success: "#4ac07b",
+                warning: "#e2a747",
+                danger: "#e05f5f",
+
+                // Brand
                 stellar: "#8b5cf6",
-                avalanche: "#ef4444",
-                blockchain: "#f59e0b",
+                avalanche: "#e05f5f",
+                blockchain: "#e2a747",
             },
             fontFamily: {
                 sans: ["Inter", "system-ui", "sans-serif"],
+                mono: ["JetBrains Mono", "monospace"],
+            },
+            borderRadius: {
+                sm: "4px",
+                DEFAULT: "6px",
+                md: "6px",
+                lg: "8px",
+                xl: "10px",
+                "2xl": "12px",
             },
             boxShadow: {
-                card: "0 4px 24px rgba(0,0,0,0.4)",
-                glow: "0 0 20px rgba(125, 211, 252, 0.25)",
-                "glow-strong": "0 0 40px rgba(125, 211, 252, 0.45)",
-                "glow-success": "0 0 20px rgba(16, 185, 129, 0.3)",
+                card: "0 1px 2px rgba(0,0,0,0.35)",
+                pop: "0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.4)",
+                // Glows neutralizados — se mantienen los nombres para no romper clases existentes
+                glow: "0 1px 2px rgba(0,0,0,0.35)",
+                "glow-strong": "0 2px 6px rgba(0,0,0,0.45)",
+                "glow-success": "0 1px 2px rgba(0,0,0,0.35)",
+            },
+            fontSize: {
+                "2xs": ["10px", { lineHeight: "14px" }],
             },
             animation: {
+                shimmer: "shimmer 2.5s linear infinite",
+                // float y pulse se mantienen por compatibilidad pero como no-op visual
+                float: "none",
                 pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                shimmer: "shimmer 2s linear infinite",
             },
             keyframes: {
                 shimmer: {
                     "0%": { backgroundPosition: "-200% 0" },
                     "100%": { backgroundPosition: "200% 0" },
+                },
+                float: {
+                    "0%, 100%": { transform: "translateY(0px)" },
+                    "50%": { transform: "translateY(0px)" },
                 },
             },
         },

@@ -98,7 +98,7 @@ export default function ProjectCard({
                 transition: { duration: 0.2, ease: "easeOut" },
             }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className={`bg-card border border-border rounded-2xl p-6 cursor-default group relative overflow-hidden ${className}`}
+            className={`card-premium p-6 cursor-default group relative overflow-hidden ${className}`}
             style={{ borderColor: `${accentColor}18` }}
         >
             <div
@@ -152,24 +152,24 @@ export default function ProjectCard({
             </div>
 
             {metrics && (
-                <div className="pt-4 border-t border-border grid grid-cols-3 gap-2 mb-4">
+                <div className="pt-4 border-t border-white/[0.06] grid grid-cols-3 gap-2 mb-4">
                     {Object.entries(metrics).map(([key, value]) => (
-                        <div key={key} className="text-center">
+                        <div key={key} className="text-center card-premium rounded-lg p-2">
                             <p className="text-sm font-bold text-white">{value}</p>
-                            <p className="text-xs text-muted-text capitalize">{key}</p>
+                            <p className="text-[10px] text-muted-text capitalize mt-0.5">{key}</p>
                         </div>
                     ))}
                 </div>
             )}
 
             {(url || repo) && (
-                <div className="flex items-center gap-3 pt-4 border-t border-border/50">
+                <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06]">
                     {url && (
                         <a
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all duration-300 text-sm font-semibold group/link"
+                            className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm group/link"
                         >
                             <span>Live Project</span>
                             <ExternalLink className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
@@ -180,7 +180,7 @@ export default function ProjectCard({
                             href={repo}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-300"
+                            className="btn-ghost flex items-center justify-center p-2"
                             title="Ver Código"
                         >
                             <Github className="w-4 h-4" />

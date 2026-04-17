@@ -52,7 +52,7 @@ scheduler = AsyncIOScheduler() if SCHEDULER_AVAILABLE else None
 async def scheduled_dorahacks_sync():
     """Background task: sync DoraHacks every 6 hours."""
     from services.sync_dorahacks import sync_dorahacks
-    
+
     log.info("[Scheduler] Starting scheduled DoraHacks sync...")
     try:
         async with SessionLocal() as session:
@@ -63,11 +63,24 @@ async def scheduled_dorahacks_sync():
         log.error(f"[Scheduler] DoraHacks sync failed: {exc}")
 
 
+async def scheduled_devfolio_sync():
+    """Background task: sync Devfolio via MCP (interval from env)."""
+    from services.sync_devfolio import sync_devfolio
+
+    log.info("[Scheduler] Starting scheduled Devfolio sync...")
+    try:
+        async with SessionLocal() as session:
+            result = await sync_devfolio(session)
+            log.info(f"[Scheduler] Devfolio sync complete: {result}")
+    except Exception as exc:
+        log.error(f"[Scheduler] Devfolio sync failed: {exc}")
+
+
 def setup_scheduler():
     """Configure APScheduler for periodic tasks."""
     if not SCHEDULER_AVAILABLE or scheduler is None:
         return
-    
+
     scheduler.add_job(
         scheduled_dorahacks_sync,
         trigger=IntervalTrigger(hours=6),
@@ -76,6 +89,16 @@ def setup_scheduler():
         replace_existing=True,
     )
     log.info("[Scheduler] DoraHacks sync scheduled every 6 hours")
+
+    devfolio_interval = int(os.environ.get("DEVFOLIO_INTERVAL_MINUTES", "15"))
+    scheduler.add_job(
+        scheduled_devfolio_sync,
+        trigger=IntervalTrigger(minutes=devfolio_interval),
+        id="devfolio_sync",
+        name="Devfolio MCP Hackathon Sync",
+        replace_existing=True,
+    )
+    log.info(f"[Scheduler] Devfolio sync scheduled every {devfolio_interval} minutes")
 
 
 # ─────────────────────────────────────────────
@@ -298,10 +321,10 @@ async def admin_sync_dorahacks():
     from datetime import datetime
     from db import SessionLocal
     from services.sync_dorahacks import sync_dorahacks
-    
+
     start_time = datetime.now()
     log.info("[Admin] Manual DoraHacks sync triggered")
-    
+
     try:
         async with SessionLocal() as session:
             result = await sync_dorahacks(session)
@@ -314,6 +337,40 @@ async def admin_sync_dorahacks():
             }
     except Exception as exc:
         log.error(f"[Admin] DoraHacks sync failed: {exc}")
+        return {
+            "success": False,
+            "message": f"Sync failed: {str(exc)}",
+            "elapsed_seconds": (datetime.now() - start_time).total_seconds(),
+        }
+
+
+@app.post("/api/v1/admin/sync-devfolio", tags=["admin"])
+async def admin_sync_devfolio():
+    """
+    Trigger an immediate Devfolio MCP sync and update the database.
+    POST /api/v1/admin/sync-devfolio
+
+    Requires DEVFOLIO_MCP_API_KEY to be set in the environment.
+    Compatible with SQLite (dev) and PostgreSQL (prod).
+    """
+    from datetime import datetime
+    from db import SessionLocal
+    from services.sync_devfolio import sync_devfolio
+
+    start_time = datetime.now()
+    log.info("[Admin] Manual Devfolio sync triggered")
+
+    try:
+        async with SessionLocal() as session:
+            result = await sync_devfolio(session)
+            elapsed = (datetime.now() - start_time).total_seconds()
+            return {
+                "message": "Devfolio sync completed" if result.get("success") else "Devfolio sync failed",
+                "elapsed_seconds": elapsed,
+                **result,
+            }
+    except Exception as exc:
+        log.error(f"[Admin] Devfolio sync failed: {exc}", exc_info=True)
         return {
             "success": False,
             "message": f"Sync failed: {str(exc)}",
