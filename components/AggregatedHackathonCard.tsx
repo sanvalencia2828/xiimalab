@@ -188,7 +188,7 @@ export function AggregatedHackathonCard({
         )}
 
         {/* Source Badges */}
-        <div className="flex items-center justify-between mb-4 pt-4 border-t border-white/[0.06]">
+        <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
           <SourceBadges
             sources={hackathon.source_metadata?.sources ?? []}
             sourceUrls={hackathon.source_metadata?.source_urls ?? {}}
@@ -204,7 +204,7 @@ export function AggregatedHackathonCard({
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="border-t border-white/[0.06] pt-4 mt-4"
+            className="border-t border-border pt-4 mt-4"
           >
             {hackathon.description && (
               <p className="text-xs text-muted-text mb-3 line-clamp-2">
@@ -230,7 +230,7 @@ export function AggregatedHackathonCard({
 
             {/* Available On Links */}
             {(hackathon.source_metadata?.sources?.length ?? 0) > 1 && (
-              <div className="mt-3 pt-3 border-t border-white/[0.06]">
+              <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs font-medium text-slate-400 mb-2">Available on:</p>
                 <div className="flex flex-wrap gap-2">
                   {(hackathon.source_metadata?.sources ?? []).map((source) => {
@@ -255,7 +255,7 @@ export function AggregatedHackathonCard({
         )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/[0.06]">
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
           <button
             onClick={() => {
               setIsExpanded(!isExpanded);
@@ -272,7 +272,7 @@ export function AggregatedHackathonCard({
             <motion.button
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={() => setShowAIMatch(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:glow-purple transition-all"
+              className="btn-ghost !border-purple-500/30 !text-purple-400 hover:!bg-purple-500/20"
             >
               <BrainCircuit className="w-3 h-3" />
               AI Match
