@@ -14,7 +14,7 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base, SessionLocal
-from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge, devfolio, aggregated, milestones
+from routes import hackathons, skills, analyze, staking, stream, devfolio, aggregated, milestones
 from routes.hackathons import router as hackathons_router
 from routes.aggregated import router as aggregated_router
 from routes.skills import router as skills_router
@@ -24,9 +24,9 @@ from routes.notifications import router as notifications_router
 from routes.ml_recommendations import router as ml_router
 from routes.portfolio import router as portfolio_router
 from routes.market import router as market_router
-from routes.learning_resources import router as learning_router
 from routes.match import router as match_router
-from hotmart_bridge import router as hotmart_router
+# from hotmart_bridge import router as hotmart_router  # [DELETED] hotmart_bridge.py eliminado
+# from routes.learning_resources import router as learning_router  # [DELETED] learning_resources.py eliminado
 # from skill_validator import router as skill_validator_router  # [DISABLED] conflicto con engine/skill_validator.py - renombra a skill_validator_routes.py para arreglarlo
 from integrations.aura_client import router as aura_router
 from scrapers.hackathon_tracker import router as hackathon_tracker_router
@@ -197,8 +197,8 @@ app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
 app.include_router(staking.router, prefix="/staking", tags=["staking"])
 app.include_router(milestones.router, prefix="/milestones", tags=["milestones"])
 app.include_router(stream.router, prefix="/stream", tags=["realtime"])
-app.include_router(hotmart_bridge.router, prefix="/hotmart", tags=["hotmart"])
-app.include_router(learning_router, prefix="/learning", tags=["learning"])
+# app.include_router(hotmart_bridge.router, prefix="/hotmart", tags=["hotmart"])  # [DELETED]
+# app.include_router(learning_router, prefix="/learning", tags=["learning"])  # [DELETED]
 # app.include_router(skill_validator_router)  # [DISABLED] conflicto con engine/skill_validator.py
 app.include_router(aura_router)                 # GET /aura/progress/{address}, POST /aura/progress/{address}/force-sync
 app.include_router(hackathon_tracker_router)    # GET /hackathon-tracker/applications/{address}

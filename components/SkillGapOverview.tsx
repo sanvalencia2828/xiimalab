@@ -16,8 +16,13 @@ import {
     Loader2,
     Brain,
 } from "lucide-react";
-import { getLearningResourcesAction } from "@/app/actions/learning";
-import type { LearningResourcesResponse } from "@/app/actions/learning";
+// import { getLearningResourcesAction } from "@/app/actions/learning";  // [DELETED]
+// import type { LearningResourcesResponse } from "@/app/actions/learning";  // [DELETED]
+
+interface LearningResourcesResponse {
+    resources: Array<{ skill: string; difficulty: string; resources: { courses?: any[]; tutorials?: any[]; projects?: string[] } }>;
+    total_estimated_hours: number;
+}
 
 interface SkillGapOverviewProps {
     missingSkills: string[];
@@ -106,26 +111,12 @@ export default function SkillGapOverview({
 }: SkillGapOverviewProps) {
     const [isExpanded, setIsExpanded] = useState(initialExpanded);
     const [selectedDifficulty, setSelectedDifficulty] = useState<"All" | "Foundation" | "Intermediate" | "Advanced">("All");
-    const [showResources, setShowResources] = useState(false);
-    const [resources, setResources] = useState<LearningResourcesResponse | null>(null);
-    const [loadingResources, setLoadingResources] = useState(false);
+    // [DISABLED] learning resources state — feature removed with learning_resources.py
 
     const handleLoadResources = async () => {
-        if (resources) {
-            setShowResources(!showResources);
-            return;
-        }
-
-        setLoadingResources(true);
-        try {
-            const data = await getLearningResourcesAction(missingSkills);
-            setResources(data);
-            setShowResources(true);
-        } catch (err) {
-            console.error("Error loading resources:", err);
-        } finally {
-            setLoadingResources(false);
-        }
+        // [DISABLED] learning_resources backend was removed
+        // Resources feature will be re-implemented with a new backend
+        console.log("Learning resources endpoint removed — feature disabled");
     };
 
     // Enriquecer skills con metadata
@@ -317,118 +308,7 @@ export default function SkillGapOverview({
                                 </div>
                             </div>
 
-                            {/* CTA */}
-                            <motion.button
-                                onClick={handleLoadResources}
-                                disabled={loadingResources}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="w-full py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent font-semibold text-sm hover:bg-accent/15 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {loadingResources ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Cargando recursos...
-                                    </>
-                                ) : (
-                                    <>
-                                        Ver recursos de aprendizaje →
-                                    </>
-                                )}
-                            </motion.button>
-
-                            {/* Learning Resources Section */}
-                            <AnimatePresence>
-                                {showResources && resources && resources.resources.length > 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="border-t border-slate-700/40 mt-4 pt-4"
-                                    >
-                                        <h4 className="text-sm font-bold text-white mb-3">📚 Recursos Recomendados</h4>
-                                        <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                                            {resources.resources.map((skillRes, idx) => (
-                                                <motion.div
-                                                    key={skillRes.skill}
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: idx * 0.05 }}
-                                                    className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/40"
-                                                >
-                                                    <h5 className="font-semibold text-white text-sm mb-2 flex items-center gap-2">
-                                                        <span>{skillRes.skill}</span>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-md border ${getDifficultyColor(skillRes.difficulty)}`}>
-                                                            {skillRes.difficulty}
-                                                        </span>
-                                                    </h5>
-
-                                                    {/* Courses */}
-                                                    {skillRes.resources.courses && skillRes.resources.courses.length > 0 && (
-                                                        <div className="mb-2">
-                                                            <p className="text-xs text-accent font-semibold mb-1">Cursos:</p>
-                                                            <div className="space-y-1">
-                                                                {skillRes.resources.courses.slice(0, 2).map((course, i) => (
-                                                                    <a
-                                                                        key={i}
-                                                                        href={course.url}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
-                                                                    >
-                                                                        <ExternalLink className="w-3 h-3" />
-                                                                        {course.name} ({course.duration || course.type})
-                                                                    </a>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Tutorials */}
-                                                    {skillRes.resources.tutorials && skillRes.resources.tutorials.length > 0 && (
-                                                        <div className="mb-2">
-                                                            <p className="text-xs text-accent font-semibold mb-1">Tutoriales:</p>
-                                                            <div className="space-y-1">
-                                                                {skillRes.resources.tutorials.slice(0, 2).map((tutorial, i) => (
-                                                                    <a
-                                                                        key={i}
-                                                                        href={tutorial.url}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 transition-colors"
-                                                                    >
-                                                                        <ExternalLink className="w-3 h-3" />
-                                                                        {tutorial.name}
-                                                                    </a>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Projects */}
-                                                    {skillRes.resources.projects && skillRes.resources.projects.length > 0 && (
-                                                        <div>
-                                                            <p className="text-xs text-accent font-semibold mb-1">Proyectos:</p>
-                                                            <ul className="text-xs text-slate-400 list-disc list-inside space-y-0.5">
-                                                                {skillRes.resources.projects.slice(0, 2).map((project, i) => (
-                                                                    <li key={i}>{project}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    )}
-                                                </motion.div>
-                                            ))}
-                                        </div>
-
-                                        {/* Summary Stats */}
-                                        {resources.total_estimated_hours > 0 && (
-                                            <div className="mt-3 p-2 rounded-lg bg-purple-500/5 border border-purple-500/20 text-xs text-purple-200">
-                                                ⏱ <strong>{resources.total_estimated_hours}h totales</strong> de estudio estimadas
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                            {/* [DISABLED] Learning resources CTA removed — backend deleted */}
                         </div>
                     </motion.div>
                 )}

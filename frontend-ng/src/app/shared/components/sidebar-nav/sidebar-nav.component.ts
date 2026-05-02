@@ -13,7 +13,6 @@ import {
   Briefcase,
   ChartBar,
   Target,
-  ShoppingBag,
   FolderKanban,
   Settings,
   Menu,
@@ -43,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/portfolio', icon: 'Briefcase', label: 'Portfolio' },
   { href: '/match', icon: 'ChartBar', label: 'Market Match', badgeKey: 'insights' },
   { href: '/profile', icon: 'Target', label: 'Mi Perfil' },
-  { href: '/ecommerce', icon: 'ShoppingBag', label: 'Staking' },
+  // { href: '/ecommerce', icon: 'ShoppingBag', label: 'Staking' },  // [DELETED]
   { href: '/projects', icon: 'FolderKanban', label: 'Proyectos' },
   { href: '/settings', icon: 'Settings', label: 'Configuracion' },
 ];
@@ -57,7 +56,6 @@ const SIDEBAR_ICONS = {
   Briefcase,
   ChartBar,
   Target,
-  ShoppingBag,
   FolderKanban,
   Settings,
   Menu,
