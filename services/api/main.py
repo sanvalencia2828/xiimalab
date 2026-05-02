@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from db import engine, Base, SessionLocal
 from routes import hackathons, skills, analyze, staking, stream, devfolio, aggregated, milestones
@@ -237,7 +238,7 @@ async def health_check():
             try:
                 from db import engine
                 async with engine.connect() as conn:
-                    await conn.execute("SELECT 1")
+                    await conn.execute(text("SELECT 1"))
                 return "online"
             except Exception:
                 return "offline"
@@ -284,7 +285,7 @@ async def readiness_probe():
             try:
                 from db import engine
                 async with engine.connect() as conn:
-                    await conn.execute("SELECT 1")
+                    await conn.execute(text("SELECT 1"))
                 return True
             except Exception:
                 return False
