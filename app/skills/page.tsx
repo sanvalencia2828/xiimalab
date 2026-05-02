@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Brain, Target, TrendingUp, Plus, X, Search, Sparkles,
     ChevronRight, Trophy, Clock, Zap, Award, BarChart3,
-    CheckCircle2, Circle, Loader2, Star, ArrowUpRight
+    CheckCircle2, Circle, Loader2, Star, ArrowUpRight,
+    Code2, Server, Database
 } from "lucide-react";
 import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
 
@@ -20,11 +21,12 @@ interface Skill {
 }
 
 interface MarketSkill {
-    skill: string;
-    category: string;
-    marketDemand: number;
-    avgPrize: number;
-    opportunityCount: number;
+    id: number;
+    label: string;
+    sublabel: string | null;
+    user_score: number;
+    market_demand: number;
+    color: string;
 }
 
 interface Role {
@@ -136,13 +138,13 @@ export default function SkillsPage() {
         // Load market data and skill relevance in parallel
         try {
             const [marketResponse, relevanceResult] = await Promise.all([
-                fetch(`/api/neuro/market-analysis`),
+                fetch(`/api/skills`),
                 getSkillRelevanceAction(),
             ]);
 
             if (marketResponse.ok) {
                 const data = await marketResponse.json();
-                setMarketSkills(data.top_skills_by_demand || []);
+                setMarketSkills(data.data || []);
             }
             
             if (!("error" in relevanceResult) && Array.isArray(relevanceResult.relevance_report)) {
@@ -179,7 +181,7 @@ export default function SkillsPage() {
     const getMatchingSkills = () => {
         const userSkillNames = skills.map(s => s.name.toLowerCase());
         return marketSkills.filter(m => 
-            userSkillNames.some(u => m.skill.toLowerCase().includes(u) || u.includes(m.skill.toLowerCase()))
+            userSkillNames.some(u => m.label.toLowerCase().includes(u) || u.includes(m.label.toLowerCase()))
         );
     };
 
@@ -187,18 +189,18 @@ export default function SkillsPage() {
         const userSkillNames = skills.map(s => s.name.toLowerCase());
         
         const missingFromMarket = marketSkills.filter(m => 
-            !userSkillNames.some(u => m.skill.toLowerCase().includes(u) || u.includes(m.skill.toLowerCase()))
+            !userSkillNames.some(u => m.label.toLowerCase().includes(u) || u.includes(m.label.toLowerCase()))
         );
         
         // Prioritize by skill relevance score using Optional Chaining
         const sortedMissing = missingFromMarket.sort((a, b) => {
             const relevanceA = skillRelevance?.find(r => 
-                r.skill.toLowerCase() === a.skill.toLowerCase() || 
-                a.skill.toLowerCase().includes(r.skill.toLowerCase())
+                r.skill.toLowerCase() === a.label.toLowerCase() || 
+                a.label.toLowerCase().includes(r.skill.toLowerCase())
             )?.score ?? 0;
             const relevanceB = skillRelevance?.find(r => 
-                r.skill.toLowerCase() === b.skill.toLowerCase() || 
-                b.skill.toLowerCase().includes(r.skill.toLowerCase())
+                r.skill.toLowerCase() === b.label.toLowerCase() || 
+                b.label.toLowerCase().includes(r.skill.toLowerCase())
             )?.score ?? 0;
             return relevanceB - relevanceA;
         });
@@ -215,11 +217,7 @@ export default function SkillsPage() {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            </div>
-        );
+        return <SkillsPageSkeleton />;
     }
 
     return (
@@ -244,12 +242,12 @@ export default function SkillsPage() {
                             userSkills={skills}
                             marketSkills={marketSkills}
                             onAddSkill={(name) => {
-                                const market = marketSkills.find(m => m.skill.toLowerCase() === name.toLowerCase());
+                                const market = marketSkills.find(m => m.label.toLowerCase() === name.toLowerCase());
                                 addSkill({
                                     name,
                                     level: 30,
-                                    category: market?.category || "technical",
-                                    marketDemand: market?.marketDemand || 50,
+                                    category: "technical",
+                                    marketDemand: market?.market_demand || 50,
                                     yearsExperience: 0,
                                     lastUsed: new Date().toISOString().slice(0, 7),
                                 });
@@ -290,7 +288,7 @@ function Header({ onAddSkill }: { onAddSkill: () => void }) {
             <div>
                 <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                    <span className="text-xs font-medium text-accent uppercase tracking-widest">
+                    <span className="section-label tracking-widest">
                         Perfil de Habilidades
                     </span>
                 </div>
@@ -305,7 +303,7 @@ function Header({ onAddSkill }: { onAddSkill: () => void }) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onAddSkill}
-                className="flex items-center gap-2 px-4 py-2.5 bg-accent text-white font-bold text-sm rounded-xl hover:bg-accent-bright transition-colors"
+                className="btn-primary"
             >
                 <Plus className="w-4 h-4" />
                 Agregar Skill
@@ -327,10 +325,10 @@ function Tabs({ active, setActive }: { active: string; setActive: (t: "profile" 
                 <button
                     key={tab.id}
                     onClick={() => setActive(tab.id as "profile" | "market" | "roles")}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                    className={`btn-ghost ${
                         active === tab.id
-                            ? "bg-accent/20 text-accent"
-                            : "text-slate-400 hover:text-white hover:bg-white/5"
+                            ? "!bg-accent/20 !text-accent"
+                            : ""
                     }`}
                 >
                     <tab.icon className="w-4 h-4" />
@@ -367,7 +365,7 @@ function ProfileTab({
         >
             {/* Skills principales */}
             <div className="lg:col-span-2 space-y-4">
-                <div className="bg-card border border-border rounded-2xl p-5">
+                <div className="card-premium p-5">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-bold text-slate-200">Mis Habilidades</h3>
                         <span className="text-xs text-slate-500">{skills.length} skills</span>
@@ -396,7 +394,7 @@ function ProfileTab({
 
             {/* Stats y Missing Skills */}
             <div className="space-y-4">
-                <div className="bg-card border border-border rounded-2xl p-5">
+                <div className="card-premium p-5">
                     <h3 className="text-sm font-bold text-slate-200 mb-4">Stats</h3>
                     <div className="grid grid-cols-2 gap-3">
                         <StatBox label="Nivel Promedio" value={`${avgLevel}%`} color="text-accent" />
@@ -407,16 +405,16 @@ function ProfileTab({
                 </div>
 
                 {missingSkills.length > 0 && (
-                    <div className="bg-card border border-border rounded-2xl p-5">
+                    <div className="card-premium p-5">
                         <div className="flex items-center gap-2 mb-4">
                             <TrendingUp className="w-4 h-4 text-amber-400" />
                             <h3 className="text-sm font-bold text-slate-200">Skills en Demanda</h3>
                         </div>
                         <div className="space-y-2">
                             {missingSkills.slice(0, 5).map((skill) => (
-                                <div key={skill.skill} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                                    <span className="text-xs text-slate-300">{skill.skill}</span>
-                                    <span className="text-xs font-bold text-emerald-400">{skill.marketDemand}%</span>
+                                <div key={skill.label} className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/5">
+                                    <span className="text-xs text-slate-300">{skill.label}</span>
+                                    <span className="text-xs font-bold text-emerald-400">{skill.market_demand}%</span>
                                 </div>
                             ))}
                         </div>
@@ -489,9 +487,9 @@ function SkillCard({
 
 function StatBox({ label, value, color }: { label: string; value: string; color: string }) {
     return (
-        <div className="bg-white/5 rounded-xl p-3 text-center">
-            <p className={`text-lg font-bold ${color}`}>{value}</p>
-            <p className="text-[10px] text-slate-500 uppercase">{label}</p>
+        <div className="bg-white/5 rounded-xl p-3 text-center border border-white/5">
+            <p className={`stat-number ${color}`}>{value}</p>
+            <p className="section-label mt-1">{label}</p>
         </div>
     );
 }
@@ -508,11 +506,11 @@ function MarketTab({
     const userSkillNames = userSkills.map(s => s.name.toLowerCase());
     
     const matched = marketSkills.filter(m => 
-        userSkillNames.some(u => m.skill.toLowerCase().includes(u) || u.includes(m.skill.toLowerCase()))
+        userSkillNames.some(u => m.label.toLowerCase().includes(u) || u.includes(m.label.toLowerCase()))
     );
     
     const notMatched = marketSkills.filter(m => 
-        !userSkillNames.some(u => m.skill.toLowerCase().includes(u) || u.includes(m.skill.toLowerCase()))
+        !userSkillNames.some(u => m.label.toLowerCase().includes(u) || u.includes(m.label.toLowerCase()))
     );
 
     return (
@@ -525,70 +523,71 @@ function MarketTab({
         >
             {/* Header Stats */}
             <div className="grid grid-cols-4 gap-4">
-                <div className="bg-card border border-emerald-500/30 rounded-2xl p-4 text-center">
+                <div className="card-premium border-emerald-500/30 p-4 text-center">
                     <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-emerald-400">{matched.length}</p>
-                    <p className="text-xs text-slate-500">Skills en Mercado</p>
+                    <p className="stat-number text-emerald-400">{matched.length}</p>
+                    <p className="section-label mt-1">Skills en Mercado</p>
                 </div>
-                <div className="bg-card border border-amber-500/30 rounded-2xl p-4 text-center">
+                <div className="card-premium border-amber-500/30 p-4 text-center">
                     <ArrowUpRight className="w-6 h-6 text-amber-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-amber-400">{notMatched.length}</p>
-                    <p className="text-xs text-slate-500">Para Desarrollar</p>
+                    <p className="stat-number text-amber-400">{notMatched.length}</p>
+                    <p className="section-label mt-1">Para Desarrollar</p>
                 </div>
-                <div className="bg-card border border-border rounded-2xl p-4 text-center">
+                <div className="card-premium p-4 text-center">
                     <Trophy className="w-6 h-6 text-accent mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-accent">
+                    <p className="stat-number text-accent">
                         {marketSkills.length > 0 
                             ? Math.round(matched.length / marketSkills.length * 100) 
                             : 0}%
                     </p>
-                    <p className="text-xs text-slate-500">Cobertura</p>
+                    <p className="section-label mt-1">Cobertura</p>
                 </div>
-                <div className="bg-card border border-border rounded-2xl p-4 text-center">
+                <div className="card-premium p-4 text-center">
                     <TrendingUp className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-purple-400">
+                    <p className="stat-number text-purple-400">
                         {userSkills.length}
                     </p>
-                    <p className="text-xs text-slate-500">Tus Skills</p>
+                    <p className="section-label mt-1">Tus Skills</p>
                 </div>
             </div>
 
             {/* Comparison Chart */}
-            <div className="bg-card border border-border rounded-2xl p-5">
+            <div className="card-premium p-5">
                 <h3 className="text-sm font-bold text-slate-200 mb-4">Comparativa: Tú vs Mercado</h3>
                 <div className="space-y-4">
                     {marketSkills.slice(0, 10).map((market, idx) => {
                         const userSkill = userSkills.find(u => 
-                            u.name.toLowerCase() === market.skill.toLowerCase() ||
-                            market.skill.toLowerCase().includes(u.name.toLowerCase())
+                            u.name.toLowerCase() === market.label.toLowerCase() ||
+                            market.label.toLowerCase().includes(u.name.toLowerCase())
                         );
                         const hasSkill = !!userSkill;
 
                         return (
-                            <div key={market.skill} className="space-y-1">
+                            <div key={market.label} className="space-y-1">
                                 <div className="flex items-center justify-between">
                                     <span className={`text-sm ${hasSkill ? "text-slate-200" : "text-slate-500"}`}>
-                                        {market.skill}
+                                        {market.label}
                                     </span>
                                     <div className="flex items-center gap-3">
                                         {userSkill && (
                                             <span className="text-xs text-emerald-400">Tú: {userSkill.level}%</span>
                                         )}
-                                        <span className="text-xs text-accent">Mercado: {market.marketDemand}%</span>
+                                        <span className="text-xs text-accent">Mercado: {market.market_demand}%</span>
                                     </div>
                                 </div>
-                                <div className="flex gap-2 h-3">
+                                <div className="progress-track h-3">
                                     {userSkill && (
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${userSkill.level}%` }}
                                             transition={{ delay: idx * 0.05 }}
-                                            className="h-full bg-emerald-500 rounded-full"
+                                            className="progress-fill"
+                                            style={{ background: "#10b981" }}
                                         />
                                     )}
                                     <div
-                                        className="h-full bg-accent/30 rounded-full"
-                                        style={{ width: `${market.marketDemand}%` }}
+                                        className="progress-fill opacity-30"
+                                        style={{ width: `${market.market_demand}%`, background: market.color || "#0ea5e9" }}
                                     />
                                 </div>
                             </div>
@@ -599,20 +598,20 @@ function MarketTab({
 
             {/* Skills to Add */}
             {notMatched.length > 0 && (
-                <div className="bg-card border border-border rounded-2xl p-5">
+                <div className="card-premium p-5">
                     <h3 className="text-sm font-bold text-slate-200 mb-4">Skills para Agregar</h3>
                     <div className="flex flex-wrap gap-2">
                         {notMatched.slice(0, 12).map((skill) => (
                             <motion.button
-                                key={skill.skill}
+                                key={skill.label}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                onClick={() => onAddSkill(skill.skill)}
+                                onClick={() => onAddSkill(skill.label)}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-accent/10 border border-white/10 hover:border-accent/30 rounded-lg transition-all group"
                             >
                                 <Plus className="w-3.5 h-3.5 text-slate-500 group-hover:text-accent" />
-                                <span className="text-xs text-slate-300 group-hover:text-white">{skill.skill}</span>
-                                <span className="text-[10px] text-emerald-400">{skill.marketDemand}%</span>
+                                <span className="text-xs text-slate-300 group-hover:text-white">{skill.label}</span>
+                                <span className="text-[10px] text-emerald-400">{skill.market_demand}%</span>
                             </motion.button>
                         ))}
                     </div>
@@ -651,7 +650,7 @@ function RolesTab({
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.1 }}
-                        className="bg-card border border-border rounded-2xl p-5"
+                        className="card-premium p-5"
                     >
                         <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3">
@@ -693,12 +692,12 @@ function RolesTab({
                                     {progress}%
                                 </span>
                             </div>
-                            <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div className="progress-track h-2">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${progress}%` }}
                                     transition={{ delay: idx * 0.1 + 0.2 }}
-                                    className={`h-full ${
+                                    className={`progress-fill ${
                                         progress >= 75 ? "bg-emerald-500" :
                                         progress >= 50 ? "bg-amber-500" : "bg-slate-500"
                                     }`}
@@ -726,7 +725,7 @@ function RolesTab({
                         </div>
 
                         {missing.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-white/5">
+                            <div className="mt-3 pt-3 divider">
                                 <p className="text-[10px] text-slate-500 mb-2">Para completar:</p>
                                 <div className="flex flex-wrap gap-1">
                                     {missing.map((m) => (
@@ -864,33 +863,56 @@ function AddSkillModal({
     );
 }
 
-// Icons needed
-function Code2(props: any) {
+function SkillsPageSkeleton() {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-            <polyline points="16 18 22 12 16 6" />
-            <polyline points="8 6 2 12 8 18" />
-        </svg>
+        <div className="min-h-screen bg-background">
+            <div className="max-w-6xl mx-auto p-6 space-y-6">
+                {/* Header Skeleton */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="h-4 w-32 skeleton rounded-md mb-3" />
+                        <div className="h-8 w-64 skeleton rounded-lg mb-2" />
+                        <div className="h-4 w-48 skeleton rounded-md" />
+                    </div>
+                    <div className="h-10 w-36 skeleton rounded-xl" />
+                </div>
+
+                {/* Tabs Skeleton */}
+                <div className="flex gap-2 border-b border-border pb-2">
+                    <div className="h-9 w-28 skeleton rounded-lg" />
+                    <div className="h-9 w-28 skeleton rounded-lg" />
+                    <div className="h-9 w-28 skeleton rounded-lg" />
+                </div>
+
+                {/* Content Skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-4">
+                        <div className="card-premium p-5 min-h-[400px]">
+                            <div className="flex justify-between mb-6">
+                                <div className="h-5 w-32 skeleton rounded-md" />
+                                <div className="h-4 w-16 skeleton rounded-md" />
+                            </div>
+                            <div className="space-y-4">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="h-24 skeleton rounded-xl" />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="card-premium p-5">
+                            <div className="h-5 w-16 skeleton rounded-md mb-4" />
+                            <div className="grid grid-cols-2 gap-3">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-20 skeleton rounded-xl" />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 
-function Server(props: any) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-            <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
-            <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
-            <line x1="6" x2="6.01" y1="6" y2="6" />
-            <line x1="6" x2="6.01" y1="18" y2="18" />
-        </svg>
-    );
-}
 
-function Database(props: any) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-            <ellipse cx="12" cy="5" rx="9" ry="3" />
-            <path d="M3 5V19A9 3 0 0 0 21 19V5" />
-            <path d="M3 12A9 3 0 0 0 21 12" />
-        </svg>
-    );
-}
