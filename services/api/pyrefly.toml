@@ -1,0 +1,14 @@
+# pyrefly.toml — Pyrefly static analysis config for services/api
+#
+# FastAPI runs with services/api/ as the working directory, so local
+# packages (routes/, agents/, integrations/, scrapers/, etc.) resolve
+# correctly at runtime. This config tells Pyrefly the same thing so it
+# stops reporting false-positive "missing-import" warnings.
+
+[project]
+# Tell Pyrefly that this directory IS the source root
+source_directories = ["."]
+
+[python]
+# Match the interpreter used in .venv
+python_version = "3.11"
