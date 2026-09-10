@@ -289,3 +289,50 @@ class MarketTrend(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+# ─────────────────────────────────────────────
+# Learning Roadmap Persistence
+# ─────────────────────────────────────────────
+class UserRoadmap(Base):
+    """Persisted learning roadmap for a user."""
+    __tablename__ = "user_roadmaps"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    wallet_address: Mapped[str] = mapped_column(String(64), nullable=False)
+    hackathon_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill: Mapped[str] = mapped_column(String(128), nullable=False)
+    target_level: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class RoadmapStep(Base):
+    """Individual steps within a user roadmap."""
+    __tablename__ = "roadmap_steps"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    roadmap_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    step_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    duration: Mapped[str] = mapped_column(String(32), nullable=False, default="0h")
+    step_type: Mapped[str] = mapped_column(String(32), nullable=False, default="Doc")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_completed: Mapped[bool] = mapped_column(nullable=False, default=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
