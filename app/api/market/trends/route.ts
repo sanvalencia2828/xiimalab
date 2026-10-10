@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -12,17 +13,11 @@ const FALLBACK = [
 ];
 
 export async function GET() {
-    const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabase) {
         return NextResponse.json({ success: true, trends: FALLBACK });
     }
 
     try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
         const { data: hackathons } = await supabase
             .from("hackathons")
             .select("tags, match_score, prize_pool");
