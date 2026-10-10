@@ -44,6 +44,8 @@ export function AggregatedHackathonsClient() {
     h.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const hasFilters = searchQuery !== "" || selectedTags.length > 0 || minPrize > 0;
+
   // All unique tags from current data
   const allTags = Array.from(
     new Set(hackathons.flatMap((h) => h.tags || []))
@@ -68,7 +70,9 @@ export function AggregatedHackathonsClient() {
         <p className="text-sm text-muted-text">
           {total > 0
             ? `${total} hackathons from Devfolio, DoraHacks, and Devpost`
-            : "Searching for hackathons..."}
+            : isLoading
+              ? "Searching for hackathons..."
+              : "No open hackathons right now"}
         </p>
       </div>
 
@@ -235,13 +239,29 @@ export function AggregatedHackathonsClient() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12"
+          className="bg-card border border-border rounded-2xl text-center py-12 px-6"
         >
           <Database className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 mb-2">No hackathons found</p>
-          <p className="text-muted-text text-sm">
-            Try adjusting your filters or check back later for new opportunities
+          <p className="text-slate-200 font-medium mb-2">
+            {hasFilters ? "No hackathons match your filters" : "No open hackathons right now"}
           </p>
+          <p className="text-muted-text text-sm">
+            {hasFilters
+              ? "Try a different search, fewer tags, or a lower minimum prize"
+              : "Devfolio, DoraHacks, and Devpost returned no open calls. Check back in a few minutes."}
+          </p>
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedTags([]);
+                setMinPrize(0);
+              }}
+              className="mt-4 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30 hover:border-accent/50 transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
         </motion.div>
       )}
 

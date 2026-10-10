@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { getLiveHackathons } from "@/lib/hackathons/live";
 
 export interface PriorityHackathon {
     id: string;
@@ -73,28 +74,33 @@ function calcPriority(hack: { match_score: number; prize_pool: number; deadline:
 }
 
 export async function getPrioritiesAction(daysWindow: number = 60): Promise<PrioritiesResponse | { error: string }> {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-        return { error: "Supabase no configurado" };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data, error } = await supabase
-        .from("hackathons")
-        .select("id, title, prize_pool, tags, deadline, match_score, source_url")
-        .order("match_score", { ascending: false })
-        .limit(60);
-
-    if (error || !data || data.length === 0) {
-        return { error: "No se encontraron hackatones en la base de datos" };
-    }
-
-    const hackathons = data as Array<{
+    let hackathons: Array<{
         id: string; title: string; prize_pool: number;
         tags: string[]; deadline: string; match_score: number; source_url?: string;
-    }>;
+    }> = [];
+
+    // 1. Supabase (datos del scraper)
+    if (supabase) {
+        const { data, error } = await supabase
+            .from("hackathons")
+            .select("id, title, prize_pool, tags, deadline, match_score, source_url")
+            .order("match_score", { ascending: false })
+            .limit(60);
+        if (!error && data && data.length > 0) hackathons = data as typeof hackathons;
+    }
+
+    // 2. Fallback: hackatones en vivo (DoraHacks + Devpost + Devfolio)
+    if (hackathons.length === 0) {
+        try {
+            const live = await getLiveHackathons();
+            hackathons = live.hackathons.slice(0, 60).map(h => ({
+                id: h.id, title: h.title, prize_pool: h.prize_pool, tags: h.tags,
+                deadline: h.deadline, match_score: h.match_score, source_url: h.source_url ?? undefined,
+            }));
+        } catch (err) {
+            console.warn("[insights] live sources failed:", err);
+        }
+    }
 
     // Filter to daysWindow
     const pool = hackathons.filter(h => getDaysUntilDeadline(h.deadline) <= daysWindow);

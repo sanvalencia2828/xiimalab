@@ -15,16 +15,9 @@ export interface SkillRelevanceReport {
 
 export async function getSkillRelevanceAction(): Promise<SkillRelevanceReport | { error: string }> {
     try {
-        const vercelUrl = process.env.VERCEL_URL;
-        const base = vercelUrl
-            ? `https://${vercelUrl}`
-            : (process.env.NEXTAUTH_URL ?? "http://localhost:3000");
-
-        const response = await fetch(`${base}/api/market/skill-relevance`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            next: { revalidate: 3600 },
-        });
+        // Llamada directa al handler (sin ida y vuelta HTTP a VERCEL_URL)
+        const { GET } = await import("@/app/api/market/skill-relevance/route");
+        const response = await GET();
 
         if (!response.ok) {
             console.error("Skill Relevance API Error:", response.status);
