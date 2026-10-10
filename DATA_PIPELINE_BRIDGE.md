@@ -484,7 +484,7 @@ ANTHROPIC_API_KEY=sk-...
 REDIS_URL=redis://localhost:6379
 
 # Devfolio MCP
-DEVFOLIO_MCP_API_KEY=dbc8a11b0904ec8e6f792e7a271ff9a2d067e970c55ce6e70e288bdd67e2e66d
+DEVFOLIO_MCP_API_KEY=<tu-clave-devfolio-mcp>
 
 # Stellar (for staking/escrow releases)
 STELLAR_NETWORK=testnet
