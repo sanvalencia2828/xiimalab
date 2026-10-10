@@ -12,9 +12,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from db import engine, Base, SessionLocal
-from routes import hackathons, skills, analyze, staking, stream, hotmart_bridge, devfolio, aggregated, milestones
+from routes import hackathons, skills, analyze, staking, stream, devfolio, aggregated, milestones
 from routes.hackathons import router as hackathons_router
 from routes.aggregated import router as aggregated_router
 from routes.skills import router as skills_router
@@ -24,9 +25,8 @@ from routes.notifications import router as notifications_router
 from routes.ml_recommendations import router as ml_router
 from routes.portfolio import router as portfolio_router
 from routes.market import router as market_router
-from routes.learning_resources import router as learning_router
 from routes.match import router as match_router
-from hotmart_bridge import router as hotmart_router
+from routes.roadmap_persistence import router as roadmap_persistence_router
 # from skill_validator import router as skill_validator_router  # [DISABLED] conflicto con engine/skill_validator.py - renombra a skill_validator_routes.py para arreglarlo
 from integrations.aura_client import router as aura_router
 from scrapers.hackathon_tracker import router as hackathon_tracker_router
@@ -46,7 +46,11 @@ except ImportError:
     SCHEDULER_AVAILABLE = False
     log.warning("APScheduler not available, scheduled tasks disabled")
 
-scheduler = AsyncIOScheduler() if SCHEDULER_AVAILABLE else None
+from typing import Optional
+
+scheduler: Optional["AsyncIOScheduler"] = None
+if SCHEDULER_AVAILABLE:
+    scheduler = AsyncIOScheduler()
 
 
 async def scheduled_dorahacks_sync():
@@ -197,8 +201,6 @@ app.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
 app.include_router(staking.router, prefix="/staking", tags=["staking"])
 app.include_router(milestones.router, prefix="/milestones", tags=["milestones"])
 app.include_router(stream.router, prefix="/stream", tags=["realtime"])
-app.include_router(hotmart_bridge.router, prefix="/hotmart", tags=["hotmart"])
-app.include_router(learning_router, prefix="/learning", tags=["learning"])
 # app.include_router(skill_validator_router)  # [DISABLED] conflicto con engine/skill_validator.py
 app.include_router(aura_router)                 # GET /aura/progress/{address}, POST /aura/progress/{address}/force-sync
 app.include_router(hackathon_tracker_router)    # GET /hackathon-tracker/applications/{address}
@@ -213,6 +215,7 @@ app.include_router(ml_router, prefix="/ml", tags=["ml-recommendations"])
 app.include_router(portfolio_router, prefix="/portfolio", tags=["portfolio"])
 app.include_router(market_router, prefix="/api/v1", tags=["market"])
 app.include_router(match_router,  prefix="/api/v1", tags=["AI Matchmaker"])
+app.include_router(roadmap_persistence_router, prefix="/api/v1", tags=["learning-persistence"])
 
 
 # ─────────────────────────────────────────────
@@ -237,7 +240,7 @@ async def health_check():
             try:
                 from db import engine
                 async with engine.connect() as conn:
-                    await conn.execute("SELECT 1")
+                    await conn.execute(text("SELECT 1"))
                 return "online"
             except Exception:
                 return "offline"
@@ -258,7 +261,7 @@ async def health_check():
         "status": overall,
         "service": "xiimalab-api",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "services": services,
     }
 
@@ -284,7 +287,7 @@ async def readiness_probe():
             try:
                 from db import engine
                 async with engine.connect() as conn:
-                    await conn.execute("SELECT 1")
+                    await conn.execute(text("SELECT 1"))
                 return True
             except Exception:
                 return False
@@ -292,7 +295,7 @@ async def readiness_probe():
         db_ready = await asyncio.wait_for(check_db(), timeout=3.0)
         return {
             "status": "ready" if db_ready else "not_ready",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except asyncio.TimeoutError:
         return {"status": "not_ready", "reason": "database_timeout"}

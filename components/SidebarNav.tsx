@@ -10,7 +10,6 @@ import {
   FolderKanban,
   Zap,
   BarChart3,
-  ShoppingBag,
   Settings,
   Cpu,
   ChevronRight,
@@ -37,7 +36,7 @@ const navItems = [
   { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
   { href: "/match", icon: BarChart3, label: "Market Match", badgeKey: "insights" },
   { href: "/profile", icon: Target, label: "Mi Perfil" },
-  { href: "/ecommerce", icon: ShoppingBag, label: "Staking" },
+  // { href: "/ecommerce", ... }  // [DELETED] ecommerce page eliminada
   { href: "/projects", icon: FolderKanban, label: "Proyectos" },
   { href: "/settings", icon: Settings, label: "Configuración" },
 ];

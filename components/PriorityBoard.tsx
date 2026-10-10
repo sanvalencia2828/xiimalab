@@ -76,11 +76,9 @@ export default function PriorityBoard({ compact = false }: PriorityBoardProps) {
 
     const loadRecommendations = async (hackathons: PriorityHackathon[]) => {
         try {
-            const vercelUrl = process.env.VERCEL_URL;
-            const base = vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000";
-            
+            // Ruta relativa: en el navegador VERCEL_URL no existe y localhost:3000 falla en producción
             const res = await fetch(
-                `${base}/api/learning/recommendations?skills=${encodeURIComponent(userSkills.join(","))}&hackathons=${encodeURIComponent(JSON.stringify(hackathons.map(h => ({
+                `/api/learning/recommendations?skills=${encodeURIComponent(userSkills.join(","))}&hackathons=${encodeURIComponent(JSON.stringify(hackathons.map(h => ({
                     id: h.id,
                     title: h.title,
                     tags: h.tags,
@@ -141,6 +139,10 @@ export default function PriorityBoard({ compact = false }: PriorityBoardProps) {
                 </button>
             </div>
         );
+    }
+
+    if (insights.prioritized_hackathons.length === 0) {
+        return <EmptyBoard compact={compact} onRetry={loadInsights} />;
     }
 
     if (compact) {
@@ -218,7 +220,7 @@ export default function PriorityBoard({ compact = false }: PriorityBoardProps) {
                             ))
                         ) : (
                             <div className="text-center py-8 text-slate-500 text-sm">
-                                Cargando análisis de relevancia...
+                                Aún no hay análisis de relevancia disponible
                             </div>
                         )}
                     </motion.div>
@@ -244,6 +246,38 @@ export default function PriorityBoard({ compact = false }: PriorityBoardProps) {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+// ── Empty State ──────────────────────────────────────────────────────────────
+function EmptyBoard({ compact, onRetry }: { compact: boolean; onRetry: () => void }) {
+    if (compact) {
+        return (
+            <div className="flex items-center gap-2 p-3 bg-white/5 rounded-lg border border-white/5">
+                <Trophy className="w-4 h-4 text-slate-500 shrink-0" />
+                <p className="text-xs text-slate-400">Sin hackatones abiertos por ahora</p>
+            </div>
+        );
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="card-premium p-8 flex flex-col items-center text-center"
+        >
+            <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3">
+                <Trophy className="w-6 h-6 text-slate-500" />
+            </div>
+            <p className="text-sm font-medium text-slate-200 mb-1">No hay hackatones abiertos ahora mismo</p>
+            <p className="text-xs text-muted-text max-w-sm">
+                Ninguna fuente devolvió convocatorias activas, así que no hay nada que priorizar. Vuelve a intentarlo en unos minutos.
+            </p>
+            <button onClick={onRetry} className="btn-ghost mt-3 text-indigo-400 text-xs font-bold">
+                Reintentar
+            </button>
+        </motion.div>
     );
 }
 

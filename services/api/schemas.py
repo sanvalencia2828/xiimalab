@@ -224,3 +224,83 @@ class PendingMilestoneRead(BaseModel):
     # Student info (for coach review)
     student_address: str
     escrow_amount: float  # Total escrow amount (for context)
+
+
+# ─────────────────────────────────────────────
+# AI Analysis & Skill Extraction schemas
+# ─────────────────────────────────────────────
+
+class SkillExtraction(BaseModel):
+    """Extracted skill from hackathon analysis."""
+    skill_name: str                           # e.g., "Solana", "React", "Python"
+    category: str                             # e.g., "Frontend", "Blockchain", "Backend", "DevOps", "ML"
+    relevance_score: float                    # 0.0 to 1.0 — how central is this skill to the hackathon
+    difficulty: str = "intermediate"          # "beginner", "intermediate", "advanced"
+    is_core_requirement: bool = False         # True if essential for winning
+
+
+class SkillRequirement(BaseModel):
+    """Skill requirement for a hackathon."""
+    skill: str                                # e.g., "Rust"
+    proficiency_level: str = "intermediate"  # "beginner", "intermediate", "advanced"
+    years_of_experience: int = 1             # Suggested min. years
+    why_important: str                        # Reason this skill matters for the hackathon
+
+
+class ProjectIdea(BaseModel):
+    """Project idea generated from hackathon + skills analysis."""
+    title: str                                # Project name
+    description: str                          # Detailed description
+    skills_covered: list[str]                 # Skills this project teaches/uses
+    estimated_hours: int = 40                 # Estimated time to build
+    difficulty: str = "intermediate"          # "beginner", "intermediate", "advanced"
+    learning_outcomes: list[str] = []         # What student will learn
+    revenue_potential: str | None = None      # "low", "medium", "high" (for Web3 projects)
+
+
+class HackathonAnalysisResult(BaseModel):
+    """Complete AI analysis result for a hackathon."""
+    hackathon_id: str                         # Reference to hackathon ID
+    title: str                                # Hackathon title (for context)
+    
+    # Extracted requirements
+    skills_required: list[SkillExtraction]    # All skills mentioned/inferred
+    core_tech_stack: list[str]                # Primary technologies (["Solana", "React"])
+    difficulty_level: str                     # Overall difficulty assessment
+    
+    # Recommended projects
+    project_ideas: list[ProjectIdea]          # 2-5 project ideas to build during hackathon
+    best_for: str                             # "Who should apply? e.g., 'Backend engineers with Rust experience'"
+    
+    # Timeline & effort
+    estimated_preparation_hours: int = 10    # Prep time before applying
+    estimated_hackathon_hours: int = 40       # Time needed during hackathon
+    
+    # Risk assessment
+    recommended_team_size: int = 1            # 1 for solo, 2-3 for small team
+    success_rate_estimate: str = "medium"     # "low", "medium", "high"
+    
+    # Meta
+    analysis_timestamp: datetime = datetime.now()
+    model_used: str = "claude-3.5-sonnet"     # LLM model version
+
+
+class SkillMatchReport(BaseModel):
+    """User skill match report against a hackathon."""
+    hackathon_id: str
+    wallet_address: str                       # User's wallet
+    
+    # Skills analysis
+    user_skills: list[str]                    # Skills user has
+    required_skills: list[str]                # Skills hackathon requires
+    skill_overlap: list[str]                  # Intersection
+    skill_gaps: list[str]                     # What user needs to learn
+    
+    # Scoring
+    skill_match_percentage: float              # 0-100: % of required skills user has
+    learning_feasibility_score: float          # 0-1: Can user learn missing skills in time?
+    overall_readiness: str                     # "ready", "prepare", "not_ready"
+    
+    # Recommendations
+    recommended_prep_path: list[str] = []      # ["Learn Solana basics", "Practice Rust", ...]
+    time_to_readiness_hours: int = 0          # Hours of study needed

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { getLiveHackathons } from "@/lib/hackathons/live";
 
 export const dynamic = "force-dynamic";
 
@@ -38,17 +39,13 @@ export async function GET(req: NextRequest) {
     const daysWindow = parseInt(searchParams.get("days_window") ?? "90");
 
     // Try Supabase first
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
     let hackathons: Array<{
         id: string; title: string; prize_pool: number;
         tags: string[]; deadline: string; match_score: number;
         source_url?: string;
     }> = [];
 
-    if (supabaseUrl && supabaseKey) {
-        const supabase = createClient(supabaseUrl, supabaseKey);
+    if (supabase) {
         const { data, error } = await supabase
             .from("hackathons")
             .select("id, title, prize_pool, tags, deadline, match_score, source_url")
@@ -60,16 +57,14 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // Fallback: fetch from internal hackathons API
+    // Fallback: hackatones en vivo (DoraHacks + Devpost + Devfolio)
     if (hackathons.length === 0) {
         try {
-            const vercelUrl = process.env.VERCEL_URL;
-            const base = vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000";
-            const res = await fetch(`${base}/api/hackathons?limit=50`);
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data)) hackathons = data;
-            }
+            const live = await getLiveHackathons();
+            hackathons = live.hackathons.slice(0, 100).map(h => ({
+                id: h.id, title: h.title, prize_pool: h.prize_pool, tags: h.tags,
+                deadline: h.deadline, match_score: h.match_score, source_url: h.source_url ?? undefined,
+            }));
         } catch { /* ignore */ }
     }
 

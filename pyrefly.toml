@@ -1,0 +1,7 @@
+[project]
+# Pyrefly static analysis configuration
+# This allows Pyrefly to resolve imports correctly from the root directory
+source_directories = [".", "services/api"]
+
+[python]
+python_version = "3.11"

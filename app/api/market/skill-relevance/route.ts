@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { getLiveHackathons } from "@/lib/hackathons/live";
 
 export const dynamic = "force-dynamic";
 
@@ -69,13 +70,9 @@ function calculateRelevance(hackathons: Array<{ tags?: string[] }>): {
 }
 
 export async function GET() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
     let hackathons: Array<{ id: string; title: string; tags?: string[]; prize_pool: number; deadline: string }> = [];
 
-    if (supabaseUrl && supabaseKey) {
-        const supabase = createClient(supabaseUrl, supabaseKey);
+    if (supabase) {
         const { data, error } = await supabase
             .from("hackathons")
             .select("id, title, tags, prize_pool, deadline")
@@ -87,22 +84,11 @@ export async function GET() {
     }
 
     if (hackathons.length === 0) {
-        const vercelUrl = process.env.VERCEL_URL;
-        const base = vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000";
         try {
-            const res = await fetch(`${base}/api/hackathons?limit=100`);
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    hackathons = data.map((h: { id: string; title: string; tags?: string[]; prize_pool: number; deadline: string }) => ({
-                        id: h.id,
-                        title: h.title,
-                        tags: h.tags,
-                        prize_pool: h.prize_pool,
-                        deadline: h.deadline,
-                    }));
-                }
-            }
+            const live = await getLiveHackathons();
+            hackathons = live.hackathons.map(h => ({
+                id: h.id, title: h.title, tags: h.tags, prize_pool: h.prize_pool, deadline: h.deadline,
+            }));
         } catch { /* ignore */ }
     }
 

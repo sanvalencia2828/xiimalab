@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ChevronRight, Trophy, Zap, Clock, Info, FileText, Copy, Sparkles, Loader2, Flame } from "lucide-react";
 import { useWallet } from "@/lib/WalletContext";
-import { acceptRoadmapChallengeAction } from "@/app/actions/roadmap";
+import { acceptRoadmapChallengeAction, saveRoadmapAction, updateRoadmapStepAction } from "@/app/actions/roadmap";
 import { generateProjectAssetsAction } from "@/app/actions/agents";
 import { generateAuraEngagementKitAction, submitToAuraEngagementPoolAction } from "@/app/actions/aura";
 
@@ -30,6 +30,7 @@ interface CoachRoadmapProps {
 
 export default function CoachRoadmap({ hackathonId, roadmap, hackathonTitle = "Hackathon", tags = ["AI", "Web3"], onChallengeAccepted }: CoachRoadmapProps) {
     const [acceptedSteps, setAcceptedSteps] = useState<number[]>([]);
+    const [stepIds, setStepIds] = useState<Record<number, string>>({});
     const { studentAddress } = useWallet();
     const [assets, setAssets] = useState<{readme: string, elevator_pitch: string} | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -49,6 +50,35 @@ export default function CoachRoadmap({ hackathonId, roadmap, hackathonTitle = "H
                 idx, 
                 roadmap.steps[idx].title
             );
+
+            // Persist roadmap to DB on first step acceptance
+            if (Object.keys(stepIds).length === 0) {
+                const saved = await saveRoadmapAction(
+                    studentAddress,
+                    hackathonId,
+                    roadmap.steps[idx].title.split(" ")[0] || "General",
+                    60,
+                    roadmap.steps.map((step, stepIdx) => ({
+                        step_index: stepIdx,
+                        title: step.title,
+                        duration: "0h",
+                        step_type: "Doc",
+                        description: step.description,
+                    }))
+                );
+                if (saved.success) {
+                    const idMap: Record<number, string> = {};
+                    saved.steps?.forEach((s: { step_id: string; step_index: number }) => {
+                        idMap[s.step_index] = s.step_id;
+                    });
+                    setStepIds(idMap);
+                }
+            }
+
+            // Mark step completed via PATCH endpoint
+            if (stepIds[idx]) {
+                await updateRoadmapStepAction(stepIds[idx], true);
+            }
         }
 
         setAcceptedSteps([...acceptedSteps, idx]);

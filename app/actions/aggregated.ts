@@ -1,22 +1,9 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import type { AggregatedHackathon } from "@/lib/types";
 import { getApiBase, safeFetch } from "@/lib/api";
-
-// ── Supabase direct client (server-side, service role) ─────────────────────
-function getSupabase() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) return null;
-    return createClient(url, key);
-}
-
-// ── Helper: internal Vercel URL ─────────────────────────────────────────────
-function getInternalBase() {
-    const vercelUrl = process.env.VERCEL_URL;
-    return vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000";
-}
+import { getLiveHackathons } from "@/lib/hackathons/live";
 
 // ── Sort & filter helpers ───────────────────────────────────────────────────
 function daysUntil(deadline: string) {
@@ -38,53 +25,60 @@ function scoreHackathon(h: AggregatedHackathon, sortBy: string) {
     }
 }
 
-/**
- * Fetch hackathons from Supabase → fallback to internal /api/hackathons
- */
-async function fetchFromSupabase(params: {
+type FetchParams = {
     tags?: string[];
     minPrize?: number;
     sortBy?: string;
     limit?: number;
     offset?: number;
-}): Promise<AggregatedHackathon[]> {
-    const supabase = getSupabase();
+};
 
-    if (supabase) {
-        let query = supabase
-            .from("hackathons")
-            .select("id, title, prize_pool, tags, deadline, match_score, source_url, source")
-            .limit(params.limit ?? 50);
+/** Filtro por tags/premio + orden + paginación, común a todas las fuentes. */
+function applyParams(list: AggregatedHackathon[], params: FetchParams): AggregatedHackathon[] {
+    let hackathons = list;
+    if (params.minPrize) hackathons = hackathons.filter(h => (h.prize_pool ?? 0) >= params.minPrize!);
+    if (params.tags?.length) {
+        hackathons = hackathons.filter(h =>
+            params.tags!.some(tag =>
+                (Array.isArray(h.tags) ? h.tags : []).some((t: string) =>
+                    t.toLowerCase().includes(tag.toLowerCase())
+                )
+            )
+        );
+    }
+    const sortBy = params.sortBy ?? "urgency";
+    hackathons = [...hackathons].sort((a, b) => scoreHackathon(b, sortBy) - scoreHackathon(a, sortBy));
+    const offset = params.offset ?? 0;
+    return hackathons.slice(offset, offset + (params.limit ?? 50));
+}
 
-        if (params.minPrize) query = query.gte("prize_pool", params.minPrize);
-
-        const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-            let hackathons = data as AggregatedHackathon[];
-
-            // Tag filter
-            if (params.tags?.length) {
-                hackathons = hackathons.filter(h =>
-                    params.tags!.some(tag =>
-                        (Array.isArray(h.tags) ? h.tags : []).some((t: string) =>
-                            t.toLowerCase().includes(tag.toLowerCase())
-                        )
-                    )
-                );
-            }
-
-            // Sort
-            const sortBy = params.sortBy ?? "urgency";
-            hackathons.sort((a, b) => scoreHackathon(b, sortBy) - scoreHackathon(a, sortBy));
-
-            return hackathons.slice(params.offset ?? 0);
-        }
+/**
+ * Hackatones en vivo (DoraHacks + Devpost + Devfolio) → fallback a Supabase.
+ * Ya no se auto-llama a /api/hackathons vía VERCEL_URL (Vercel lo bloquea con
+ * Deployment Protection y añade una ida y vuelta innecesaria).
+ */
+async function fetchFromSupabase(params: FetchParams): Promise<AggregatedHackathon[]> {
+    // 1. Agregador en vivo
+    try {
+        const live = await getLiveHackathons();
+        if (live.hackathons.length > 0) return applyParams(live.hackathons, params);
+    } catch (err) {
+        console.warn("[aggregated] live sources failed:", err);
     }
 
-    // Fallback: /api/hackathons
-    const base = getInternalBase();
-    const res = await safeFetch<AggregatedHackathon[]>(`${base}/api/hackathons?limit=${params.limit ?? 50}`);
-    return res ?? [];
+    // 2. Supabase (datos guardados por el scraper / sync)
+    if (supabase) {
+        const { data, error } = await supabase
+            .from("hackathons")
+            .select("id, title, prize_pool, tags, deadline, match_score, source_url, source")
+            .limit(200);
+        if (!error && data && data.length > 0) {
+            const today = new Date().toISOString().slice(0, 10);
+            const open = (data as AggregatedHackathon[]).filter(h => !h.deadline || h.deadline >= today);
+            return applyParams(open, params);
+        }
+    }
+    return [];
 }
 
 // ── Main action ─────────────────────────────────────────────────────────────
@@ -118,7 +112,7 @@ export async function getAggregatedHackathons(params: {
         }
     }
 
-    // 2. Supabase / internal API
+    // 2. Fuentes en vivo / Supabase
     const hackathons = await fetchFromSupabase(params);
     return { hackathons, total: hackathons.length };
 }

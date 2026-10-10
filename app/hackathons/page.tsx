@@ -3,14 +3,15 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Arquitectura de hidratación:
  *   • Este archivo NO tiene "use client" — se ejecuta en el servidor.
- *   • Fetcha active_hackathons desde Supabase en build/request time.
+ *   • Obtiene hackatones en vivo (lib/hackathons/live.ts) en request time.
  *   • Pasa initialData a <AggregatedHackathonsClient> que maneja filtros + SSE.
- *   • Si Supabase no responde → fallback a /api/hackathons (FastAPI).
+ *   • Si las fuentes en vivo fallan → fallback a Supabase.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { Suspense }      from "react";
 import { Zap, Database } from "lucide-react";
 import { supabase, type ActiveHackathon } from "@/lib/supabase";
+import { getLiveHackathons } from "@/lib/hackathons/live";
 import { AggregatedHackathonsClient } from "@/components/AggregatedHackathonsClient";
 import WalletOnboardingModal   from "@/components/WalletOnboardingModal";
 
@@ -19,43 +20,26 @@ export const dynamic = "force-dynamic";
 
 // ── Fetch de datos ────────────────────────────────────────
 async function fetchHackathons(): Promise<ActiveHackathon[]> {
-    // 1. Intentar Supabase directamente
+    // 1. Fuentes en vivo (DoraHacks + Devpost + Devfolio)
+    try {
+        const live = await getLiveHackathons();
+        if (live.hackathons.length > 0) return live.hackathons;
+    } catch (err) {
+        console.warn("[hackatones/page] live sources error:", err);
+    }
+
+    // 2. Supabase (datos del scraper)
     if (supabase) {
         const { data, error } = await supabase
             .from("hackathons")
             .select("id, title, prize_pool, tags, deadline, match_score, source_url, source, scraped_at")
             .order("match_score", { ascending: false })
             .limit(50);
-
-        if (!error && data && data.length > 0) {
-            return data as unknown as ActiveHackathon[];
-        }
-        if (error) {
-            console.error("[hackatones/page] Supabase error:", error.message);
-        }
-    } else {
-        console.info("[hackatones/page] Supabase no configurada — usando fallback API");
+        if (!error && data && data.length > 0) return data as unknown as ActiveHackathon[];
+        if (error) console.error("[hackatones/page] Supabase error:", error.message);
     }
 
-    // 2. Fallback → API route interna
-    // En Vercel usar VERCEL_URL; en local usar localhost:3000
-    try {
-        const vercelUrl = process.env.VERCEL_URL;
-        const base = vercelUrl
-            ? `https://${vercelUrl}`
-            : (process.env.NEXTAUTH_URL ?? "http://localhost:3000");
-        const res = await fetch(`${base}/api/hackathons?limit=50`, {
-            next: { revalidate: 300 },
-        });
-        if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data)) return data as unknown as ActiveHackathon[];
-        }
-    } catch (err) {
-        console.warn("[hackatones/page] Fallback API error:", err);
-    }
-
-    // 3. Sin datos — el cliente mostrará "Buscando nuevas oportunidades..."
+    // 3. Sin datos — el cliente mostrará su estado vacío
     return [];
 }
 
@@ -117,7 +101,7 @@ export default async function HackatonesPage() {
                     <div className="flex items-center gap-2">
                         <span className="badge-accent flex items-center gap-1.5">
                             <Database className="w-3 h-3" />
-                            {initialData.length} en base de datos
+                            {initialData.length > 0 ? `${initialData.length} abiertas ahora` : "Sin convocatorias abiertas"}
                         </span>
                         <span className="badge-emerald flex items-center gap-1.5">
                             <Zap className="w-3 h-3" />

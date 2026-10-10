@@ -30,8 +30,8 @@ export async function GET() {
 }
 
 const FALLBACK_SKILLS = [
-    { id: 1, label: "Data Analytics", sublabel: "NODO-EAFIT", userScore: 82, marketDemand: 90, color: "#7dd3fc" },
-    { id: 2, label: "Docker & DevOps", sublabel: "Containerización", userScore: 75, marketDemand: 85, color: "#38bdf8" },
-    { id: 3, label: "Blockchain", sublabel: "Stellar · Avalanche", userScore: 68, marketDemand: 78, color: "#f59e0b" },
-    { id: 4, label: "AI / ML", sublabel: "Python · Modelos", userScore: 70, marketDemand: 95, color: "#a78bfa" },
+    { id: 1, label: "Data Analytics", sublabel: "NODO-EAFIT", user_score: 82, market_demand: 90, color: "#7dd3fc" },
+    { id: 2, label: "Docker & DevOps", sublabel: "Containerización", user_score: 75, market_demand: 85, color: "#38bdf8" },
+    { id: 3, label: "Blockchain", sublabel: "Stellar · Avalanche", user_score: 68, market_demand: 78, color: "#f59e0b" },
+    { id: 4, label: "AI / ML", sublabel: "Python · Modelos", user_score: 70, market_demand: 95, color: "#a78bfa" },
 ];

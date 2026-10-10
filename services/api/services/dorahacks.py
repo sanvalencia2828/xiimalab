@@ -16,6 +16,10 @@ log = logging.getLogger("xiima.dorahacks_scraper")
 
 DORAHACKS_BASE_URL = "https://dorahacks.com"
 DORAHACKS_API_URL = "https://dorahacks.io/hackathon"
+DORAHACKS_HUB_API = "https://dorahacks.io/api/v1/hub/hackathons"
+
+PAGE_SIZE = 50
+MAX_PAGES = 6  # up to 300 hackathons per sync
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -102,6 +106,20 @@ def extract_deadline(date_text: str) -> str:
     
     date_text = date_text.strip()
     
+    # Epoch timestamp (seconds or milliseconds)
+    m = re.fullmatch(r"\d{9,13}", date_text)
+    if m:
+        try:
+            ts = int(date_text)
+            if ts > 10_000_000_000_0:
+                ts /= 1000
+            parsed = datetime.fromtimestamp(ts)
+            # Reject absurd future dates beyond year 2100
+            if 2020 <= parsed.year <= 2100:
+                return parsed.strftime("%Y-%m-%d")
+        except (ValueError, OSError, OverflowError):
+            pass
+    
     date_patterns = [
         (r"(\d{4})-(\d{2})-(\d{2})", "%Y-%m-%d"),
         (r"(\d{2})/(\d{2})/(\d{4})", "%m/%d/%Y"),
@@ -155,31 +173,41 @@ def extract_tags(text: str) -> list[str]:
 
 async def fetch_dorahacks_api() -> list[dict[str, Any]]:
     """
-    Fetch hackathons from DoraHacks API/GraphQL endpoint.
-    Falls back to web scraping if API is unavailable.
+    Fetch hackathons from the real DoraHacks hub API (pagination-aware).
+    GET https://dorahacks.io/api/v1/hub/hackathons?page=N&page_size=50
+    Response: { count, next, previous, results: [...] }
     """
-    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS) as client:
-        try:
-            response = await client.get(
-                "https://api.dorahacks.com/v1/hackathon/list",
-                params={
-                    "status": "ongoing",
-                    "page": 1,
-                    "pageSize": 50,
-                }
-            )
-            
-            if response.status_code == 200:
+    results: list[dict[str, Any]] = []
+    
+    async with httpx.AsyncClient(timeout=30.0, headers=HEADERS, follow_redirects=True) as client:
+        page = 1
+        while page <= MAX_PAGES:
+            try:
+                response = await client.get(
+                    DORAHACKS_HUB_API,
+                    params={"page": page, "page_size": PAGE_SIZE},
+                )
+                
+                if response.status_code != 200:
+                    log.warning(f"DoraHacks API returned status {response.status_code}")
+                    break
+                
                 data = response.json()
-                if "data" in data and "hackathons" in data["data"]:
-                    return data["data"]["hackathons"]
-                elif isinstance(data, list):
-                    return data
-                    
-        except httpx.RequestError as exc:
-            log.warning(f"DoraHacks API request failed: {exc}")
+                if not isinstance(data, dict):
+                    break
+                
+                items = data.get("results", [])
+                results.extend(items)
+                
+                next_url = data.get("next")
+                if not next_url or not items:
+                    break
+                page += 1
+            except httpx.RequestError as exc:
+                log.warning(f"DoraHacks API request failed on page {page}: {exc}")
+                break
         
-        return []
+    return results
 
 
 async def scrape_dorahacks_page() -> list[dict[str, Any]]:
@@ -224,32 +252,63 @@ async def scrape_dorahacks_page() -> list[dict[str, Any]]:
 
 
 def parse_dorahacks_hackathon(raw: dict[str, Any]) -> DoraHackathon:
-    """Parse raw DoraHacks data into structured format."""
-    title = raw.get("title", raw.get("name", "Untitled"))
-    hack_id = raw.get("id", generate_hackathon_id(title))
+    """Parse raw DoraHacks hub API data into structured format."""
+    title = raw.get("title") or raw.get("name") or "Untitled"
     
-    prize_raw = raw.get("prize", raw.get("prize_pool", raw.get("reward", "")))
+    # Stable deterministic id: prefer the canonical slug (uname)
+    uname = raw.get("uname") or ""
+    raw_id = raw.get("id") or generate_hackathon_id(title)
+    hack_id = f"dorahacks-{uname}" if uname else f"dorahacks-{raw_id}"
+    
+    # Prize: bonus_price (+ bonus_token)
+    prize_raw = raw.get("bonus_price", raw.get("prize", raw.get("prize_pool", raw.get("reward", ""))))
     prize_pool = extract_prize_amount(str(prize_raw))
+    if isinstance(prize_raw, (int, float)):
+        prize_pool = int(prize_raw)
     
-    deadline_raw = raw.get("deadline", raw.get("end_time", raw.get("due_time", "")))
+    # Deadline: timeline_end (epoch) preferred, then pre_register, then string fields
+    deadline_raw = raw.get("timeline_pre_register") or raw.get("timeline_end") \
+        or raw.get("deadline") or raw.get("end_time") or raw.get("due_time") or ""
     deadline = extract_deadline(str(deadline_raw))
     
     description = raw.get("description", raw.get("brief", ""))
     
-    tags = extract_tags(f"{title} {description}")
+    # Tags: hub API returns comma-separated strings (tags + ecosystem)
+    tags_raw = raw.get("tags") or ""
+    if isinstance(tags_raw, str):
+        tags_list = [t.strip() for t in tags_raw.split(",") if t.strip()]
+    elif isinstance(tags_raw, list):
+        tags_list = [str(t).strip() for t in tags_raw if str(t).strip()]
+    else:
+        tags_list = []
+    
+    ecosystem_raw = raw.get("ecosystem") or ""
+    if isinstance(ecosystem_raw, str):
+        for t in ecosystem_raw.split(","):
+            t = t.strip()
+            if t and t not in tags_list:
+                tags_list.append(t)
+    
+    # Existing keyword-based extraction as a fallback for missing tags
+    if not tags_list:
+        tags_list = extract_tags(f"{title} {description}")
     
     source_url = raw.get("source_url", raw.get("url", raw.get("link", "")))
     if not source_url:
-        source_url = f"{DORAHACKS_BASE_URL}/hackathon/{hack_id}"
+        source_url = f"{DORAHACKS_BASE_URL}/hackathon/{uname or raw_id}"
     
     tech_stack = raw.get("tech_stack", raw.get("technologies", []))
     if isinstance(tech_stack, str):
         tech_stack = [t.strip() for t in tech_stack.split(",")]
     
     difficulty = raw.get("difficulty", raw.get("level", ""))
-    organizer = raw.get("organizer", raw.get("org", ""))
-    city = raw.get("city", raw.get("location", ""))
-    event_type = raw.get("type", raw.get("format", "online"))
+    
+    owner = raw.get("owner") or {}
+    organizer = raw.get("organizer") or (owner.get("name") if isinstance(owner, dict) else "") \
+        or raw.get("org", "")
+    
+    city = raw.get("venue_name") or raw.get("city") or raw.get("location", "")
+    event_type = raw.get("venue_form") or raw.get("type") or raw.get("format", "online")
     
     return DoraHackathon(
         id=str(hack_id),
@@ -257,14 +316,14 @@ def parse_dorahacks_hackathon(raw: dict[str, Any]) -> DoraHackathon:
         description=description[:500] if description else None,
         prize_pool=prize_pool,
         deadline=deadline,
-        tags=tags,
+        tags=tags_list[:8],
         source_url=source_url,
         source="dorahacks",
         match_score=0,
         tech_stack=tech_stack,
         difficulty=difficulty,
         organizer=organizer,
-        city=city,
+        city=city if isinstance(city, str) else "",
         event_type=event_type,
     )
 
