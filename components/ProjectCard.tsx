@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { CheckCircle2, Circle, Clock, ExternalLink, Github } from "lucide-react";
+import ProjectProgressPanel from "@/components/ProjectProgressPanel";
+import type { ProjectProgress } from "@/lib/projects/progress";
 
 export type ProjectStatus = "active" | "in-development" | "paused" | "completed";
 
@@ -27,6 +29,8 @@ export interface ProjectCardProps {
     liveUrl?: string;
     author?: ProjectAuthor;
     license?: string;
+    progress?: ProjectProgress | null;
+    progressLoading?: boolean;
     onStatusChange?: (newStatus: ProjectStatus) => void;
 }
 
@@ -94,6 +98,8 @@ export default function ProjectCard({
     liveUrl,
     author,
     license,
+    progress,
+    progressLoading = false,
     onStatusChange,
 }: ProjectCardProps) {
     const liveLink = url ?? liveUrl;
@@ -193,6 +199,8 @@ export default function ProjectCard({
                     ))}
                 </div>
             )}
+
+            <ProjectProgressPanel progress={progress} loading={progressLoading} accentColor={accentColor} />
 
             {(liveLink || repoLink) && (
                 <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06]">
