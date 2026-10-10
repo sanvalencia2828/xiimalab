@@ -59,6 +59,23 @@ const PROJECTS: ProjectCardProps[] = [
         liveUrl: "https://regenmon-chat.vercel.app",
         githubUrl: "https://github.com/sanvalencia2828/regen-buddy",
     },
+    {
+        title: "Pulsar Radar",
+        description: "Radar de memecoins de Solana en tiempo real — puntúa potencial y riesgo de cada token desde sus primeros minutos, con mapa visual y alertas",
+        status: "active",
+        stack: ["Next.js", "TypeScript", "Tailwind", "FastAPI", "DexScreener API", "Solana"],
+        metrics: { scores: "2 (0–100)", etapas: 4, refresh: "5s" },
+        accentColor: "#ff4524",
+        liveUrl: "https://miguelangel213.github.io/pulsar-radar/",
+        githubUrl: "https://github.com/miguelangel213/pulsar-radar",
+        author: {
+            name: "Miguel Ángel",
+            handle: "miguelangel213",
+            profileUrl: "https://github.com/miguelangel213",
+            role: "Creado por",
+        },
+        license: "MIT",
+    },
 ];
 
 export default function ProjectsPage() {

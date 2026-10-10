@@ -5,6 +5,13 @@ import { CheckCircle2, Circle, Clock, ExternalLink, Github } from "lucide-react"
 
 export type ProjectStatus = "active" | "in-development" | "paused" | "completed";
 
+export interface ProjectAuthor {
+    name: string;
+    handle?: string;
+    profileUrl?: string;
+    role?: string;
+}
+
 export interface ProjectCardProps {
     title: string;
     description: string;
@@ -18,6 +25,8 @@ export interface ProjectCardProps {
     className?: string;
     githubUrl?: string;
     liveUrl?: string;
+    author?: ProjectAuthor;
+    license?: string;
     onStatusChange?: (newStatus: ProjectStatus) => void;
 }
 
@@ -83,8 +92,12 @@ export default function ProjectCard({
     className = "",
     githubUrl,
     liveUrl,
+    author,
+    license,
     onStatusChange,
 }: ProjectCardProps) {
+    const liveLink = url ?? liveUrl;
+    const repoLink = repo ?? githubUrl;
     const cfg = statusConfig[initialStatus];
     const StatusIcon = cfg.icon;
 
@@ -111,6 +124,25 @@ export default function ProjectCard({
             <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                     <h3 className="text-lg font-bold text-white tracking-tight mb-0.5">{title}</h3>
+                    {author && (
+                        <p className="text-xs text-muted-text mb-1">
+                            {author.role ?? "Autor"}:{" "}
+                            {author.profileUrl ? (
+                                <a
+                                    href={author.profileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-accent hover:underline"
+                                >
+                                    {author.name}
+                                    {author.handle ? ` (@${author.handle})` : ""}
+                                </a>
+                            ) : (
+                                <span className="text-slate-300">{author.name}</span>
+                            )}
+                            {license ? ` · Licencia ${license}` : ""}
+                        </p>
+                    )}
                     <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">{description}</p>
                 </div>
 
@@ -162,11 +194,11 @@ export default function ProjectCard({
                 </div>
             )}
 
-            {(url || repo) && (
+            {(liveLink || repoLink) && (
                 <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06]">
-                    {url && (
+                    {liveLink && (
                         <a
-                            href={url}
+                            href={liveLink}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm group/link"
@@ -175,9 +207,9 @@ export default function ProjectCard({
                             <ExternalLink className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
                         </a>
                     )}
-                    {repo && (
+                    {repoLink && (
                         <a
-                            href={repo}
+                            href={repoLink}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn-ghost flex items-center justify-center p-2"
