@@ -19,6 +19,7 @@ import {
   Target,
   Briefcase,
   Database,
+  Coins,
   Menu,
   X,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/dashboard", icon: Cpu, label: "Dashboard Estudiante" },
   { href: "/skills", icon: Brain, label: "Skills" },
   { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
+  { href: "/bounties", icon: Coins, label: "Bounties" },
   { href: "/aggregated", icon: Database, label: "Aggregated" },
   { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
   { href: "/match", icon: BarChart3, label: "Market Match", badgeKey: "insights" },
