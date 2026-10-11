@@ -230,6 +230,21 @@ export function parseDevpostEnd(period: string): string {
     return toIsoDate(new Date(Date.UTC(year, month, Number(dayM[1]))));
 }
 
+// Símbolo o código que Devpost antepone al importe ("$", "₹ ", "€", "CA$"…). Los más largos primero.
+const CURRENCY_PREFIXES: [string, string][] = [
+    ["CA$", "CAD"], ["C$", "CAD"], ["A$", "AUD"], ["R$", "BRL"], ["MX$", "MXN"], ["S$", "SGD"],
+    ["₹", "INR"], ["€", "EUR"], ["£", "GBP"], ["¥", "JPY"], ["$", "USD"],
+];
+
+/** "₹ 100,000" → "INR" · "$138,000" → "USD" · "CHF 5,000" → "CHF" · sin símbolo → null */
+export function currencyFromPrizeText(text: string): string | null {
+    const prefix = text.replace(/[0-9.,\s]/g, "").toUpperCase();
+    if (!prefix) return null;
+    const known = CURRENCY_PREFIXES.find(([symbol]) => prefix === symbol);
+    if (known) return known[1];
+    return /^[A-Z]{3}$/.test(prefix) ? prefix : null;
+}
+
 export function parseDevpost(raw: unknown): AggregatedHackathon | null {
     if (!isObj(raw)) return null;
     const title = str(raw.title);
@@ -237,10 +252,12 @@ export function parseDevpost(raw: unknown): AggregatedHackathon | null {
     const prizeText = str(raw.prize_amount).replace(/<[^>]*>/g, "");
     const location = isObj(raw.displayed_location) ? str(raw.displayed_location.location) : "";
     const tags = splitList(raw.themes);
+    const prize_pool = Math.round(num(prizeText));
     return base({
         id: `devpost-${str(raw.id) || title.toLowerCase().replace(/\W+/g, "-")}`,
         title,
-        prize_pool: Math.round(num(prizeText)),
+        prize_pool,
+        prize_currency: prize_pool > 0 ? currencyFromPrizeText(prizeText) : null,
         tags,
         deadline: parseDevpostEnd(str(raw.submission_period_dates)),
         source_url: str(raw.url) || "https://devpost.com/hackathons",
@@ -296,6 +313,7 @@ export function parseDevfolio(raw: unknown): AggregatedHackathon | null {
             id: `devfolio-${str(raw.uuid) || slug}`,
             title,
             prize_pool,
+            prize_currency: prize_pool > 0 ? "USD" : null, // solo se suman premios en USD/USDC/USDT
             tags,
             deadline: toIsoDate(endsAt ? new Date(endsAt) : null),
             source_url: sub ? `https://${sub}.devfolio.co/` : "https://devfolio.co/hackathons",
@@ -362,6 +380,7 @@ function dedupe(list: AggregatedHackathon[]): AggregatedHackathon[] {
         map.set(key, {
             ...prev,
             prize_pool: Math.max(prev.prize_pool, h.prize_pool),
+            prize_currency: h.prize_pool > prev.prize_pool ? h.prize_currency : prev.prize_currency,
             tags: uniq([...prev.tags, ...h.tags]).slice(0, 10),
             match_score: Math.max(prev.match_score, h.match_score),
             source_metadata: {
