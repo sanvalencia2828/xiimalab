@@ -8,3 +8,4 @@
 ## Avance de los tracks (`hooks/useLearningProgress.ts`)
 
 - [ ] El avance de los tracks (hitos marcados y su fecha) se guarda en `localStorage`, así que no se comparte entre dispositivos ni navegadores. Moverlo a Supabase para sincronizarlo, y con él la acción del logro de match (`lib/hackathons/actions.ts`); el dashboard podrá entonces leerlo en el servidor sin que el cliente lo envíe.
+- [ ] Los datos de Mi Perfil (nombre, bio, foto y enlaces) también se guardan en `localStorage` (`hooks/useProfile.ts`, clave `xiimalab_profile`). Moverlos a Supabase junto con el avance de los tracks.

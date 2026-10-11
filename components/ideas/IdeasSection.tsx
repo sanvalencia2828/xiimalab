@@ -184,7 +184,7 @@ export function IdeasSection() {
     ];
 
     return (
-        <section className="card-premium p-5">
+        <section id="ideas" className="card-premium p-5 scroll-mt-24">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Lightbulb className="w-5 h-5 text-accent" />
