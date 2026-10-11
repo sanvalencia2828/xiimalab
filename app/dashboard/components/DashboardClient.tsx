@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { CalendarCheck, Layers, Loader2, Sparkles, Target } from "lucide-react";
 import { getDashboardAction } from "@/app/actions/dashboard";
+import { FirstHackathonCard, showFirstHackathonCard } from "@/components/first-hackathon/FirstHackathonCard";
+import { useFirstHackathon } from "@/hooks/useFirstHackathon";
 import { useLearningProgress } from "@/hooks/useLearningProgress";
 import { useProfile } from "@/hooks/useProfile";
 import type { DashboardData } from "@/lib/dashboard/types";
-import { readHackathonAction } from "@/lib/hackathons/actions";
+import { type HackathonAction, readHackathonAction } from "@/lib/hackathons/actions";
 import {
     AchievementsSection, DemandRanking, PracticeSection, ProjectsSection, SkillsMap, TracksSection, WalletCard,
 } from "./Sections";
@@ -70,15 +72,19 @@ function SummaryCards({ data }: { data: DashboardData }) {
 export default function DashboardClient() {
     const { state, loaded, toggleMilestone } = useLearningProgress();
     const { profile, loaded: profileLoaded } = useProfile();
+    const { state: firstHackathon, loaded: firstHackathonLoaded } = useFirstHackathon();
+    const [matchAction, setMatchAction] = useState<HackathonAction | null>(null);
     const [data, setData] = useState<DashboardData | null>(null);
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
 
-    // El avance y la acción sobre una hackatón viven en el navegador: se envían al servidor, que devuelve el dashboard ya calculado
+    // El avance, la acción sobre una hackatón y el plan de la primera viven en el navegador: se envían al servidor, que devuelve el dashboard ya calculado
     useEffect(() => {
-        if (!loaded || !profileLoaded) return;
+        if (!loaded || !profileLoaded || !firstHackathonLoaded) return;
         let cancelled = false;
-        getDashboardAction(state, readHackathonAction(), profile.certifications)
+        const action = readHackathonAction();
+        setMatchAction(action);
+        getDashboardAction(state, action, profile.certifications, firstHackathon)
             .then((next) => {
                 if (cancelled) return;
                 setData(next);
@@ -90,7 +96,7 @@ export default function DashboardClient() {
         return () => {
             cancelled = true;
         };
-    }, [loaded, profileLoaded, state, profile.certifications, attempt]);
+    }, [loaded, profileLoaded, firstHackathonLoaded, state, profile.certifications, firstHackathon, attempt]);
 
     if (!data) {
         return failed ? (
@@ -112,6 +118,12 @@ export default function DashboardClient() {
     return (
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
             <SummaryCards data={data} />
+
+            {showFirstHackathonCard(firstHackathon, matchAction !== null) && (
+                <motion.div variants={itemVariants}>
+                    <FirstHackathonCard plan={firstHackathon} />
+                </motion.div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 <div className="lg:col-span-2 space-y-6">

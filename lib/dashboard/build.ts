@@ -5,13 +5,15 @@
  *   • el avance de los tracks (hitos marcados, con su fecha),
  *   • los proyectos del portafolio y su avance medido en GitHub,
  *   • las hackatones abiertas del agregador en vivo,
- *   • la primera acción del usuario sobre una hackatón con match alto.
+ *   • la primera acción del usuario sobre una hackatón con match alto,
+ *   • la primera hackatón enviada con el plan de /first-hackathon.
  *
  * Si GitHub o el agregador fallan, la sección afectada llega vacía o marcada
  * como no disponible; nunca se rellena con valores de ejemplo.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { MATCH_ACHIEVEMENT_SCORE, type HackathonAction } from "@/lib/hackathons/actions";
+import type { FirstHackathonSubmission } from "@/lib/first-hackathon/plan";
 import { getLiveHackathons, type LiveResult, type LiveSource } from "@/lib/hackathons/live";
 import { rankTracks } from "@/lib/learning/demand";
 import { reinforceLink } from "@/lib/learning/resources";
@@ -82,6 +84,20 @@ function measured(p: PortfolioProject): ProjectProgress | null {
     return p.progress && !p.progress.error ? p.progress : null;
 }
 
+/** Proyecto que cubre más de las skills pedidas; a igualdad, el más avanzado. null si ninguno cubre alguna. */
+export function bestProjectFor(asked: string[], projects: PortfolioProject[]): PortfolioProject | null {
+    return (
+        projects
+            .map((project) => ({
+                project,
+                overlap: asked.filter((skill) => project.skills.includes(skill)).length,
+                percent: measured(project)?.percent ?? 0,
+            }))
+            .filter((p) => p.overlap > 0)
+            .sort((a, b) => b.overlap - a.overlap || b.percent - a.percent)[0]?.project ?? null
+    );
+}
+
 function projectRow(p: PortfolioProject): ProjectRow {
     const progress = measured(p);
     const roadmap = progress?.roadmap;
@@ -136,6 +152,22 @@ function nextMilestones(active: Track[], state: LearningState, projects: Portfol
     return rows;
 }
 
+/** Cómo reforzar una skill: el track y el primer hito pendiente que la cubren, y un recurso reconocido. */
+export function reinforcePath(
+    skill: string,
+    state: LearningState,
+    activeIds: Set<string>,
+): Pick<SkillRow, "track" | "milestone" | "resource"> {
+    const where = whereToLearn(skill, state, activeIds);
+    return {
+        track: where ? { id: where.track.id, title: where.track.title, active: activeIds.has(where.track.id) } : null,
+        milestone: where?.milestone
+            ? { id: where.milestone.id, text: where.milestone.text, href: `/roadmap/${where.track.id}#${where.milestone.id}` }
+            : null,
+        resource: reinforceLink(skill, skillLabel(skill)),
+    };
+}
+
 /** Dónde se aprende una skill: la primera fase que la cubre y aún tiene hitos pendientes (antes en tracks activos). */
 export function whereToLearn(
     skill: string,
@@ -170,7 +202,6 @@ function skillMap(
     for (const skill of SKILLS) {
         if (demand[skill] < high) continue;
         const used = projects.filter((p) => p.skills.includes(skill)).map((p) => p.name);
-        const where = whereToLearn(skill, state, activeIds);
         const certification = certificationFor(skill, certifications);
         const row: SkillRow = {
             key: skill,
@@ -178,11 +209,7 @@ function skillMap(
             projects: used,
             certification: certification ? { provider: certification.provider, url: certification.url } : null,
             demand: demand[skill],
-            track: where ? { id: where.track.id, title: where.track.title, active: activeIds.has(where.track.id) } : null,
-            milestone: where?.milestone
-                ? { id: where.milestone.id, text: where.milestone.text, href: `/roadmap/${where.track.id}#${where.milestone.id}` }
-                : null,
-            resource: reinforceLink(skill, skillLabel(skill)),
+            ...reinforcePath(skill, state, activeIds),
         };
         (used.length > 0 || certification ? strong : toReinforce).push(row);
     }
@@ -204,15 +231,7 @@ function practice(phases: Phase[], projects: PortfolioProject[], hackathons: Agg
         .sort((a, b) => b.matched.length - a.matched.length || a.h.deadline.localeCompare(b.h.deadline))
         .slice(0, PRACTICE_HACKATHONS)
         .map(({ h, matched }) => {
-            const asked = findSkills(SKILLS, h.tags ?? []);
-            const best = projects
-                .map((p) => ({
-                    name: p.name,
-                    overlap: asked.filter((skill) => p.skills.includes(skill)).length,
-                    percent: measured(p)?.percent ?? 0,
-                }))
-                .filter((p) => p.overlap > 0)
-                .sort((a, b) => b.overlap - a.overlap || b.percent - a.percent)[0];
+            const best = bestProjectFor(findSkills(SKILLS, h.tags ?? []), projects);
             return {
                 id: h.id,
                 title: h.title,
@@ -230,6 +249,7 @@ function achievements(
     projects: PortfolioProject[],
     hackathons: AggregatedHackathon[] | null,
     matchAction: HackathonAction | null,
+    firstHackathon: FirstHackathonSubmission | null,
 ): AchievementRow[] {
     const dates = Object.values(state.done).sort();
     const halfway = TRACKS.map((track) => ({ track, progress: trackProgress(track, state.done) }))
@@ -273,6 +293,15 @@ function achievements(
             date: matchAction?.at ?? null,
         },
         {
+            id: "first-hackathon",
+            title: "Primera hackatón enviada",
+            unlocked: Boolean(firstHackathon),
+            detail: firstHackathon
+                ? `Enviaste ${firstHackathon.title}`
+                : "Se desbloquea al completar el plan de 7 días del Modo primera hackatón",
+            date: firstHackathon?.at ?? null,
+        },
+        {
             id: "roadmap-100",
             title: "Proyecto con roadmap al 100 %",
             unlocked: Boolean(finished),
@@ -288,6 +317,7 @@ export async function buildDashboard(
     state: LearningState,
     matchAction: HackathonAction | null = null,
     certifications: Certification[] = [],
+    firstHackathon: FirstHackathonSubmission | null = null,
     now: Date = new Date(),
 ): Promise<DashboardData> {
     const [live, projects] = await Promise.all([loadHackathons(), loadProjects()]);
@@ -334,7 +364,7 @@ export async function buildDashboard(
         skills: skillMap(state, activeIds, projects, hackathons, certifications),
         practicePhases: currentPhases.map((phase) => phase.title),
         practice: practice(currentPhases, projects, hackathons),
-        achievements: achievements(state, projects, live ? hackathons : null, matchAction),
+        achievements: achievements(state, projects, live ? hackathons : null, matchAction, firstHackathon),
         ranking: {
             rows: rankTracks(TRACKS, hackathons, now).map((row) => ({
                 ...row,
