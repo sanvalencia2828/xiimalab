@@ -21,9 +21,10 @@ Hub personal de IA y Blockchain: portafolio de proyectos conectado a hackatones 
 - [x] Integración con Devfolio (API pública y MCP)
 - [x] Agregador en vivo en Next.js: DoraHacks + Devpost + Devfolio sin depender de FastAPI
 - [x] Corregir el formato de /api/hackathons para que todas las pantallas reciban la lista
-- [ ] Publicar en producción el agregador en vivo y comprobar /api/hackathons?debug=1
-- [ ] Confirmar que DoraHacks responde desde los servidores de Vercel (si no, usar el scraper como respaldo)
-- [ ] Añadir bounties activos (p. ej. Superteam Earn, Gitcoin, Layer3)
+- [x] Publicar en producción el agregador en vivo y comprobar /api/hackathons?debug=1
+- [x] Confirmar que DoraHacks responde desde los servidores de Vercel (si no, usar el scraper como respaldo)
+- [ ] Añadir los bounties de Superteam Earn al agregador
+- [ ] Añadir otros bounties activos (p. ej. Gitcoin, Layer3)
 - [ ] Guardar las hackatones en Supabase con un cron (Vercel Cron o GitHub Actions)
 - [ ] Notificaciones de hackatones que cierran pronto conectadas a datos reales
 
@@ -57,4 +58,6 @@ Hub personal de IA y Blockchain: portafolio de proyectos conectado a hackatones 
 - [ ] Añadir un archivo LICENSE
 - [ ] Limpiar la raíz del repo: logs (*.log, ts_errors.txt) y reportes .md antiguos a docs/
 - [ ] Resolver el desajuste del servicio frontend en docker-compose.yml (contexto de build)
-- [ ] Unir la rama ui/premium-design-system a main
+- [x] Unir la rama ui/premium-design-system a main
+- [ ] Mover el repositorio fuera de OneDrive (rompe la carpeta .next de Next.js)
+- [ ] Rotar la clave del MCP de Devfolio, si aún no está hecho (también la de .claude/settings.local.json)
