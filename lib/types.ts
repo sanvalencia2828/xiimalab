@@ -116,6 +116,7 @@ export interface AggregatedHackathon extends Hackathon {
   event_type?:              string | null;        // "virtual" | "in-person" | "hybrid"
   description?:             string | null;
   participation_count_estimate?: number | null;
+  prize_currency?:          string | null;        // ISO code; ausente o "USD" → se muestra con $
 
   // Phase 3 Scoring
   urgency_score?:           number | null;
