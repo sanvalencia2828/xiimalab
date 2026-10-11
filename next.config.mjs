@@ -8,6 +8,13 @@ const nextConfig = {
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "",
     },
 
+    // @stellar/stellar-sdk intenta cargar sodium-native (módulo nativo opcional); sin él usa
+    // tweetnacl, que es lo que queremos en el navegador y en Vercel. Aquí solo se usa StrKey.
+    webpack(config) {
+        config.resolve.alias = { ...config.resolve.alias, "sodium-native": false };
+        return config;
+    },
+
     // Imágenes externas permitidas
     images: {
         remotePatterns: [

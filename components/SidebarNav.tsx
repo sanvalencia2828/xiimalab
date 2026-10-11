@@ -21,6 +21,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { abbreviateAddress } from "@/lib/wallets/address";
 import { useWallet } from "@/lib/WalletContext";
 
 // -------------------------------------------------------
@@ -43,8 +44,7 @@ const navItems: { href: string; icon: typeof Zap; label: string; badgeKey?: stri
 // -------------------------------------------------------
 export default function SidebarNav() {
   const pathname = usePathname();
-  const { isConnected, publicKey, displayName } = useWallet();
-  const isLoaded = true; // WalletContext is always ready client-side
+  const { isConnected, isLoaded, publicKey } = useWallet();
   const [badges, setBadges] = useState<Record<string, number>>({});
   const [isOpen, setIsOpen] = useState(false);
 
@@ -165,17 +165,15 @@ export default function SidebarNav() {
                   </div>
                 ) : isConnected ? (
                   <>
-                    <p className="text-xs font-semibold text-emerald-400 truncate">
-                      {displayName ?? "Wallet conectada"}
+                    <p className="text-xs font-semibold text-emerald-400 font-mono truncate">
+                      {publicKey ? abbreviateAddress(publicKey) : ""}
                     </p>
-                    <p className="text-xs text-muted-text font-mono truncate">
-                      {publicKey?.slice(0, 8)}…{publicKey?.slice(-4)}
-                    </p>
+                    <p className="text-xs text-muted-text">Wallet Stellar vinculada</p>
                   </>
                 ) : (
                   <>
                     <p className="text-xs font-semibold text-amber-400">Sin wallet</p>
-                    <p className="text-xs text-muted-text">Conectar en Ajustes</p>
+                    <p className="text-xs text-muted-text">Conectar en Configuración</p>
                   </>
                 )}
               </div>
