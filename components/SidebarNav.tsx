@@ -19,6 +19,7 @@ import {
   Target,
   Briefcase,
   Database,
+  Map,
   Menu,
   X,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Inicio" },
   { href: "/dashboard", icon: Cpu, label: "Dashboard Estudiante" },
   { href: "/skills", icon: Brain, label: "Skills" },
+  { href: "/roadmap", icon: Map, label: "Roadmap" },
   { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
   { href: "/aggregated", icon: Database, label: "Aggregated" },
   { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
