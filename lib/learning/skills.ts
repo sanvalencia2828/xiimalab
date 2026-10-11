@@ -1,24 +1,29 @@
 /**
  * lib/learning/skills.ts
  * Vocabulario de skills compartido por tracks, proyectos y hackatones: las
- * etiquetas de lib/hackathons/match.ts, sin las que describen un formato de
- * convocatoria ("open track") en vez de una skill.
+ * etiquetas de lib/hackathons/match.ts (las que pesan en el match y las propias
+ * de los tracks), sin las que describen un formato de convocatoria ("open
+ * track") en vez de una skill.
  */
-import { SKILL_WEIGHTS } from "@/lib/hackathons/match";
+import { LEARNING_SKILLS, SKILL_SYNONYMS, SKILL_WEIGHTS } from "@/lib/hackathons/match";
 import { matchSkills } from "./connect";
 
 const NOT_SKILLS = new Set(["open track", "open ended"]);
 
-// Etiquetas de match.ts que nombran la misma skill: cuentan como una sola
-const SYNONYMS: Record<string, string[]> = { ml: ["machine learning"] };
+// Etiquetas con peso propio que son sinónimo de otra ("machine learning" → "ml"): cuentan como una sola skill
 const CANONICAL: Record<string, string> = Object.fromEntries(
-    Object.entries(SYNONYMS).flatMap(([skill, others]) => others.map((other) => [other, skill])),
+    Object.entries(SKILL_SYNONYMS).flatMap(([skill, others]) =>
+        others.filter((other) => other in SKILL_WEIGHTS).map((other) => [other, skill]),
+    ),
 );
 
-/** Skills reconocidas (sin sinónimos repetidos), de mayor a menor peso en el match. */
-export const SKILLS: string[] = Object.keys(SKILL_WEIGHTS)
-    .filter((skill) => !NOT_SKILLS.has(skill) && !CANONICAL[skill])
-    .sort((a, b) => SKILL_WEIGHTS[b] - SKILL_WEIGHTS[a]);
+/** Skills reconocidas (sin sinónimos repetidos): primero las del match, de mayor a menor peso, y después las de los tracks. */
+export const SKILLS: string[] = [
+    ...Object.keys(SKILL_WEIGHTS)
+        .filter((skill) => !NOT_SKILLS.has(skill) && !CANONICAL[skill])
+        .sort((a, b) => SKILL_WEIGHTS[b] - SKILL_WEIGHTS[a]),
+    ...LEARNING_SKILLS,
+];
 
 const LABELS: Record<string, string> = {
     ai: "AI",
@@ -35,6 +40,14 @@ const LABELS: Record<string, string> = {
     fastapi: "FastAPI",
     typescript: "TypeScript",
     "next.js": "Next.js",
+    rag: "RAG",
+    evaluation: "Evaluación",
+    "fine-tuning": "Fine-tuning",
+    "tool use": "Tool use",
+    mcp: "MCP",
+    orchestration: "Orquestación",
+    memory: "Memoria",
+    "multi-agent": "Multi-agente",
 };
 
 export function skillLabel(skill: string): string {
@@ -56,9 +69,7 @@ export function canonicalSkills(skills: string[]): string[] {
 
 /** Skills que aparecen en unas etiquetas, contando los sinónimos como la misma skill. */
 export function findSkills(skills: string[], labels: string[]): string[] {
-    return canonicalSkills(skills).filter(
-        (skill) => matchSkills([skill, ...(SYNONYMS[skill] ?? [])], labels).length > 0,
-    );
+    return matchSkills(canonicalSkills(skills), labels);
 }
 
 /** Skills de un proyecto derivadas de su stack, de mayor a menor peso. */

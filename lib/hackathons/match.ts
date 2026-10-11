@@ -32,6 +32,41 @@ export const SKILL_WEIGHTS: Record<string, number> = {
     "open track": 6,
     "open ended": 6,
 };
+/**
+ * Skills de los tracks de aprendizaje que no pesan en el match_score: sirven
+ * para cruzar fases, proyectos y hackatones (lib/learning).
+ */
+export const LEARNING_SKILLS: string[] = [
+    "rag",
+    "embeddings",
+    "evaluation",
+    "fine-tuning",
+    "tool use",
+    "mcp",
+    "orchestration",
+    "memory",
+    "multi-agent",
+];
+
+/**
+ * Otras formas en que una skill aparece en las etiquetas de una hackatón o en
+ * el stack de un proyecto. Solo las usa el cruce de lib/learning: el
+ * match_score sigue sumando los pesos de SKILL_WEIGHTS tal cual.
+ */
+export const SKILL_SYNONYMS: Record<string, string[]> = {
+    ml: ["machine learning"],
+    llm: ["large language model", "generative ai", "genai", "gen ai"],
+    agent: ["agentic"],
+    rag: ["retrieval augmented", "retrieval-augmented"],
+    embeddings: ["embedding", "vector search", "vector database", "semantic search"],
+    evaluation: ["evals", "benchmark"],
+    "fine-tuning": ["fine tuning", "finetuning", "fine-tune"],
+    "tool use": ["tool calling", "function calling"],
+    mcp: ["model context protocol"],
+    orchestration: ["workflow"],
+    "multi-agent": ["multi agent", "multiagent"],
+};
+
 // Con ~3 coincidencias fuertes se alcanza 100.
 const SCORE_SATURATION = 60;
 

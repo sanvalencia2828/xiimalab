@@ -10,8 +10,13 @@
  * Reglas del contenido:
  *   • Cada hito es verificable: se demuestra con un repo, una demo o un despliegue.
  *   • 3–5 fases por track y 3–6 hitos por fase.
- *   • `skills` usa las mismas etiquetas que lib/hackathons/match.ts, para
- *     cruzar cada fase con las hackatones abiertas.
+ *   • `skills` usa las mismas etiquetas que lib/hackathons/match.ts
+ *     (SKILL_WEIGHTS y LEARNING_SKILLS), para cruzar cada fase con las
+ *     hackatones abiertas.
+ *   • AI Engineer y AI Agents no comparten skills de IA: el primero cubre el
+ *     modelo y sus datos (LLM por API, RAG, embeddings, evaluación,
+ *     fine-tuning); el segundo, lo que hace de un modelo un agente (tool use,
+ *     MCP, orquestación, memoria, multi-agente).
  *
  * El id de un hito es `<track>:<fase>:<posición>`. El avance guardado depende
  * de él: añade hitos nuevos al final de la fase y no reordenes los existentes.
@@ -102,7 +107,7 @@ export const TRACKS: Track[] = [
                     "Lograr que la salida estructurada pase la validación de esquema en todos los casos de prueba",
                     "Documentar tres fallos reales del modelo y el cambio que los corrigió",
                 ],
-                skills: ["llm", "ai", "analytics"],
+                skills: ["llm", "ai", "evaluation"],
                 practiceProject: { idea: "Crear el conjunto de pruebas del prompt de match de Xiimalab y compararlo entre dos modelos.", portfolioTitle: "Xiimalab" },
             },
             {
@@ -116,7 +121,7 @@ export const TRACKS: Track[] = [
                     "Medir la recuperación con 20 preguntas de respuesta conocida y publicar el resultado",
                     "Reindexar solo los documentos que cambian, sin reprocesar todo el corpus",
                 ],
-                skills: ["ai", "llm", "data", "python"],
+                skills: ["rag", "embeddings", "llm", "data", "python"],
                 practiceProject: { idea: "Buscador semántico sobre las hackatones abiertas del agregador de Xiimalab.", portfolioTitle: "Xiimalab" },
             },
             {
@@ -129,7 +134,7 @@ export const TRACKS: Track[] = [
                     "Comparar el modelo local con uno comercial en la misma tarea y publicar los resultados",
                     "Añadir transcripción o síntesis de voz a una demo desplegada",
                 ],
-                skills: ["ai", "ml", "machine learning", "python"],
+                skills: ["ai", "ml", "machine learning", "fine-tuning", "python"],
                 practiceProject: { idea: "Añadir a AURA una descripción automática de cada imagen redimensionada.", portfolioTitle: "AURA" },
             },
             {
@@ -143,7 +148,7 @@ export const TRACKS: Track[] = [
                     "Empaquetar la app en Docker con un workflow que despliega al hacer push",
                     "Publicar la demo con un README que explique la arquitectura",
                 ],
-                skills: ["ai", "llm", "docker", "devops", "analytics"],
+                skills: ["llm", "evaluation", "docker", "devops", "analytics"],
                 practiceProject: { idea: "Añadir a RedimensionAI un panel de coste y errores por petición.", portfolioTitle: "RedimensionAI" },
             },
         ],
@@ -166,7 +171,7 @@ export const TRACKS: Track[] = [
                     "Manejar tres fallos distintos (límite de peticiones, timeout, respuesta inválida) con un mensaje propio para cada uno",
                     "Medir tokens y coste de 20 llamadas y anotarlo en el README",
                 ],
-                skills: ["python", "typescript", "llm", "ai"],
+                skills: ["agent", "python", "typescript"],
                 practiceProject: { idea: "Estudiar el análisis de match de Xiimalab (/api/match), que valida la respuesta del modelo y distingue sus errores.", portfolioTitle: "Xiimalab" },
             },
             {
@@ -180,7 +185,7 @@ export const TRACKS: Track[] = [
                     "Conectar una herramienta a datos reales, por ejemplo las hackatones abiertas de /api/hackathons",
                     "Desplegar un agente con tool use accesible por URL",
                 ],
-                skills: ["agent", "llm", "python", "fastapi"],
+                skills: ["agent", "tool use", "mcp", "python", "fastapi"],
                 practiceProject: { idea: "Un asistente que responde «¿a qué hackatón me apunto esta semana?» consultando el agregador de Xiimalab.", portfolioTitle: "Xiimalab" },
             },
             {
@@ -193,7 +198,7 @@ export const TRACKS: Track[] = [
                     "Guardar un dato entre sesiones y recuperarlo en una conversación nueva",
                     "Resumir o recortar el historial al superar un límite de tokens, sin perder los datos clave",
                 ],
-                skills: ["llm", "ai", "data", "python"],
+                skills: ["agent", "memory", "data", "python"],
                 practiceProject: { idea: "Dar memoria a Regen-Buddy: que recuerde el nombre y el estado de la mascota entre visitas.", portfolioTitle: "Regen-Buddy" },
             },
             {
@@ -206,7 +211,7 @@ export const TRACKS: Track[] = [
                     "Coordinar dos agentes con roles distintos (uno busca, otro redacta) en una misma tarea",
                     "Añadir una confirmación humana antes de cualquier acción irreversible",
                 ],
-                skills: ["agent", "llm", "ai", "python"],
+                skills: ["agent", "multi-agent", "orchestration", "python"],
                 practiceProject: { idea: "Un agente que lee el repo de un proyecto del portafolio y propone su ROADMAP.md." },
             },
             {
@@ -220,7 +225,7 @@ export const TRACKS: Track[] = [
                     "Empaquetar el agente en Docker y desplegarlo con límite de peticiones por usuario",
                     "Publicar una demo en vivo con el enlace en el README",
                 ],
-                skills: ["agent", "docker", "devops", "analytics", "llm"],
+                skills: ["agent", "orchestration", "docker", "devops", "analytics"],
                 practiceProject: { idea: "Presentar el agente de la fase de herramientas o de varios pasos a una hackatón abierta de IA o agentes." },
             },
         ],

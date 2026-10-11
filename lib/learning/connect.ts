@@ -3,6 +3,7 @@
  * Cruce de una fase con las hackatones abiertas y con los proyectos del
  * portafolio, por coincidencia entre sus skills y las etiquetas o el stack.
  */
+import { SKILL_SYNONYMS } from "@/lib/hackathons/match";
 import type { Phase } from "./tracks";
 
 export interface PhaseHackathon {
@@ -44,10 +45,10 @@ function hasSkill(text: string, skill: string): boolean {
     return text.includes(skill);
 }
 
-/** Skills que aparecen en un conjunto de etiquetas (tags de una hackatón o stack de un proyecto). */
+/** Skills que aparecen, ellas o un sinónimo, en un conjunto de etiquetas (tags de una hackatón o stack de un proyecto). */
 export function matchSkills(skills: string[], labels: string[]): string[] {
     const text = labels.join(" | ").toLowerCase();
-    return skills.filter((skill) => hasSkill(text, skill));
+    return skills.filter((skill) => [skill, ...(SKILL_SYNONYMS[skill] ?? [])].some((form) => hasSkill(text, form)));
 }
 
 /** Hackatones abiertas cuyas etiquetas coinciden con las skills de la fase (máximo 3). */
