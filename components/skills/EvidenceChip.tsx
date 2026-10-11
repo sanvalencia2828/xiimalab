@@ -11,18 +11,27 @@ export const EVIDENCE_LEVEL_STYLE: Record<EvidenceLevel, string> = {
 
 const chipBase = "shrink-0 inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md border";
 
-/** "Certificada · Cyfrin", con enlace a la verificación. */
+/** Dominio de la URL de verificación, sin "www.": lo que de verdad respalda la certificación. */
+function verificationDomain(url: string): string {
+    try {
+        return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+        return "";
+    }
+}
+
+/** "Certificada · cyfrin.io", con enlace a la verificación. Si la URL no se puede leer, muestra el proveedor. */
 export function CertifiedChip({ provider, url }: { provider: string; url: string }) {
     return (
         <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            title="Abrir la verificación de la certificación"
+            title={`Abrir la verificación de la certificación de ${provider}`}
             className={`${chipBase} ${EVIDENCE_LEVEL_STYLE.certified} hover:underline`}
         >
             <BadgeCheck className="w-3 h-3" />
-            Certificada · {provider}
+            Certificada · {verificationDomain(url) || provider}
         </a>
     );
 }
