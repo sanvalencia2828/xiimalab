@@ -237,7 +237,7 @@ function DashboardHeader({
                 )}
 
                 {/* Notification Bell */}
-                <NotificationBell walletAddress={walletAddress || undefined} />
+                <NotificationBell />
             </div>
         </motion.div>
     );

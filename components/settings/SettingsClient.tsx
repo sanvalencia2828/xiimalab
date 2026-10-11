@@ -37,6 +37,7 @@ const LOCAL_KEYS = [
     "xiimalab_learning_progress",
     "xiimalab_hackathon_action",
     "xiimalab_solana_address",
+    "xiimalab_notifications_read",
     "xiimalab_stellar_wallet",
     "user_profile",
     "user_skills",
