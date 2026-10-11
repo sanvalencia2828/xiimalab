@@ -13,7 +13,7 @@ export const PROJECTS: ProjectCardProps[] = [
         title: "Xiimalab",
         description: "AI & Blockchain Intelligence Hub — hackathon matching, ML recommendations y staking de habilidades",
         status: "in-development",
-        stack: ["Next.js", "TypeScript", "FastAPI", "Docker", "Supabase", "Python"],
+        stack: ["Next.js", "TypeScript", "FastAPI", "Docker", "Supabase", "Python", "Anthropic API", "Salidas estructuradas"],
         metrics: { pages: 12, apis: "20+", score: "84%" },
         accentColor: "#34d399",
         liveUrl: "https://xiimalab.vercel.app",

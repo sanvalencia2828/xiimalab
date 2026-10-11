@@ -57,6 +57,7 @@ export function skillLabel(skill: string): string {
 // Tecnologías del stack de un proyecto o de una idea que implican una skill sin nombrarla
 const STACK_ALIASES: Record<string, string[]> = {
     openai: ["ai", "llm"],
+    "anthropic api": ["ai", "llm"],
     "github actions": ["devops"],
     cripto: ["web3"],
     crypto: ["web3"],

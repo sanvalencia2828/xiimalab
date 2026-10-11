@@ -50,7 +50,7 @@ const KIND_SIGNALS: Record<ProjectKind, RegExp> = {
     api: /\b(fastapi|flask|express|apis?)\b/,
     etl: /\b(etl|pipeline|scraper|scraping)\b/,
     datos: /\b(postgis|postgresql|postgres|supabase|datos|heatmap)\b/,
-    llm: /\b(openai|llm|chat)\b/,
+    llm: /\b(openai|anthropic|llm|chat)\b/,
     modelo: /\b(ai\/ml|opencv|ml|recommendations|puntúa|clustering)\b|\bcon ia\b/,
     web: /\b(next\.js|react|html5)\b/,
     cadena: /\b(solana|stellar|blockchain|staking|memecoins?|tokens?|web3)\b/,
