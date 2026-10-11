@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { CheckCircle2, Circle, Clock, ExternalLink, Github } from "lucide-react";
+import ProjectApplications from "@/components/learning/ProjectApplications";
 import ProjectProgressPanel from "@/components/ProjectProgressPanel";
 import type { ProjectProgress } from "@/lib/projects/progress";
 
@@ -201,6 +202,8 @@ export default function ProjectCard({
             )}
 
             <ProjectProgressPanel progress={progress} loading={progressLoading} accentColor={accentColor} />
+
+            <ProjectApplications project={{ title, description, stack }} />
 
             {(liveLink || repoLink) && (
                 <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06]">

@@ -108,7 +108,8 @@ Devuelve:
 Básate únicamente en los datos recibidos: no inventes requisitos, premios ni reglas de la hackatón que no aparezcan en ellos.`;
 
 let client: Anthropic | null = null;
-function getClient(): Anthropic {
+/** Cliente compartido con lib/learning/examples.ts. */
+export function getClient(): Anthropic {
     client ??= new Anthropic({ timeout: REQUEST_TIMEOUT_MS, maxRetries: 1 });
     return client;
 }

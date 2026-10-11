@@ -35,6 +35,7 @@ const dangerClass =
 const LOCAL_KEYS = [
     "xiimalab_profile",
     "xiimalab_learning_progress",
+    "xiimalab_milestone_evidence",
     "xiimalab_hackathon_action",
     "xiimalab_solana_address",
     "xiimalab_notifications_read",

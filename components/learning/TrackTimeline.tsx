@@ -1,12 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Check, Clock, ExternalLink, FolderKanban, GraduationCap, Lightbulb, Zap } from "lucide-react";
+import { Check, Clock, ExternalLink, FolderKanban, GraduationCap, Lightbulb, Wrench, Zap } from "lucide-react";
+import { type AppliedPhase, getTrackApplicationsAction } from "@/app/actions/applications";
 import { type PhaseResource, ResourceList } from "@/components/learning/ResourceList";
 import { useLearningProgress } from "@/hooks/useLearningProgress";
+import { useMilestoneEvidence } from "@/hooks/useMilestoneEvidence";
+import { applicationsForTrack } from "@/lib/learning/applications";
 import { closesIn, type PhaseHackathon, type PhaseProject } from "@/lib/learning/connect";
 import { isTrackActive, phaseProgress, phaseStatus, type PhaseStatus, trackProgress } from "@/lib/learning/progress";
-import type { Track } from "@/lib/learning/tracks";
+import { TRACKS, type Track } from "@/lib/learning/tracks";
+import { PROJECTS } from "@/lib/projects/data";
 
 export interface PhaseExtras {
     hackathons: PhaseHackathon[];
@@ -31,6 +37,33 @@ export function TrackTimeline({ track, extras }: TrackTimelineProps) {
     const { state, loaded, toggleMilestone, startTrack } = useLearningProgress();
     const progress = trackProgress(track, state.done);
     const active = isTrackActive(track, state);
+    const { evidence, record, remove } = useMilestoneEvidence();
+    // Proyectos a los que aplica cada fase (sin IA); la mejora concreta de cada uno llega después
+    const applications = applicationsForTrack(track, PROJECTS, TRACKS);
+    const [applied, setApplied] = useState<AppliedPhase[]>([]);
+    /** Hito recién marcado por el que se pregunta si se aplicó en un proyecto */
+    const [asking, setAsking] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        getTrackApplicationsAction(track.id)
+            .then((list) => { if (!cancelled) setApplied(list); })
+            .catch(() => { /* las fases siguen mostrando los proyectos, sin la mejora */ });
+        return () => { cancelled = true; };
+    }, [track.id]);
+
+    /** Proyectos cuya mejora en esta fase cubre el hito (o es la sugerencia general de la fase). */
+    const projectsFor = (phaseId: string, milestoneId: string): string[] =>
+        applied
+            .filter((a) => a.phaseId === phaseId && (a.example.general || a.example.milestones.some((m) => m.id === milestoneId)))
+            .map((a) => a.projectName);
+
+    const onToggle = (phaseId: string, milestoneId: string) => {
+        const marking = !state.done[milestoneId];
+        toggleMilestone(track.id, milestoneId);
+        if (!marking) remove(milestoneId);
+        setAsking(marking && projectsFor(phaseId, milestoneId).length > 0 ? milestoneId : null);
+    };
 
     return (
         <div>
@@ -113,6 +146,8 @@ export function TrackTimeline({ track, extras }: TrackTimelineProps) {
                                 <ul className="space-y-2 mb-4">
                                     {phase.milestones.map((milestone) => {
                                         const doneAt = state.done[milestone.id];
+                                        const usedIn = evidence[milestone.id];
+                                        const candidates = asking === milestone.id ? projectsFor(phase.id, milestone.id) : [];
                                         return (
                                             <li key={milestone.id} id={milestone.id} className="scroll-mt-24">
                                                 <label className="flex items-start gap-3 cursor-pointer group">
@@ -120,13 +155,39 @@ export function TrackTimeline({ track, extras }: TrackTimelineProps) {
                                                         type="checkbox"
                                                         checked={Boolean(doneAt)}
                                                         disabled={!loaded}
-                                                        onChange={() => toggleMilestone(track.id, milestone.id)}
+                                                        onChange={() => onToggle(phase.id, milestone.id)}
                                                         className="mt-0.5 w-4 h-4 rounded border-slate-600 bg-slate-800 accent-sky-400 shrink-0"
                                                     />
                                                     <span className={`text-sm leading-snug ${doneAt ? "text-slate-500 line-through" : "text-slate-200 group-hover:text-white"}`}>
                                                         {milestone.text}
                                                     </span>
                                                 </label>
+                                                {doneAt && usedIn && (
+                                                    <p className="ml-7 mt-1 text-xs text-emerald-400">
+                                                        Evidencia: {usedIn}
+                                                        <button type="button" onClick={() => remove(milestone.id)} className="ml-2 text-muted-text hover:text-accent">
+                                                            Quitar
+                                                        </button>
+                                                    </p>
+                                                )}
+                                                {doneAt && !usedIn && candidates.length > 0 && (
+                                                    <p className="ml-7 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300">
+                                                        <span>¿Lo aplicaste en {candidates.join(" o ")}?</span>
+                                                        {candidates.map((name) => (
+                                                            <button
+                                                                key={name}
+                                                                type="button"
+                                                                onClick={() => { record(milestone.id, name); setAsking(null); }}
+                                                                className="text-accent hover:underline"
+                                                            >
+                                                                {candidates.length === 1 ? "Sí, registrar como evidencia" : `Sí, en ${name}`}
+                                                            </button>
+                                                        ))}
+                                                        <button type="button" onClick={() => setAsking(null)} className="text-muted-text hover:text-slate-200">
+                                                            No
+                                                        </button>
+                                                    </p>
+                                                )}
                                             </li>
                                         );
                                     })}
@@ -149,6 +210,37 @@ export function TrackTimeline({ track, extras }: TrackTimelineProps) {
                                         {phase.practiceProject.idea}
                                     </p>
                                 </div>
+
+                                {/* Aplícalo a tus proyectos */}
+                                {applications.some((a) => a.phaseId === phase.id) && (
+                                    <div className="mb-4">
+                                        <p className="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1.5">
+                                            <Wrench className="w-3 h-3" />
+                                            Aplícalo a tus proyectos
+                                        </p>
+                                        <ul className="space-y-2">
+                                            {applications.filter((a) => a.phaseId === phase.id).map((application) => {
+                                                const example = applied.find(
+                                                    (a) => a.phaseId === phase.id && a.projectTitle === application.projectTitle,
+                                                )?.example;
+                                                return (
+                                                    <li key={application.projectTitle} className="text-xs">
+                                                        <span className="font-medium text-slate-200">{application.projectName}</span>
+                                                        <span className="text-slate-300">
+                                                            {" · "}
+                                                            {example && !example.general ? example.title : application.reason}
+                                                        </span>
+                                                        {example?.general && <span className="text-muted-text"> · Sugerencia general</span>}
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                        <p className="text-[11px] text-muted-text mt-2">
+                                            El detalle de cada mejora está en la tarjeta del proyecto, en{" "}
+                                            <Link href="/projects" className="text-accent hover:underline">Proyectos</Link>.
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Recursos reconocidos */}
                                 {extra.resources.length > 0 && (
