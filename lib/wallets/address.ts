@@ -13,3 +13,7 @@ export function abbreviateAddress(address: string): string {
 export function isSolanaAddress(value: string): boolean {
     return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value.trim());
 }
+
+export function stellarExpertUrl(publicKey: string): string {
+    return `https://stellar.expert/explorer/testnet/account/${publicKey}`;
+}

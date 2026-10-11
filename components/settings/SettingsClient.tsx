@@ -12,9 +12,8 @@ import { useProfile } from "@/hooks/useProfile";
 import { useSolanaAddress } from "@/hooks/useSolanaAddress";
 import { IDEAS } from "@/lib/ideas/data";
 import type { IntegrationStatus } from "@/lib/settings/integrations";
-import { abbreviateAddress, isSolanaAddress } from "@/lib/wallets/address";
+import { abbreviateAddress, isSolanaAddress, stellarExpertUrl } from "@/lib/wallets/address";
 import type { StellarAccount } from "@/lib/wallets/horizon";
-import { isStellarPublicKey, stellarExpertUrl, stellarKeyError } from "@/lib/wallets/stellar";
 import { useWallet } from "@/lib/WalletContext";
 
 const containerVariants: Variants = {
@@ -126,12 +125,26 @@ function FieldError({ message }: { message: string | null }) {
 }
 
 // ── Wallet Stellar ──────────────────────────────────────────────────────────
+type StellarValidator = typeof import("@/lib/wallets/stellar");
+
 function StellarWallet() {
     const { publicKey, isLoaded, connect, disconnect } = useWallet();
     const [input, setInput] = useState("");
+    // El validador (StrKey del SDK de Stellar) se descarga al empezar a escribir, no con la página
+    const [validator, setValidator] = useState<StellarValidator | null>(null);
+    const [validatorFailed, setValidatorFailed] = useState(false);
     const key = input.trim();
-    const valid = isStellarPublicKey(key);
-    const error = stellarKeyError(key);
+    const valid = validator?.isStellarPublicKey(key) ?? false;
+    const error = validatorFailed && key
+        ? "No se pudo cargar el validador de claves. Recarga la página e inténtalo de nuevo."
+        : validator?.stellarKeyError(key) ?? null;
+
+    const loadValidator = () => {
+        if (validator) return;
+        import("@/lib/wallets/stellar")
+            .then((module) => { setValidator(module); setValidatorFailed(false); })
+            .catch(() => setValidatorFailed(true));
+    };
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -163,7 +176,8 @@ function StellarWallet() {
                             id="stellar-key"
                             type="text"
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
+                            onFocus={loadValidator}
+                            onChange={(e) => { setInput(e.target.value); loadValidator(); }}
                             placeholder="G…"
                             autoComplete="off"
                             spellCheck={false}

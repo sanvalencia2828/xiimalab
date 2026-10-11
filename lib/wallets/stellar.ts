@@ -1,6 +1,9 @@
 /**
  * lib/wallets/stellar.ts
- * Validación de claves públicas de Stellar y enlaces al explorador.
+ * Validación de claves públicas de Stellar con el SDK.
+ *
+ * El SDK pesa más de 200 kB: en el cliente este módulo se carga con import()
+ * dinámico (ver components/settings/SettingsClient.tsx), nunca de forma estática.
  */
 import { StrKey } from "@stellar/stellar-sdk";
 
@@ -17,8 +20,4 @@ export function stellarKeyError(value: string): string | null {
     if (!key.startsWith("G")) return "Una clave pública de Stellar empieza por G.";
     if (key.length !== 56) return `Una clave pública de Stellar tiene 56 caracteres; esta tiene ${key.length}.`;
     return "La clave no es válida: revisa que esté copiada completa y sin cambios (el checksum no coincide).";
-}
-
-export function stellarExpertUrl(publicKey: string): string {
-    return `https://stellar.expert/explorer/testnet/account/${publicKey}`;
 }
