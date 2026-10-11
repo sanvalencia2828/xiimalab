@@ -4,7 +4,7 @@ Hub personal de IA y Blockchain: portafolio de proyectos conectado a hackatones 
 
 > Xiimalab lee este archivo para calcular el % de avance del proyecto.
 > Marca una tarea como hecha cambiando el espacio por una `x` entre los corchetes.
-> Última revisión: 2026-10-10.
+> Última revisión: 2026-10-11.
 
 ## Fase 1 — Base de la plataforma
 
@@ -23,10 +23,12 @@ Hub personal de IA y Blockchain: portafolio de proyectos conectado a hackatones 
 - [x] Corregir el formato de /api/hackathons para que todas las pantallas reciban la lista
 - [x] Publicar en producción el agregador en vivo y comprobar /api/hackathons?debug=1
 - [x] Confirmar que DoraHacks responde desde los servidores de Vercel (si no, usar el scraper como respaldo)
-- [ ] Añadir los bounties de Superteam Earn al agregador
+- [x] Bounties abiertos de Superteam Earn en su propia página (/bounties)
+- [x] Página única de hackatones (/hackathons), con premios "No verificado" fuera del orden por premio
 - [ ] Añadir otros bounties activos (p. ej. Gitcoin, Layer3)
-- [ ] Guardar las hackatones en Supabase con un cron (Vercel Cron o GitHub Actions)
-- [ ] Notificaciones de hackatones que cierran pronto conectadas a datos reales
+- [x] Migración, script y workflow de GitHub Actions (cada 6 h) para guardar hackatones y bounties en Supabase
+- [ ] Activar los snapshots: aplicar la migración en Supabase y crear los secretos SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en GitHub
+- [x] Campana con las convocatorias que cierran en 72 h y encajan con tus skills (Supabase, con el agregador en vivo como respaldo)
 
 ## Fase 3 — Portafolio de proyectos
 
@@ -46,6 +48,15 @@ Hub personal de IA y Blockchain: portafolio de proyectos conectado a hackatones 
 - [x] Sistema de prioridades (urgencia, match y premio)
 - [x] Análisis de relevancia de skills según la demanda de hackatones
 - [x] Roadmap de aprendizaje con persistencia (PATCH)
+- [x] Tracks de aprendizaje con hitos verificables (/roadmap) y ranking de tracks por demanda actual
+- [x] Dashboard del Estudiante calculado con datos reales (tracks, proyectos, skills, logros)
+- [x] Market Match unificado en la pestaña "Mercado" de /skills, con nivel por evidencia
+- [x] Recursos reconocidos por fase (Cyfrin Updraft) y certificaciones como evidencia de una skill
+- [x] Mi Perfil con datos personales, ideas en exploración y exportación a Markdown
+- [x] Configuración: wallets Stellar (StrKey) y Solana, estado de integraciones, exportar y borrar datos
+- [x] Lectura del saldo y de los saldos reclamables de la wallet desde Horizon testnet
+- [ ] Guardar en Supabase el avance de los tracks, el perfil y las certificaciones (hoy en localStorage)
+- [ ] Conectar con Freighter para verificar que la wallet Stellar es tuya
 - [ ] Reemplazar el userId fijo de /staking por el usuario o wallet real
 - [ ] Conectar el escrow educativo de Stellar con wallets reales (testnet)
 - [ ] Revisar las respuestas de error de NeuroProfileDashboard y PriorityBoard
@@ -59,5 +70,8 @@ Hub personal de IA y Blockchain: portafolio de proyectos conectado a hackatones 
 - [ ] Limpiar la raíz del repo: logs (*.log, ts_errors.txt) y reportes .md antiguos a docs/
 - [ ] Resolver el desajuste del servicio frontend en docker-compose.yml (contexto de build)
 - [x] Unir la rama ui/premium-design-system a main
+- [x] Unir a main las ramas de tracks, dashboard, bounties, Skills, perfil, snapshots y recursos
+- [x] Actualizar Next.js al último parche de 14.2 (14.2.35)
+- [ ] Revisar en el navegador las páginas nuevas (solo se comprobaron la lógica y las respuestas del servidor)
 - [ ] Mover el repositorio fuera de OneDrive (rompe la carpeta .next de Next.js)
 - [ ] Rotar la clave del MCP de Devfolio, si aún no está hecho (también la de .claude/settings.local.json)

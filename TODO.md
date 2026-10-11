@@ -13,3 +13,13 @@
 ## Wallets (`components/settings/SettingsClient.tsx`)
 
 - [ ] No hay integración con Freighter: la wallet Stellar se vincula pegando la clave pública, sin comprobar que sea tuya. Añadir "Conectar con Freighter" (`@stellar/freighter-api`) y pedir la firma de un mensaje para verificar la propiedad.
+- [ ] `@stellar/stellar-sdk` está fijado en la v13: la v17 usa sintaxis (`#campo in obj`) que el webpack de Next 14.2 no compila. Volver a probar la última versión al subir de versión mayor de Next.
+
+## Snapshots en Supabase (`scripts/snapshot.ts`)
+
+- [ ] El upsert, la migración (`supabase/migrations/`) y la lectura de la campana desde Supabase no se han ejecutado contra una base real: solo se probó `npm run snapshot -- --dry-run`. Tras aplicar la migración y crear los secretos, lanzar el workflow a mano y comprobar las filas.
+- [ ] El match de los bounties se calcula solo con el título (Superteam no da etiquetas), así que casi nunca superan el 50 % que exige la campana.
+
+## Despliegue
+
+- [ ] Vercel creó despliegues de producción desde `feat/skills-market` sin que la rama se fusionara a `main` (2026-10-11). Revisar en Vercel → Settings → Git cuál es la rama de producción.
