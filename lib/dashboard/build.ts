@@ -20,6 +20,7 @@ import {
 import { canonicalSkills, findSkills, SKILLS, skillLabel, skillsFromStack } from "@/lib/learning/skills";
 import { TRACKS, type Milestone, type Phase, type Track } from "@/lib/learning/tracks";
 import { highDemandThreshold, skillDemand } from "@/lib/market/relevance";
+import { certificationFor, type Certification } from "@/lib/profile/certifications";
 import { PROJECTS } from "@/lib/projects/data";
 import { getRepoProgress, repoFromUrl, type ProjectProgress } from "@/lib/projects/progress";
 import type { AggregatedHackathon } from "@/lib/types";
@@ -158,6 +159,7 @@ function skillMap(
     activeIds: Set<string>,
     projects: PortfolioProject[],
     hackathons: AggregatedHackathon[],
+    certifications: Certification[],
 ): DashboardData["skills"] {
     const demand = skillDemand(SKILLS, hackathons);
     const high = highDemandThreshold(demand);
@@ -168,21 +170,25 @@ function skillMap(
         if (demand[skill] < high) continue;
         const used = projects.filter((p) => p.skills.includes(skill)).map((p) => p.name);
         const where = whereToLearn(skill, state, activeIds);
+        const certification = certificationFor(skill, certifications);
         const row: SkillRow = {
             key: skill,
             label: skillLabel(skill),
             projects: used,
+            certification: certification ? { provider: certification.provider, url: certification.url } : null,
             demand: demand[skill],
             track: where ? { id: where.track.id, title: where.track.title, active: activeIds.has(where.track.id) } : null,
             milestone: where?.milestone
                 ? { id: where.milestone.id, text: where.milestone.text, href: `/roadmap/${where.track.id}#${where.milestone.id}` }
                 : null,
         };
-        (used.length > 0 ? strong : toReinforce).push(row);
+        (used.length > 0 || certification ? strong : toReinforce).push(row);
     }
 
     const byDemand = (a: SkillRow, b: SkillRow) => b.demand - a.demand;
-    return { strong: strong.sort(byDemand), toReinforce: toReinforce.sort(byDemand) };
+    // Las certificadas van primero: es la evidencia más fuerte
+    const byEvidence = (a: SkillRow, b: SkillRow) => Number(Boolean(b.certification)) - Number(Boolean(a.certification)) || byDemand(a, b);
+    return { strong: strong.sort(byEvidence), toReinforce: toReinforce.sort(byDemand) };
 }
 
 /** Hackatones abiertas que coinciden con las skills de las fases actuales, con el proyecto que mejor encaja. */
@@ -279,6 +285,7 @@ function achievements(
 export async function buildDashboard(
     state: LearningState,
     matchAction: HackathonAction | null = null,
+    certifications: Certification[] = [],
     now: Date = new Date(),
 ): Promise<DashboardData> {
     const [live, projects] = await Promise.all([loadHackathons(), loadProjects()]);
@@ -317,12 +324,12 @@ export async function buildDashboard(
             percent: total > 0 ? Math.round((done / total) * 100) : 0,
             activeTracks: active.length,
             milestonesThisWeek,
-            demonstratedSkills: new Set(projects.flatMap((p) => p.skills)).size,
+            demonstratedSkills: new Set([...projects.flatMap((p) => p.skills), ...certifications.flatMap((c) => c.skills)]).size,
         },
         tracks,
         nextMilestones: nextMilestones(active, state, projects),
         projects: projects.map(projectRow),
-        skills: skillMap(state, activeIds, projects, hackathons),
+        skills: skillMap(state, activeIds, projects, hackathons, certifications),
         practicePhases: currentPhases.map((phase) => phase.title),
         practice: practice(currentPhases, projects, hackathons),
         achievements: achievements(state, projects, live ? hackathons : null, matchAction),

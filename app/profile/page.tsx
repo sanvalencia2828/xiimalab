@@ -7,10 +7,11 @@ import {
     Check, Copy, Download, FolderKanban, Github, Hexagon, Layers, Lightbulb, Linkedin, Loader2,
     Map as MapIcon, Pencil, Sparkles, Trophy, Twitter, Wallet, type LucideIcon,
 } from "lucide-react";
-import { getSkillInsightsAction } from "@/app/actions/skills";
 import { IdeasSection } from "@/components/ideas/IdeasSection";
+import { CertificationsSection } from "@/components/profile/CertificationsSection";
 import { useLearningProgress } from "@/hooks/useLearningProgress";
 import { useProfile } from "@/hooks/useProfile";
+import { useSkillInsights } from "@/hooks/useSkillInsights";
 import { useSolanaAddress } from "@/hooks/useSolanaAddress";
 import { IDEAS } from "@/lib/ideas/data";
 import { isTrackActive, trackProgress } from "@/lib/learning/progress";
@@ -129,7 +130,7 @@ function ProfileForm({ profile, onSave, onCancel }: { profile: Profile; onSave: 
 
         setErrors(nextErrors);
         if (Object.keys(nextErrors).length > 0) return;
-        onSave({ name: form.name, bio: form.bio, avatarUrl, links });
+        onSave({ ...profile, name: form.name, bio: form.bio, avatarUrl, links });
     };
 
     const error = (field: string) => errors[field] && <p className="text-xs text-red-400 mt-1">{errors[field]}</p>;
@@ -274,29 +275,19 @@ function WalletsSection() {
 }
 
 // ── Página ──────────────────────────────────────────────────────────────────
-/** undefined = calculando · null = no se pudo calcular */
-type DemonstratedSkills = ExportSkill[] | null | undefined;
-
 export default function ProfilePage() {
     const { profile, loaded, save } = useProfile();
     const { state, loaded: progressLoaded } = useLearningProgress();
     const { publicKey } = useWallet();
     const { address: solanaAddress } = useSolanaAddress();
     const [editing, setEditing] = useState(false);
-    const [skills, setSkills] = useState<DemonstratedSkills>(undefined);
-
-    // Skills demostradas: las que usa algún proyecto, calculadas en el servidor (lib/skills/insights.ts)
-    useEffect(() => {
-        if (!progressLoaded) return;
-        let cancelled = false;
-        getSkillInsightsAction(state)
-            .then((insights) => {
-                if (cancelled) return;
-                setSkills(insights.skills.filter((s) => s.projects.length > 0).map((s) => ({ label: s.label, projects: s.projects })));
-            })
-            .catch(() => { if (!cancelled) setSkills(null); });
-        return () => { cancelled = true; };
-    }, [progressLoaded, state]);
+    // Skills con evidencia (certificación o proyecto), calculadas en el servidor (lib/skills/insights.ts)
+    const insights = useSkillInsights();
+    const skills: ExportSkill[] | null | undefined = insights.data
+        ? insights.data.skills
+              .filter((s) => s.certification || s.projects.length > 0)
+              .map((s) => ({ label: s.label, projects: s.projects, certifiedBy: s.certification?.provider ?? null }))
+        : insights.failed ? null : undefined;
 
     if (!loaded) {
         return (
@@ -314,7 +305,7 @@ export default function ProfilePage() {
         {
             label: "Skills demostradas",
             value: skills === undefined ? "…" : skills === null ? "—" : String(skills.length),
-            description: skills === null ? "No se pudieron calcular" : "Con evidencia en tus proyectos",
+            description: skills === null ? "No se pudieron calcular" : "Con certificación o con un proyecto que las usa",
             href: "/skills?tab=mercado",
             icon: Sparkles,
         },
@@ -382,6 +373,13 @@ export default function ProfilePage() {
                 </div>
 
                 <motion.div variants={itemVariants}>
+                    <CertificationsSection
+                        certifications={profile.certifications}
+                        onChange={(certifications) => save({ ...profile, certifications })}
+                    />
+                </motion.div>
+
+                <motion.div variants={itemVariants}>
                     <IdeasSection />
                 </motion.div>
 
@@ -391,7 +389,7 @@ export default function ProfilePage() {
                         <div>
                             <h2 className="text-lg font-bold text-white">Exportar</h2>
                             <p className="text-xs text-muted-text mt-1">
-                                Nombre, bio, enlaces, proyectos con stack y demo, skills demostradas y tracks con su avance.
+                                Nombre, bio, enlaces, proyectos con stack y demo, certificaciones, skills con evidencia y tracks con su avance.
                             </p>
                         </div>
                         <button type="button" onClick={exportMarkdown} disabled={skills === undefined || !progressLoaded} className="btn-primary disabled:opacity-50">

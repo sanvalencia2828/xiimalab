@@ -4,20 +4,57 @@
  * lib/skills/insights.ts en el servidor; el cliente solo los pinta.
  */
 
-/** Nivel según la evidencia disponible, de menos a más. */
-export type EvidenceLevel = "none" | "learning" | "demonstrated" | "consolidated";
+/**
+ * Nivel de una skill según su evidencia más fuerte:
+ *   certified    → una certificación verificable la acredita
+ *   demonstrated → al menos un proyecto del portafolio la usa
+ *   learning     → hay hitos marcados en una fase que la cubre
+ *   declared     → está en tu lista de /skills, sin evidencia todavía
+ *   none         → ni declarada ni con evidencia
+ */
+export type EvidenceLevel = "certified" | "demonstrated" | "learning" | "declared" | "none";
+
+/** De más a menos fuerte. */
+export const EVIDENCE_LEVELS: EvidenceLevel[] = ["certified", "demonstrated", "learning", "declared", "none"];
 
 export const EVIDENCE_LEVEL_LABELS: Record<EvidenceLevel, string> = {
-    none: "Sin evidencia",
-    learning: "En aprendizaje",
+    certified: "Certificada",
     demonstrated: "Demostrada",
-    consolidated: "Consolidada",
+    learning: "En aprendizaje",
+    declared: "Declarada",
+    none: "Sin evidencia",
 };
+
+export const EVIDENCE_LEVEL_HELP: Record<EvidenceLevel, string> = {
+    certified: "Una certificación con URL de verificación la acredita.",
+    demonstrated: "Al menos un proyecto de tu portafolio la usa.",
+    learning: "Has marcado hitos en una fase de un track que la cubre.",
+    declared: "La añadiste a tu lista, pero todavía no hay evidencia.",
+    none: "Ni está en tu lista ni hay evidencia.",
+};
+
+/** Certificación que acredita una skill (lo necesario para el chip y su enlace). */
+export interface SkillCertification {
+    provider: string;
+    name: string;
+    url: string;
+}
+
+/** Lo que el cliente aporta al cálculo, además del avance de los tracks. */
+export interface SkillEvidenceInput {
+    certifications: unknown;
+    /** Nombres de las skills de la lista de /skills, tal como los escribió el usuario */
+    declared: unknown;
+}
 
 export interface SkillInsight {
     key: string;
     label: string;
     level: EvidenceLevel;
+    /** Certificación más reciente que la acredita */
+    certification: SkillCertification | null;
+    /** Está en la lista de skills del usuario */
+    declared: boolean;
     /** Proyectos que la usan */
     projects: string[];
     /** Hitos marcados en fases que la cubren */

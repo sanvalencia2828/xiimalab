@@ -2,8 +2,9 @@
  * lib/skills/insights.ts — SERVER ONLY
  * ─────────────────────────────────────────────────────────────────────────────
  * Skills frente al mercado, con datos reales:
- *   • nivel por evidencia: proyectos del portafolio que usan la skill e hitos
- *     marcados en las fases que la cubren (nunca un porcentaje autodeclarado),
+ *   • nivel por evidencia: certificaciones, proyectos del portafolio que usan
+ *     la skill e hitos marcados en las fases que la cubren (nunca un porcentaje
+ *     autodeclarado; una skill solo declarada queda como "Declarada"),
  *   • demanda actual: hackatones abiertas cuyas etiquetas la piden y la suma de
  *     sus premios en USD verificados,
  *   • palabras clave: las etiquetas más repetidas en esas convocatorias.
@@ -15,19 +16,38 @@ import { liveSourceNames, loadHackathons, loadProjects, whereToLearn, type Portf
 import { formatPrize, isUsdPrize } from "@/lib/hackathons/format";
 import { buildTagOptions } from "@/lib/hackathons/tags";
 import { isTrackActive, type LearningState } from "@/lib/learning/progress";
-import { canonicalSkills, findSkills, SKILLS, skillLabel } from "@/lib/learning/skills";
+import { canonicalSkills, findSkills, SKILLS, skillLabel, skillsFromStack } from "@/lib/learning/skills";
 import { TRACKS } from "@/lib/learning/tracks";
 import { highDemandThreshold } from "@/lib/market/relevance";
+import { certificationFor, parseCertifications, type Certification } from "@/lib/profile/certifications";
 import type { AggregatedHackathon } from "@/lib/types";
 import type { EvidenceLevel, SkillInsight, SkillInsights, SkillRecommendation } from "./types";
 
 const RISING_SKILLS = 4;
 const MAX_KEYWORDS = 5;
 
-function evidenceLevel(projects: number, milestones: number): EvidenceLevel {
-    if (projects >= 2) return "consolidated";
-    if (projects === 1) return "demonstrated";
-    return milestones > 0 ? "learning" : "none";
+export interface SkillEvidence {
+    certifications: Certification[];
+    /** Skills declaradas, ya normalizadas a etiquetas de match.ts */
+    declared: string[];
+}
+
+export const NO_EVIDENCE: SkillEvidence = { certifications: [], declared: [] };
+
+/** Valida lo que envía el cliente: certificaciones completas y skills declaradas reconocibles. */
+export function parseSkillEvidence(raw: unknown): SkillEvidence {
+    const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+    const names = Array.isArray(obj.declared)
+        ? obj.declared.filter((n): n is string => typeof n === "string").slice(0, 200)
+        : [];
+    return { certifications: parseCertifications(obj.certifications), declared: skillsFromStack(names) };
+}
+
+function evidenceLevel(certified: boolean, projects: number, milestones: number, declared: boolean): EvidenceLevel {
+    if (certified) return "certified";
+    if (projects > 0) return "demonstrated";
+    if (milestones > 0) return "learning";
+    return declared ? "declared" : "none";
 }
 
 function milestonesDone(skill: string, state: LearningState): number {
@@ -39,20 +59,23 @@ function milestonesDone(skill: string, state: LearningState): number {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function recommend(skills: SkillInsight[]): SkillRecommendation | null {
-    const gap = skills.find((s) => s.highDemand && s.projects.length === 0);
+    const gap = skills.find((s) => s.highDemand && s.projects.length === 0 && !s.certification);
     if (gap) {
         const prizes = gap.prizeUsd > 0 ? ` (${formatPrize(gap.prizeUsd, "USD")} en premios)` : "";
         const learning = gap.milestonesDone > 0 ? `llevas ${plural(gap.milestonesDone, "hito", "hitos")}, pero ` : "";
         return {
-            text: `Refuerza ${gap.label}: ${plural(gap.demand, "convocatoria", "convocatorias")}${prizes}, ${learning}ningún proyecto la demuestra.`,
+            text: `Refuerza ${gap.label}: ${plural(gap.demand, "convocatoria", "convocatorias")}${prizes}, ${learning}ningún proyecto ni certificación la demuestra.`,
             href: gap.milestone?.href ?? (gap.track ? `/roadmap/${gap.track.id}` : "/roadmap"),
             linkLabel: gap.milestone ? `Empieza por: ${gap.milestone.text}` : "Ver el roadmap",
         };
     }
-    const best = skills.find((s) => s.demand > 0 && s.projects.length > 0);
+    const best = skills.find((s) => s.demand > 0 && (s.projects.length > 0 || s.certification));
     if (best) {
+        const proof = best.projects.length > 0
+            ? `${plural(best.projects.length, "proyecto tuyo la demuestra", "proyectos tuyos la demuestran")} (${best.projects.join(", ")})`
+            : `tu certificación de ${best.certification?.provider} la acredita`;
         return {
-            text: `Aprovecha ${best.label}: ${plural(best.demand, "convocatoria abierta la pide", "convocatorias abiertas la piden")} y ${plural(best.projects.length, "proyecto tuyo la demuestra", "proyectos tuyos la demuestran")} (${best.projects.join(", ")}).`,
+            text: `Aprovecha ${best.label}: ${plural(best.demand, "convocatoria abierta la pide", "convocatorias abiertas la piden")} y ${proof}.`,
             href: "/hackathons",
             linkLabel: "Ver hackatones abiertas",
         };
@@ -65,6 +88,7 @@ export function computeSkillInsights(
     state: LearningState,
     projects: PortfolioProject[],
     hackathons: AggregatedHackathon[],
+    evidence: SkillEvidence = NO_EVIDENCE,
 ): Pick<SkillInsights, "skills" | "rising" | "recommendation"> {
     const activeIds = new Set(TRACKS.filter((track) => isTrackActive(track, state)).map((t) => t.id));
     const asking = new Map<string, AggregatedHackathon[]>(SKILLS.map((skill) => [skill, []]));
@@ -78,10 +102,14 @@ export function computeSkillInsights(
         const used = projects.filter((p) => p.skills.includes(skill)).map((p) => p.name);
         const hitos = milestonesDone(skill, state);
         const where = whereToLearn(skill, state, activeIds);
+        const certification = certificationFor(skill, evidence.certifications);
+        const declared = evidence.declared.includes(skill);
         return {
             key: skill,
             label: skillLabel(skill),
-            level: evidenceLevel(used.length, hitos),
+            level: evidenceLevel(Boolean(certification), used.length, hitos, declared),
+            certification: certification ? { provider: certification.provider, name: certification.name, url: certification.url } : null,
+            declared,
             projects: used,
             milestonesDone: hitos,
             demand: matching.length,
@@ -107,11 +135,11 @@ export function computeSkillInsights(
     };
 }
 
-export async function getSkillInsights(state: LearningState): Promise<SkillInsights> {
+export async function getSkillInsights(state: LearningState, evidence: SkillEvidence = NO_EVIDENCE): Promise<SkillInsights> {
     const [live, projects] = await Promise.all([loadHackathons(), loadProjects()]);
     const hackathons = live?.hackathons ?? [];
     return {
-        ...computeSkillInsights(state, projects, hackathons),
+        ...computeSkillInsights(state, projects, hackathons, evidence),
         total: hackathons.length,
         sources: live ? liveSourceNames(live) : [],
         fetchedAt: live?.fetched_at ?? null,

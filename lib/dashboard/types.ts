@@ -13,7 +13,7 @@ export interface DashboardSummary {
     activeTracks: number;
     /** Hitos marcados en los últimos 7 días */
     milestonesThisWeek: number;
-    /** Skills con al menos un proyecto que las usa */
+    /** Skills con evidencia: un proyecto que las usa o una certificación */
     demonstratedSkills: number;
 }
 
@@ -64,6 +64,8 @@ export interface SkillRow {
     label: string;
     /** Proyectos que la usan */
     projects: string[];
+    /** Certificación que la acredita: evidencia más fuerte que un proyecto */
+    certification: { provider: string; url: string } | null;
     /** Hackatones abiertas cuyas etiquetas la mencionan */
     demand: number;
     track: { id: string; title: string; active: boolean } | null;

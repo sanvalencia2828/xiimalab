@@ -5,6 +5,7 @@ import { motion, type Variants } from "framer-motion";
 import { CalendarCheck, Layers, Loader2, Sparkles, Target } from "lucide-react";
 import { getDashboardAction } from "@/app/actions/dashboard";
 import { useLearningProgress } from "@/hooks/useLearningProgress";
+import { useProfile } from "@/hooks/useProfile";
 import type { DashboardData } from "@/lib/dashboard/types";
 import { readHackathonAction } from "@/lib/hackathons/actions";
 import {
@@ -45,7 +46,7 @@ function SummaryCards({ data }: { data: DashboardData }) {
         {
             title: "Skills demostradas",
             value: String(summary.demonstratedSkills),
-            description: "Con evidencia en tus proyectos",
+            description: "Con certificación o con un proyecto",
             icon: Sparkles,
         },
     ];
@@ -68,15 +69,16 @@ function SummaryCards({ data }: { data: DashboardData }) {
 
 export default function DashboardClient() {
     const { state, loaded, toggleMilestone } = useLearningProgress();
+    const { profile, loaded: profileLoaded } = useProfile();
     const [data, setData] = useState<DashboardData | null>(null);
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
 
     // El avance y la acción sobre una hackatón viven en el navegador: se envían al servidor, que devuelve el dashboard ya calculado
     useEffect(() => {
-        if (!loaded) return;
+        if (!loaded || !profileLoaded) return;
         let cancelled = false;
-        getDashboardAction(state, readHackathonAction())
+        getDashboardAction(state, readHackathonAction(), profile.certifications)
             .then((next) => {
                 if (cancelled) return;
                 setData(next);
@@ -88,7 +90,7 @@ export default function DashboardClient() {
         return () => {
             cancelled = true;
         };
-    }, [loaded, state, attempt]);
+    }, [loaded, profileLoaded, state, profile.certifications, attempt]);
 
     if (!data) {
         return failed ? (

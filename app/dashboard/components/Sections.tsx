@@ -9,6 +9,7 @@ import type {
     AchievementRow, DashboardData, ProjectRow, RankingData, SkillRow,
 } from "@/lib/dashboard/types";
 import { describeClosing, formatPrize } from "@/lib/hackathons/format";
+import { CertifiedChip } from "@/components/skills/EvidenceChip";
 import { URGENCY_WINDOW_DAYS } from "@/lib/learning/demand";
 import { useWallet } from "@/lib/WalletContext";
 
@@ -206,8 +207,11 @@ export function ProjectsSection({ projects }: { projects: ProjectRow[] }) {
 function SkillItem({ skill, reinforce }: { skill: SkillRow; reinforce: boolean }) {
     return (
         <li className="p-3 rounded-lg border border-border">
-            <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-sm font-medium text-slate-200">{skill.label}</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-slate-200">{skill.label}</span>
+                    {skill.certification && <CertifiedChip provider={skill.certification.provider} url={skill.certification.url} />}
+                </span>
                 <span className="text-xs text-muted-text shrink-0">
                     {skill.demand} {skill.demand === 1 ? "hackatón abierta" : "hackatones abiertas"}
                 </span>
@@ -258,7 +262,7 @@ export function SkillsMap({ data }: { data: DashboardData }) {
                 <div>
                     <p className="section-label mb-2">Fuertes</p>
                     {strong.length === 0 ? (
-                        <p className="text-xs text-muted-text">Ninguna skill con demanda alta aparece todavía en tus proyectos.</p>
+                        <p className="text-xs text-muted-text">Ninguna skill con demanda alta tiene todavía un proyecto o una certificación.</p>
                     ) : (
                         <ul className="space-y-2">
                             {strong.map((skill) => <SkillItem key={skill.key} skill={skill} reinforce={false} />)}
@@ -268,7 +272,7 @@ export function SkillsMap({ data }: { data: DashboardData }) {
                 <div>
                     <p className="section-label mb-2">Por reforzar</p>
                     {toReinforce.length === 0 ? (
-                        <p className="text-xs text-muted-text">Tus proyectos ya cubren todas las skills con demanda alta.</p>
+                        <p className="text-xs text-muted-text">Tus proyectos y certificaciones ya cubren todas las skills con demanda alta.</p>
                     ) : (
                         <ul className="space-y-2">
                             {toReinforce.map((skill) => <SkillItem key={skill.key} skill={skill} reinforce />)}

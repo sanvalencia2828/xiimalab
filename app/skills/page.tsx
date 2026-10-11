@@ -8,7 +8,11 @@ import {
     Code2, Server, Database
 } from "lucide-react";
 import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
+import { EvidenceChip } from "@/components/skills/EvidenceChip";
 import { MarketTab } from "@/components/skills/MarketTab";
+import { useSkillInsights } from "@/hooks/useSkillInsights";
+import { skillsFromStack } from "@/lib/learning/skills";
+import { EVIDENCE_LEVELS, type SkillInsight } from "@/lib/skills/types";
 
 type TabId = "profile" | "market" | "roles";
 
@@ -123,6 +127,8 @@ export default function SkillsPage() {
     const [activeTab, setActiveTabState] = useState<TabId>("profile");
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    // Nivel por evidencia de cada skill (certificación, proyectos, hitos), calculado en el servidor
+    const insights = useSkillInsights(skills.map((s) => s.name));
 
     useEffect(() => {
         setActiveTabState(tabFromUrl());
@@ -139,16 +145,9 @@ export default function SkillsPage() {
         
         // Load saved skills from localStorage
         const saved = localStorage.getItem("user_skills");
+        // Sin lista guardada se empieza vacío: una skill solo cuenta como "Declarada" si la añades tú
         if (saved) {
             setSkills(JSON.parse(saved));
-        } else {
-            // Initialize with some default skills
-            const defaults: Skill[] = [
-                { id: "1", name: "Python", level: 65, category: "technical", marketDemand: 88, yearsExperience: 2, lastUsed: "2026-03" },
-                { id: "2", name: "JavaScript", level: 70, category: "technical", marketDemand: 92, yearsExperience: 3, lastUsed: "2026-03" },
-                { id: "3", name: "React", level: 55, category: "technical", marketDemand: 85, yearsExperience: 1, lastUsed: "2026-02" },
-            ];
-            setSkills(defaults);
         }
 
         // Load market data and skill relevance in parallel
@@ -249,11 +248,12 @@ export default function SkillsPage() {
                             skills={skills}
                             matchingSkills={getMatchingSkills()}
                             missingSkills={getMissingSkills()}
+                            insights={insights.data?.skills ?? null}
                             onRemove={removeSkill}
                             onUpdateLevel={updateSkillLevel}
                         />
                     )}
-                    {activeTab === "market" && <MarketTab />}
+                    {activeTab === "market" && <MarketTab insights={insights} />}
                     {activeTab === "roles" && (
                         <RolesTab
                             skills={skills}
@@ -339,16 +339,29 @@ function Tabs({ active, setActive }: { active: TabId; setActive: (t: TabId) => v
     );
 }
 
+/** Evidencia más fuerte de una skill de la lista, buscándola por las etiquetas de match.ts que reconoce su nombre. */
+function evidenceFor(name: string, insights: SkillInsight[]): SkillInsight | null {
+    const keys = skillsFromStack([name]);
+    return (
+        insights
+            .filter((insight) => keys.includes(insight.key))
+            .sort((a, b) => EVIDENCE_LEVELS.indexOf(a.level) - EVIDENCE_LEVELS.indexOf(b.level))[0] ?? null
+    );
+}
+
 function ProfileTab({
     skills,
     matchingSkills,
     missingSkills,
+    insights,
     onRemove,
     onUpdateLevel,
 }: {
     skills: Skill[];
     matchingSkills: MarketSkill[];
     missingSkills: MarketSkill[];
+    /** null mientras se calcula */
+    insights: SkillInsight[] | null;
     onRemove: (id: string) => void;
     onUpdateLevel: (id: string, level: number) => void;
 }) {
@@ -377,6 +390,7 @@ function ProfileTab({
                                 key={skill.id}
                                 skill={skill}
                                 index={idx}
+                                evidence={insights ? evidenceFor(skill.name, insights) : undefined}
                                 onRemove={onRemove}
                                 onUpdateLevel={onUpdateLevel}
                             />
@@ -428,11 +442,14 @@ function ProfileTab({
 function SkillCard({
     skill,
     index,
+    evidence,
     onRemove,
     onUpdateLevel,
 }: {
     skill: Skill;
     index: number;
+    /** undefined mientras se calcula; null si su nombre no coincide con ninguna skill reconocida */
+    evidence: SkillInsight | null | undefined;
     onRemove: (id: string) => void;
     onUpdateLevel: (id: string, level: number) => void;
 }) {
@@ -446,11 +463,14 @@ function SkillCard({
             className="p-3 bg-white/5 rounded-xl border border-white/5"
         >
             <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${category.bg} ${category.color}`}>
                         {category.label}
                     </span>
                     <h4 className="text-sm font-medium text-slate-200">{skill.name}</h4>
+                    {evidence !== undefined && (
+                        <EvidenceChip level={evidence?.level ?? "declared"} certification={evidence?.certification} />
+                    )}
                 </div>
                 <button
                     onClick={() => onRemove(skill.id)}

@@ -1,7 +1,7 @@
 /**
  * lib/profile/markdown.ts
  * Perfil exportado a Markdown: datos personales, proyectos del portafolio,
- * skills demostradas y tracks con su avance. Función pura: recibe los datos
+ * certificaciones, skills con evidencia y tracks con su avance. Función pura: recibe los datos
  * ya calculados.
  */
 import { PROFILE_LINKS, type Profile } from "./data";
@@ -17,6 +17,8 @@ export interface ExportProject {
 export interface ExportSkill {
     label: string;
     projects: string[];
+    /** Proveedor de la certificación que la acredita, si la hay */
+    certifiedBy?: string | null;
 }
 
 export interface ExportTrack {
@@ -63,10 +65,24 @@ export function buildProfileMarkdown({ profile, stellarAddress, solanaAddress, p
         lines.push("");
     }
 
-    lines.push("## Skills demostradas", "");
+    if (profile.certifications.length > 0) {
+        lines.push("## Certificaciones", "");
+        for (const c of profile.certifications) lines.push(`- ${c.name} — ${c.provider} (${c.date}). Verificación: ${c.url}`);
+        lines.push("");
+    }
+
+    lines.push("## Skills con evidencia", "");
     if (skills === null) lines.push("No se pudieron calcular al exportar.");
     else if (skills.length === 0) lines.push("Ninguna todavía.");
-    else for (const skill of skills) lines.push(`- ${skill.label} — ${skill.projects.join(", ")}`);
+    else {
+        for (const skill of skills) {
+            const proof = [
+                skill.certifiedBy ? `certificada por ${skill.certifiedBy}` : "",
+                skill.projects.length > 0 ? `proyectos: ${skill.projects.join(", ")}` : "",
+            ].filter(Boolean);
+            lines.push(`- ${skill.label} — ${proof.join("; ")}`);
+        }
+    }
     lines.push("");
 
     lines.push("## Tracks de aprendizaje", "");

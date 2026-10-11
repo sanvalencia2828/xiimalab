@@ -1,8 +1,10 @@
 /**
  * lib/profile/data.ts
- * Datos personales de Mi Perfil: nombre, bio, foto y enlaces. Se guardan en el
- * navegador (hooks/useProfile.ts). Las wallets se vinculan en Configuración.
+ * Datos personales de Mi Perfil: nombre, bio, foto, enlaces y certificaciones.
+ * Se guardan en el navegador (hooks/useProfile.ts). Las wallets se vinculan en
+ * Configuración.
  */
+import { parseCertifications, type Certification } from "./certifications";
 
 export const PROFILE_LINKS = [
     { key: "github", label: "GitHub", placeholder: "https://github.com/tu-usuario" },
@@ -21,6 +23,7 @@ export interface Profile {
     /** URL de la foto; vacío → iniciales */
     avatarUrl: string;
     links: Record<ProfileLinkKey, string>;
+    certifications: Certification[];
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -28,6 +31,7 @@ export const EMPTY_PROFILE: Profile = {
     bio: "",
     avatarUrl: "",
     links: { github: "", linkedin: "", x: "", devpost: "", dorahacks: "", devfolio: "" },
+    certifications: [],
 };
 
 const MAX_NAME = 80;
@@ -71,5 +75,6 @@ export function parseProfile(raw: unknown): Profile {
         links: Object.fromEntries(
             PROFILE_LINKS.map(({ key }) => [key, normalizeUrl(text(rawLinks[key], MAX_URL))]),
         ) as Record<ProfileLinkKey, string>,
+        certifications: parseCertifications(obj.certifications),
     };
 }

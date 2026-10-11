@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Lightbulb, Loader2, TrendingUp } from "lucide-react";
-import { getSkillInsightsAction } from "@/app/actions/skills";
-import { useLearningProgress } from "@/hooks/useLearningProgress";
+import { EvidenceChip } from "@/components/skills/EvidenceChip";
+import type { SkillInsightsState } from "@/hooks/useSkillInsights";
 import { formatPrize } from "@/lib/hackathons/format";
-import { EVIDENCE_LEVEL_LABELS, type EvidenceLevel, type SkillInsight, type SkillInsights } from "@/lib/skills/types";
-
-const LEVEL_STYLE: Record<EvidenceLevel, string> = {
-    none: "bg-slate-700/30 text-slate-400 border-slate-600/30",
-    learning: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-    demonstrated: "bg-accent/10 text-accent border-accent/30",
-    consolidated: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-};
+import { EVIDENCE_LEVEL_LABELS, type SkillInsight } from "@/lib/skills/types";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -32,9 +24,11 @@ function updatedAgo(iso: string): string {
 /** En qué se apoya el nivel: proyectos e hitos. */
 function evidenceText(skill: SkillInsight): string {
     const parts: string[] = [];
+    if (skill.certification) parts.push(`Certificación: ${skill.certification.name}`);
     if (skill.projects.length > 0) parts.push(`${plural(skill.projects.length, "proyecto", "proyectos")}: ${skill.projects.join(", ")}`);
     if (skill.milestonesDone > 0) parts.push(plural(skill.milestonesDone, "hito marcado", "hitos marcados"));
-    return parts.length > 0 ? parts.join(" · ") : "Ningún proyecto ni hito la demuestra todavía";
+    if (parts.length > 0) return parts.join(" · ");
+    return skill.declared ? "En tu lista, sin proyecto, hito ni certificación todavía" : "Ningún proyecto, hito ni certificación la demuestra todavía";
 }
 
 function demandText(skill: SkillInsight): string {
@@ -44,41 +38,21 @@ function demandText(skill: SkillInsight): string {
 }
 
 /** Pestaña "Mercado": nivel por evidencia de cada skill frente a su demanda en las hackatones abiertas. */
-export function MarketTab() {
-    const { state, loaded } = useLearningProgress();
-    const [data, setData] = useState<SkillInsights | null>(null);
-    const [failed, setFailed] = useState(false);
-    const [attempt, setAttempt] = useState(0);
-
-    useEffect(() => {
-        if (!loaded) return;
-        let cancelled = false;
-        getSkillInsightsAction(state)
-            .then((next) => {
-                if (cancelled) return;
-                setData(next);
-                setFailed(false);
-            })
-            .catch(() => {
-                if (!cancelled) setFailed(true);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [loaded, state, attempt]);
+export function MarketTab({ insights }: { insights: SkillInsightsState }) {
+    const { data, failed, retry } = insights;
 
     if (!data) {
         return failed ? (
             <div className="card-premium p-8 text-center">
                 <p className="text-sm text-slate-200 mb-4">No se pudo calcular la comparación con el mercado.</p>
-                <button type="button" onClick={() => { setFailed(false); setAttempt((n) => n + 1); }} className="btn-primary">
+                <button type="button" onClick={retry} className="btn-primary">
                     Reintentar
                 </button>
             </div>
         ) : (
             <div className="card-premium p-12 flex flex-col items-center justify-center" role="status">
                 <Loader2 className="w-8 h-8 text-accent animate-spin mb-3" />
-                <p className="text-sm text-muted-text">Cruzando tus proyectos e hitos con las hackatones abiertas…</p>
+                <p className="text-sm text-muted-text">Cruzando tus certificaciones, proyectos e hitos con las hackatones abiertas…</p>
             </div>
         );
     }
@@ -119,7 +93,7 @@ export function MarketTab() {
                 <div className="lg:col-span-2 card-premium p-5">
                     <h3 className="text-sm font-bold text-slate-200 mb-1">Tu nivel frente a la demanda</h3>
                     <p className="text-xs text-muted-text mb-4">
-                        El nivel sale de la evidencia (proyectos que usan la skill e hitos marcados), no de una autoevaluación.
+                        El nivel sale de la evidencia (certificaciones, proyectos que usan la skill e hitos marcados), no de una autoevaluación.
                     </p>
                     {data.skills.length === 0 ? (
                         <p className="text-xs text-muted-text">Todavía no hay skills con demanda ni con evidencia.</p>
@@ -136,9 +110,7 @@ export function MarketTab() {
                                     <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-medium text-slate-200">{skill.label}</span>
-                                            <span className={`px-2 py-0.5 text-[11px] rounded-md border ${LEVEL_STYLE[skill.level]}`}>
-                                                {EVIDENCE_LEVEL_LABELS[skill.level]}
-                                            </span>
+                                            <EvidenceChip level={skill.level} certification={skill.certification} />
                                         </div>
                                         <span className="text-xs text-slate-300">{demandText(skill)}</span>
                                     </div>
@@ -151,7 +123,7 @@ export function MarketTab() {
                                     </div>
                                     <p className="text-xs text-muted-text mt-1.5">
                                         {evidenceText(skill)}
-                                        {skill.track && skill.level !== "consolidated" && (
+                                        {skill.track && skill.level !== "certified" && (
                                             <>
                                                 {" · Se aprende en "}
                                                 <Link href={skill.milestone?.href ?? `/roadmap/${skill.track.id}`} className="text-slate-300 hover:text-accent">
