@@ -91,9 +91,9 @@ export default function WalletOnboardingModal() {
                                 Conecta tu Wallet Stellar
                             </h2>
                             <p className="text-slate-400 text-sm text-center mb-6 leading-relaxed">
-                                Sin tu llave pública de Stellar no podemos calcular tu{" "}
-                                <span className="text-accent font-semibold">MarketMatch personalizado</span>{" "}
-                                ni preparar tu escrow educativo (Proof of Skill).
+                                Sin tu clave pública de Stellar no podemos preparar tu{" "}
+                                <span className="text-accent font-semibold">escrow educativo</span>{" "}
+                                (Proof of Skill).
                             </p>
 
                             {/* Benefits */}

@@ -39,7 +39,7 @@ function skillNames(value: unknown): string[] {
         .filter(Boolean);
 }
 
-/** Skills guardadas en el navegador (página /skills, o perfil de /profile). Null si no hay ninguna. */
+/** Skills guardadas en el navegador (página /skills, o el perfil antiguo de /profile). Null si no hay ninguna. */
 function getUserProfile(): UserProfile | null {
     if (typeof window === "undefined") return null;
     try {
@@ -227,8 +227,8 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
                                         <UserCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                                         <p className="text-xs text-slate-300 leading-relaxed">
                                             Aún no tienes skills en tu perfil, así que no hay nada que comparar.{" "}
-                                            <Link href="/profile" onClick={onClose} className="text-accent font-semibold hover:underline">
-                                                Completa Mi Perfil
+                                            <Link href="/skills" onClick={onClose} className="text-accent font-semibold hover:underline">
+                                                Añade tus skills
                                             </Link>
                                         </p>
                                     </div>

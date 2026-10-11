@@ -1,306 +1,252 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, TrendingUp, Database, AlertCircle } from "lucide-react";
+import { Search, Database } from "lucide-react";
+import { isUsdPrize } from "@/lib/hackathons/format";
+import { buildTagOptions, hackathonTagKeys } from "@/lib/hackathons/tags";
 import type { AggregatedHackathon } from "@/lib/types";
-import { useAggregatedHackathons } from "@/hooks/useAggregatedHackathons";
 import { AggregatedHackathonCard } from "./AggregatedHackathonCard";
 import { HackathonComparisonModal } from "./HackathonComparisonModal";
-import { SourceBadges } from "./SourceBadges";
-import { useWallet } from "@/lib/WalletContext";
 
-export function AggregatedHackathonsClient() {
-  // Wallet context
-  const { publicKey: wallet } = useWallet();
+type SortBy = "deadline" | "prize" | "match";
 
-  // Filter state
+interface AggregatedHackathonsClientProps {
+  /** Todas las hackatones abiertas; los filtros, el orden y la paginación se aplican aquí */
+  hackathons: AggregatedHackathon[];
+}
+
+const PAGE_SIZE = 50;
+const TOP_TAGS = 12;
+
+const SORTS: { key: SortBy; label: string }[] = [
+  { key: "deadline", label: "Cierra antes" },
+  { key: "prize", label: "Mayor premio" },
+  { key: "match", label: "Mejor match" },
+];
+
+const MIN_PRIZES = [
+  { value: 0, label: "Cualquiera" },
+  { value: 5000, label: "$5.000 o más" },
+  { value: 10000, label: "$10.000 o más" },
+  { value: 25000, label: "$25.000 o más" },
+  { value: 50000, label: "$50.000 o más" },
+];
+
+const fieldClass =
+  "w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
+
+/** Importe comparable: solo premios en USD y verificados; el resto va al final al ordenar y no pasa el premio mínimo. */
+function usdPrize(h: AggregatedHackathon): number {
+  return isUsdPrize(h.prize_pool, h.prize_currency, h.prize_unverified) ? h.prize_pool : -1;
+}
+
+export function AggregatedHackathonsClient({ hackathons }: AggregatedHackathonsClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [minPrize, setMinPrize] = useState<number>(0);
-  const [sortBy, setSortBy] = useState<"personalized_score" | "urgency" | "value" | "match" | "prize">(
-    wallet ? "personalized_score" : "urgency"
-  );
-  const [dedupThreshold, setDedupThreshold] = useState<number>(0.90);
+  const [minPrize, setMinPrize] = useState(0);
+  const [sortBy, setSortBy] = useState<SortBy>("deadline");
+  const [showAllTags, setShowAllTags] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // Track which hackathon is expanded
   const [selectedHackathon, setSelectedHackathon] = useState<AggregatedHackathon | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch data
-  const { hackathons, total, isLoading, error } = useAggregatedHackathons({
-    tags: selectedTags.length > 0 ? selectedTags : undefined,
-    minPrize: minPrize > 0 ? minPrize : undefined,
-    wallet: wallet ?? undefined,
-    sortBy,
-    dedupThreshold,
-    limit: 50,
-  });
+  const tagOptions = useMemo(() => buildTagOptions(hackathons), [hackathons]);
+  const shownTags = showAllTags ? tagOptions : tagOptions.slice(0, TOP_TAGS);
 
-  // Filter by search query (client-side)
-  const filteredHackathons = hackathons.filter((h) =>
-    h.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    h.organizer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    h.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filtered = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const list = hackathons.filter((h) => {
+      if (minPrize > 0 && usdPrize(h) < minPrize) return false;
+      if (selectedTags.length > 0) {
+        const keys = hackathonTagKeys(h);
+        if (!selectedTags.some((t) => keys.includes(t))) return false;
+      }
+      if (!query) return true;
+      return (
+        h.title.toLowerCase().includes(query) ||
+        (h.organizer ?? "").toLowerCase().includes(query) ||
+        (h.tags ?? []).some((t) => t.toLowerCase().includes(query))
+      );
+    });
+    return [...list].sort((a, b) => {
+      // Sin fecha de cierre → al final
+      const byDeadline = (a.deadline || "9999").localeCompare(b.deadline || "9999");
+      if (sortBy === "prize") return usdPrize(b) - usdPrize(a) || byDeadline;
+      if (sortBy === "match") return (b.match_score ?? 0) - (a.match_score ?? 0) || byDeadline;
+      return byDeadline;
+    });
+  }, [hackathons, searchQuery, selectedTags, minPrize, sortBy]);
 
-  const hasFilters = searchQuery !== "" || selectedTags.length > 0 || minPrize > 0;
+  // Al cambiar filtros u orden se vuelve a la primera página
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, selectedTags, minPrize, sortBy]);
 
-  // All unique tags from current data
-  const allTags = Array.from(
-    new Set(hackathons.flatMap((h) => h.tags || []))
-  ).sort() as string[];
+  const visible = filtered.slice(0, visibleCount);
+  const hasFilters = searchQuery.trim() !== "" || selectedTags.length > 0 || minPrize > 0;
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedTags([]);
+    setMinPrize(0);
+  };
+
+  // Sin datos: ninguna fuente devolvió convocatorias
+  if (hackathons.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-card border border-border rounded-2xl text-center py-12 px-6"
+      >
+        <Database className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+        <p className="text-slate-200 font-medium mb-2">No hay hackatones abiertas ahora mismo</p>
+        <p className="text-muted-text text-sm">
+          Devpost, DoraHacks y Devfolio no devolvieron convocatorias. Vuelve a intentarlo en unos minutos.
+        </p>
+      </motion.div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-2 h-2 rounded-full bg-accent" />
-          <span className="text-xs font-medium text-accent uppercase tracking-widest">
-            Multi-Source Discovery
-          </span>
-        </div>
-        <div className="flex items-center gap-2 mb-2">
-          <Database className="w-5 h-5 text-slate-400" />
-          <h1 className="text-3xl font-bold text-slate-200">
-            Aggregated Opportunities
-          </h1>
-        </div>
-        <p className="text-sm text-muted-text">
-          {total > 0
-            ? `${total} hackathons from Devfolio, DoraHacks, and Devpost`
-            : isLoading
-              ? "Searching for hackathons..."
-              : "No open hackathons right now"}
-        </p>
-      </div>
-
-      {/* Error State */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm"
-        >
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{error}</span>
-        </motion.div>
-      )}
-
-      {/* Filters */}
+      {/* Filtros */}
       <div className="bg-card border border-border rounded-xl p-4 space-y-4">
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text" />
           <input
-            type="text"
-            placeholder="Search by title, organizer, or tag..."
+            type="search"
+            aria-label="Buscar hackatones"
+            placeholder="Buscar por título, organizador o etiqueta"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-muted-text focus:outline-none focus:ring-2 focus:ring-accent/50"
+            className={`${fieldClass} pl-9`}
           />
         </div>
 
-        {/* Filters Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {/* Min Prize */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Min Prize
-            </label>
-            <select
-              value={minPrize}
-              onChange={(e) => setMinPrize(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-            >
-              <option value={0}>Any amount</option>
-              <option value={5000}>$5k+</option>
-              <option value={10000}>$10k+</option>
-              <option value={25000}>$25k+</option>
-              <option value={50000}>$50k+</option>
+            <label htmlFor="hack-min-prize" className="block text-xs font-medium text-slate-400 mb-1.5">Premio mínimo</label>
+            <select id="hack-min-prize" value={minPrize} onChange={(e) => setMinPrize(Number(e.target.value))} className={fieldClass}>
+              {MIN_PRIZES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
             </select>
           </div>
-
-          {/* Sort By */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Sort by
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-            >
-              {wallet && (
-                <option value="personalized_score">My Match (Personalized)</option>
-              )}
-              <option value="urgency">Most Urgent</option>
-              <option value="prize">Highest Prize</option>
-              <option value="match">Best Match</option>
+            <label htmlFor="hack-sort" className="block text-xs font-medium text-slate-400 mb-1.5">Ordenar por</label>
+            <select id="hack-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className={fieldClass}>
+              {SORTS.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
             </select>
-          </div>
-
-          {/* Dedup Threshold */}
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Strictness
-            </label>
-            <select
-              value={dedupThreshold}
-              onChange={(e) => setDedupThreshold(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-            >
-              <option value={0.80}>Aggressive (80%)</option>
-              <option value={0.90}>Balanced (90%)</option>
-              <option value={0.95}>Strict (95%)</option>
-            </select>
-          </div>
-
-          {/* Tag Filter Info */}
-          <div className="flex items-end">
-            <div className="text-xs text-muted-text">
-              {selectedTags.length > 0 && (
-                <span>
-                  Filtering by {selectedTags.length} tag{selectedTags.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
           </div>
         </div>
 
-        {/* Tag Selection */}
-        {allTags.length > 0 && (
+        {tagOptions.length > 0 && (
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">
-              Filter by Tags
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {allTags.slice(0, 12).map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() =>
-                    setSelectedTags((prev) =>
-                      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-                    )
-                  }
-                  className={`
-                    px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                    ${
-                      selectedTags.includes(tag)
-                        ? "bg-accent text-card border border-accent"
-                        : "bg-slate-700/50 text-slate-300 border border-slate-600/30 hover:border-accent/50"
-                    }
-                  `}
-                >
-                  {tag}
-                </button>
-              ))}
-              {allTags.length > 12 && (
-                <span className="text-xs text-muted-text self-center">
-                  +{allTags.length - 12} more
+            <p className="text-xs font-medium text-slate-400 mb-2">
+              Etiquetas
+              {selectedTags.length > 0 && (
+                <span className="ml-2 text-accent">
+                  {selectedTags.length} seleccionada{selectedTags.length === 1 ? "" : "s"}
                 </span>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {shownTags.map((tag) => {
+                const selected = selectedTags.includes(tag.key);
+                return (
+                  <button
+                    key={tag.key}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() =>
+                      setSelectedTags((prev) => (selected ? prev.filter((t) => t !== tag.key) : [...prev, tag.key]))
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      selected
+                        ? "bg-accent text-card border-accent"
+                        : "bg-slate-700/50 text-slate-300 border-slate-600/30 hover:border-accent/50"
+                    }`}
+                  >
+                    {tag.label}
+                    <span className={`ml-1.5 font-mono ${selected ? "opacity-70" : "text-muted-text"}`}>{tag.count}</span>
+                  </button>
+                );
+              })}
+              {tagOptions.length > TOP_TAGS && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllTags((v) => !v)}
+                  className="px-3 py-1.5 text-xs font-medium text-accent hover:underline"
+                >
+                  {showAllTags ? "Ver menos" : `Ver todas (${tagOptions.length})`}
+                </button>
               )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Status */}
-      {wallet && (
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/20 rounded-lg text-accent text-xs font-medium"
-        >
-          <TrendingUp className="w-3.5 h-3.5" />
-          Showing personalized recommendations based on your wallet
-        </motion.div>
-      )}
-
-      {/* Grid or Loading */}
-      {isLoading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="bg-card border border-border rounded-2xl p-5 animate-pulse"
-            >
-              <div className="h-4 w-3/4 rounded bg-slate-700 mb-3" />
-              <div className="h-3 w-full rounded bg-slate-700 mb-2" />
-              <div className="h-3 w-2/3 rounded bg-slate-700" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!isLoading && filteredHackathons.length === 0 && (
+      {/* Filtros sin resultados */}
+      {filtered.length === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="bg-card border border-border rounded-2xl text-center py-12 px-6"
         >
           <Database className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-200 font-medium mb-2">
-            {hasFilters ? "No hackathons match your filters" : "No open hackathons right now"}
-          </p>
-          <p className="text-muted-text text-sm">
-            {hasFilters
-              ? "Try a different search, fewer tags, or a lower minimum prize"
-              : "Devfolio, DoraHacks, and Devpost returned no open calls. Check back in a few minutes."}
-          </p>
+          <p className="text-slate-200 font-medium mb-2">Ninguna hackatón coincide con tus filtros</p>
+          <p className="text-muted-text text-sm">Prueba con otra búsqueda, menos etiquetas o un premio mínimo más bajo.</p>
           {hasFilters && (
             <button
-              onClick={() => {
-                setSearchQuery("");
-                setSelectedTags([]);
-                setMinPrize(0);
-              }}
+              type="button"
+              onClick={clearFilters}
               className="mt-4 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30 hover:border-accent/50 transition-colors"
             >
-              Clear filters
+              Limpiar filtros
             </button>
           )}
         </motion.div>
       )}
 
-      {/* Hackathons Grid */}
-      {!isLoading && filteredHackathons.length > 0 && (
-        <motion.div
-          className="grid grid-cols-1 lg:grid-cols-2 gap-4"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: { opacity: 0 },
-            visible: {
-              opacity: 1,
-              transition: { staggerChildren: 0.05 },
-            },
-          }}
-        >
-          {filteredHackathons.map((hackathon, idx) => (
-            <AggregatedHackathonCard
-              key={hackathon.id}
-              hackathon={hackathon}
-              index={idx}
-              onExpandClick={(h) => {
-                setSelectedHackathon(h);
-                setIsModalOpen(true);
-              }}
-            />
-          ))}
-        </motion.div>
+      {/* Lista */}
+      {filtered.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {visible.map((hackathon, idx) => (
+              <AggregatedHackathonCard
+                key={hackathon.id}
+                hackathon={hackathon}
+                index={idx % PAGE_SIZE}
+                onExpandClick={(h) => {
+                  setSelectedHackathon(h);
+                  setIsModalOpen(true);
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="flex flex-col items-center gap-3 py-4">
+            <p className="text-xs text-muted-text">
+              Mostrando {visible.length} de {filtered.length}
+              {filtered.length !== hackathons.length ? ` (${hackathons.length} abiertas en total)` : ""}
+            </p>
+            {visible.length < filtered.length && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                className="btn-ghost text-sm px-4 py-2"
+              >
+                Cargar más
+              </button>
+            )}
+          </div>
+        </>
       )}
 
-      {/* Pagination Info */}
-      {!isLoading && filteredHackathons.length > 0 && (
-        <div className="text-center py-4 text-xs text-muted-text">
-          Showing {filteredHackathons.length} of {total} hackathons
-        </div>
-      )}
-
-      {/* Comparison Modal */}
       <HackathonComparisonModal
         hackathon={selectedHackathon}
         isOpen={isModalOpen}

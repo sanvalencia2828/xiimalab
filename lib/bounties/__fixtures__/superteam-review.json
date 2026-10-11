@@ -1,0 +1,91 @@
+[
+  {
+    "id": "0e403583-36b6-42c1-a4be-f23a53f083e5",
+    "rewardAmount": 530,
+    "deadline": "2026-10-10T20:59:59.000Z",
+    "type": "bounty",
+    "title": "Develop Solana web3 Project MVP & Pitch for IFK UNI Vibeathon",
+    "token": "USDC",
+    "winnersAnnouncedAt": null,
+    "slug": "develop-solana-web3-project-mvp-and-pitch-for-ifk-uni-vibeathon",
+    "isWinnersAnnounced": false,
+    "isFeatured": false,
+    "compensationType": "fixed",
+    "minRewardAsk": null,
+    "maxRewardAsk": null,
+    "agentAccess": "HUMAN_ONLY",
+    "status": "OPEN",
+    "isPro": false,
+    "_count": {
+      "Comments": 1,
+      "Submission": 10
+    },
+    "sponsor": {
+      "name": "Superteam Ukraine",
+      "slug": "superteamua",
+      "logo": "https://res.cloudinary.com/dgvnuwspr/image/upload/v1771429862/earn-sponsor/d3pe4iakpzpxqr2kfpmi.webp",
+      "isVerified": true,
+      "chapter": {
+        "id": "469534d0-2f62-4438-bbf7-7ea64ff4ca01"
+      }
+    }
+  },
+  {
+    "id": "a37ed78a-f4b8-43f7-a223-0ad6fee50e9b",
+    "rewardAmount": null,
+    "deadline": "2025-09-10T13:38:05.000Z",
+    "type": "project",
+    "title": "Content Creator for Blockchain Security & Intelligence Platform",
+    "token": "USDC",
+    "winnersAnnouncedAt": null,
+    "slug": "content-creator-for-blockchain-security-and-intelligence-platform",
+    "isWinnersAnnounced": false,
+    "isFeatured": false,
+    "compensationType": "range",
+    "minRewardAsk": 400,
+    "maxRewardAsk": 800,
+    "agentAccess": "HUMAN_ONLY",
+    "status": "OPEN",
+    "isPro": false,
+    "_count": {
+      "Comments": 11,
+      "Submission": 94
+    },
+    "sponsor": {
+      "name": "Range",
+      "slug": "range",
+      "logo": "https://res.cloudinary.com/dgvnuwspr/image/upload/v1741098309/rl25uebj0iufx0rz9qx2.png",
+      "isVerified": false,
+      "chapter": null
+    }
+  },
+  {
+    "id": "17cfa62d-7581-402a-a32a-8e001f43a702",
+    "rewardAmount": null,
+    "deadline": "2026-08-21T22:59:59.999Z",
+    "type": "project",
+    "title": "Social Degen",
+    "token": "USDC",
+    "winnersAnnouncedAt": null,
+    "slug": "social-degen",
+    "isWinnersAnnounced": false,
+    "isFeatured": false,
+    "compensationType": "variable",
+    "minRewardAsk": null,
+    "maxRewardAsk": null,
+    "agentAccess": "HUMAN_ONLY",
+    "status": "OPEN",
+    "isPro": false,
+    "_count": {
+      "Comments": 39,
+      "Submission": 376
+    },
+    "sponsor": {
+      "name": "Banana Zone",
+      "slug": "bananazone",
+      "logo": "https://res.cloudinary.com/dgvnuwspr/image/upload/v1786095548/earn-sponsor/ycrftravfwsjriblgqkq.webp",
+      "isVerified": false,
+      "chapter": null
+    }
+  }
+]

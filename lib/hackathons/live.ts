@@ -288,6 +288,9 @@ async function fetchDevpost(): Promise<AggregatedHackathon[]> {
 // ── Devfolio ────────────────────────────────────────────────────────────────
 const USD_LIKE = new Set(["USD", "USDC", "USDT", "$"]);
 const DEVFOLIO_PAGE_SIZE = 50;
+// Devfolio deja que el organizador declare cualquier importe: por encima de este
+// tope el premio se marca "No verificado" y no entra en rankings ni en el orden por premio.
+export const DEVFOLIO_MAX_VERIFIED_PRIZE_USD = 2_000_000;
 
 export function parseDevfolio(raw: unknown): AggregatedHackathon | null {
     if (!isObj(raw)) return null;
@@ -316,6 +319,7 @@ export function parseDevfolio(raw: unknown): AggregatedHackathon | null {
             title,
             prize_pool,
             prize_currency: prize_pool > 0 ? "USD" : null, // solo se suman premios en USD/USDC/USDT
+            prize_unverified: prize_pool > DEVFOLIO_MAX_VERIFIED_PRIZE_USD,
             tags,
             deadline: toIsoDate(endsAt ? new Date(endsAt) : null),
             source_url: sub ? `https://${sub}.devfolio.co/` : "https://devfolio.co/hackathons",
@@ -379,10 +383,16 @@ function dedupe(list: AggregatedHackathon[]): AggregatedHackathon[] {
             continue;
         }
         const sources = uniq([...prevSources, h.source]);
+        // Se queda el premio mayor, salvo que no esté verificado y la otra fuente dé uno que sí
+        const verifiedAmount = (x: AggregatedHackathon) => (x.prize_unverified ? 0 : x.prize_pool);
+        const prize = [prev, h].some((x) => verifiedAmount(x) > 0)
+            ? verifiedAmount(h) > verifiedAmount(prev) ? h : prev
+            : h.prize_pool > prev.prize_pool ? h : prev;
         map.set(key, {
             ...prev,
-            prize_pool: Math.max(prev.prize_pool, h.prize_pool),
-            prize_currency: h.prize_pool > prev.prize_pool ? h.prize_currency : prev.prize_currency,
+            prize_pool: prize.prize_pool,
+            prize_currency: prize.prize_currency,
+            prize_unverified: prize.prize_unverified,
             tags: uniq([...prev.tags, ...h.tags]).slice(0, 10),
             match_score: Math.max(prev.match_score, h.match_score),
             source_metadata: {

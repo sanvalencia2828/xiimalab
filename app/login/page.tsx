@@ -25,8 +25,8 @@ const FEATURES = [
     },
     {
         icon: Target,
-        title: "Market Match",
-        desc: "Empareja tus skills con hackathons y roles del mercado.",
+        title: "Skills vs. mercado",
+        desc: "Compara tus skills con la demanda de las hackatones abiertas.",
         color: "violet",
     },
     {

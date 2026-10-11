@@ -8,6 +8,7 @@ import type { AggregatedHackathon } from "@/lib/types";
 import { SourceBadges } from "./SourceBadges";
 import { ConnectorOutreach } from "./ConnectorOutreach";
 import AIMatchModal from "./AIMatchModal";
+import { recordHackathonAction } from "@/lib/hackathons/actions";
 import { formatPrize } from "@/lib/hackathons/format";
 
 interface HackathonComparisonModalProps {
@@ -118,6 +119,11 @@ export function HackathonComparisonModal({
 
   const deadline = describeDeadline(hackathon.deadline);
   const tags = hackathon.tags ?? [];
+  const achievementTarget = {
+    id: hackathon.id,
+    title: hackathon.title,
+    matchScore: Math.round(hackathon.personalized_score ?? hackathon.match_score ?? 0),
+  };
   const description = hackathon.description?.trim() ?? "";
   const isLongDescription = description.length > LONG_DESCRIPTION;
   const format = hackathon.event_type
@@ -197,10 +203,15 @@ export function HackathonComparisonModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-text mb-1">Premio</p>
-                    <p className={`text-lg font-semibold flex items-center gap-2 ${hackathon.prize_pool > 0 ? "text-slate-200" : "text-slate-400"}`}>
+                    <p className={`text-lg font-semibold flex items-center gap-2 ${hackathon.prize_pool > 0 && !hackathon.prize_unverified ? "text-slate-200" : "text-slate-400"}`}>
                       <Trophy className="w-4 h-4 text-yellow-500 shrink-0" />
-                      {formatPrize(hackathon.prize_pool, hackathon.prize_currency)}
+                      {formatPrize(hackathon.prize_pool, hackathon.prize_currency, hackathon.prize_unverified)}
                     </p>
+                    {hackathon.prize_unverified && (
+                      <p className="text-xs text-muted-text mt-1">
+                        El organizador declara {formatPrize(hackathon.prize_pool, hackathon.prize_currency)}; no se ha podido verificar.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs text-muted-text mb-1">Cierre</p>
@@ -355,17 +366,21 @@ export function HackathonComparisonModal({
               {/* Pie fijo */}
               <div className="flex flex-col-reverse sm:flex-row gap-3 p-4 sm:px-6 border-t border-border bg-card shrink-0">
                 <button
-                  onClick={() => setShowAIMatch(true)}
+                  onClick={() => {
+                    recordHackathonAction(achievementTarget, "analyze");
+                    setShowAIMatch(true);
+                  }}
                   className="btn-ghost flex items-center justify-center gap-2 text-sm !border-purple-500/30 !text-purple-400 hover:!bg-purple-500/20"
                 >
                   <BrainCircuit className="w-4 h-4" />
-                  Analizar match con IA
+                  Analizar match
                 </button>
                 {officialUrl ? (
                   <a
                     href={officialUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => recordHackathonAction(achievementTarget, "apply")}
                     className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm"
                   >
                     Ir a la hackatón

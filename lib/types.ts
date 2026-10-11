@@ -61,17 +61,6 @@ export interface AgentInsight {
 }
 
 // ─────────────────────────────────────────────
-// Market Trends (Real-Time Growth & Demand)
-// ─────────────────────────────────────────────
-export interface MarketTrend {
-  role_name: string;
-  demand_score: number;
-  growth_percentage?: string;
-  category?: string;
-  top_projects_keywords?: string[];
-}
-
-// ─────────────────────────────────────────────
 // Project + Hackathon match (from project_hackathon_matches table)
 // ─────────────────────────────────────────────
 export interface ProjectMatch {
@@ -117,6 +106,7 @@ export interface AggregatedHackathon extends Hackathon {
   description?:             string | null;
   participation_count_estimate?: number | null;
   prize_currency?:          string | null;        // ISO code; ausente o "USD" → se muestra con $
+  prize_unverified?:        boolean | null;       // importe declarado poco creíble: se muestra "No verificado" y no se compara
 
   // Phase 3 Scoring
   urgency_score?:           number | null;

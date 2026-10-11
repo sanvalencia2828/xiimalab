@@ -8,11 +8,31 @@ const nextConfig = {
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "",
     },
 
+    // @stellar/stellar-sdk intenta cargar sodium-native (módulo nativo opcional); sin él usa
+    // tweetnacl, que es lo que queremos en el navegador y en Vercel. Aquí solo se usa StrKey.
+    webpack(config) {
+        config.resolve.alias = { ...config.resolve.alias, "sodium-native": false };
+        return config;
+    },
+
     // Imágenes externas permitidas
     images: {
         remotePatterns: [
             { protocol: "https", hostname: "**" },
         ],
+    },
+
+    // Páginas unificadas (redirección permanente, 308):
+    //   /aggregated → /hackathons
+    //   Market Match (/match, /market-match) → pestaña "Mercado" de /skills
+    //   /portfolio → /projects (el backend de portfolio sigue en services/api)
+    async redirects() {
+        return [
+            { source: "/aggregated", destination: "/hackathons", permanent: true },
+            { source: "/match", destination: "/skills?tab=mercado", permanent: true },
+            { source: "/market-match", destination: "/skills?tab=mercado", permanent: true },
+            { source: "/portfolio", destination: "/projects", permanent: true },
+        ];
     },
 
     // Proxy SSE y rutas del backend FastAPI (puerto 8000)

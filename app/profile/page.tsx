@@ -1,467 +1,404 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { motion, type Variants } from "framer-motion";
 import {
-    Brain, Target, TrendingUp, Trophy, Zap, Clock, Bell,
-    ChevronRight, Sparkles, Flame, Award, BookOpen,
-    Wallet, Settings, Loader2, Plus, Calendar, CheckCircle2,
-    ArrowUpRight, Eye, EyeOff, Save, X, RefreshCw
+    Check, Copy, Download, FolderKanban, Github, Hexagon, Layers, Lightbulb, Linkedin, Loader2,
+    Map as MapIcon, Pencil, Sparkles, Trophy, Twitter, Wallet, type LucideIcon,
 } from "lucide-react";
-import NeuroProfileDashboard from "@/components/NeuroProfileDashboard";
-import PriorityBoard from "@/components/PriorityBoard";
+import { IdeasSection } from "@/components/ideas/IdeasSection";
+import { CertificationsSection } from "@/components/profile/CertificationsSection";
+import { useLearningProgress } from "@/hooks/useLearningProgress";
+import { useProfile } from "@/hooks/useProfile";
+import { useSkillInsights } from "@/hooks/useSkillInsights";
+import { useSolanaAddress } from "@/hooks/useSolanaAddress";
+import { IDEAS } from "@/lib/ideas/data";
+import { isTrackActive, trackProgress } from "@/lib/learning/progress";
+import { TRACKS } from "@/lib/learning/tracks";
+import { initials, normalizeUrl, PROFILE_LINKS, type Profile, type ProfileLinkKey } from "@/lib/profile/data";
+import { buildProfileMarkdown, type ExportSkill } from "@/lib/profile/markdown";
+import { PROJECTS } from "@/lib/projects/data";
+import { abbreviateAddress } from "@/lib/wallets/address";
+import { useWallet } from "@/lib/WalletContext";
 
-interface SkillProgress {
-    name: string;
-    level: number;
-    hours: number;
-    streak: number;
-    category: string;
+// Devpost, DoraHacks y Devfolio no tienen icono de marca en lucide: se usan iconos genéricos
+const LINK_ICONS: Record<ProfileLinkKey, LucideIcon> = {
+    github: Github,
+    linkedin: Linkedin,
+    x: Twitter,
+    devpost: Trophy,
+    dorahacks: Hexagon,
+    devfolio: Layers,
+};
+
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+};
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 16 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+};
+
+const fieldClass =
+    "w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50";
+
+// ── Cabecera ────────────────────────────────────────────────────────────────
+function Avatar({ profile }: { profile: Profile }) {
+    const [broken, setBroken] = useState(false);
+    useEffect(() => setBroken(false), [profile.avatarUrl]);
+    const letters = initials(profile.name);
+
+    return (
+        <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-border flex items-center justify-center overflow-hidden shrink-0">
+            {profile.avatarUrl && !broken ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" onError={() => setBroken(true)} />
+            ) : (
+                <span className="text-xl font-bold text-slate-200">{letters || "?"}</span>
+            )}
+        </div>
+    );
 }
 
-interface UserProfile {
-    walletAddress: string;
-    displayName: string;
-    bio: string;
-    skills: SkillProgress[];
-    achievements: Achievement[];
-    stats: {
-        hackathonsParticipated: number;
-        projectsCompleted: number;
-        totalHours: number;
-        streakDays: number;
+function ProfileHeader({ profile, onEdit }: { profile: Profile; onEdit: () => void }) {
+    const links = PROFILE_LINKS.filter(({ key }) => profile.links[key]);
+
+    return (
+        <section className="card-premium p-5">
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 min-w-0">
+                    <Avatar profile={profile} />
+                    <div className="min-w-0">
+                        <h1 className={`text-2xl font-bold ${profile.name ? "text-white" : "text-slate-500"}`}>
+                            {profile.name || "Añade tu nombre"}
+                        </h1>
+                        <p className={`text-sm mt-1 ${profile.bio ? "text-slate-300" : "text-slate-500"}`}>
+                            {profile.bio || "Añade una bio corta: a qué te dedicas y qué estás construyendo."}
+                        </p>
+                    </div>
+                </div>
+                <button type="button" onClick={onEdit} className="btn-ghost shrink-0">
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar
+                </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-border">
+                {links.length === 0 ? (
+                    <p className="text-xs text-slate-500">Añade tus enlaces (GitHub, LinkedIn, X, Devpost, DoraHacks, Devfolio).</p>
+                ) : (
+                    links.map(({ key, label }) => {
+                        const Icon = LINK_ICONS[key];
+                        return (
+                            <a
+                                key={key}
+                                href={profile.links[key]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-slate-300 rounded-md border border-slate-600/30 bg-slate-700/30 hover:border-accent/50 hover:text-accent transition-colors"
+                            >
+                                <Icon className="w-3.5 h-3.5" />
+                                {label}
+                            </a>
+                        );
+                    })
+                )}
+            </div>
+        </section>
+    );
+}
+
+// ── Formulario ──────────────────────────────────────────────────────────────
+function ProfileForm({ profile, onSave, onCancel }: { profile: Profile; onSave: (next: Profile) => void; onCancel: () => void }) {
+    const [form, setForm] = useState<Profile>(profile);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        const nextErrors: Record<string, string> = {};
+        const url = (field: string, value: string) => {
+            const normalized = normalizeUrl(value);
+            if (value.trim() && !normalized) nextErrors[field] = "No es una URL válida";
+            return normalized;
+        };
+        const links = Object.fromEntries(
+            PROFILE_LINKS.map(({ key }) => [key, url(key, form.links[key])]),
+        ) as Record<ProfileLinkKey, string>;
+        const avatarUrl = url("avatarUrl", form.avatarUrl);
+
+        setErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) return;
+        onSave({ ...profile, name: form.name, bio: form.bio, avatarUrl, links });
     };
+
+    const error = (field: string) => errors[field] && <p className="text-xs text-red-400 mt-1">{errors[field]}</p>;
+
+    return (
+        <form onSubmit={submit} className="card-premium p-5 space-y-4" noValidate>
+            <h1 className="text-lg font-bold text-white">Editar perfil</h1>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                    <span className="text-xs text-muted-text">Nombre</span>
+                    <input
+                        type="text"
+                        value={form.name}
+                        maxLength={80}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        placeholder="Añade tu nombre"
+                        className={`${fieldClass} mt-1`}
+                    />
+                </label>
+                <label className="block">
+                    <span className="text-xs text-muted-text">Foto (URL, opcional)</span>
+                    <input
+                        type="url"
+                        value={form.avatarUrl}
+                        onChange={(e) => setForm({ ...form, avatarUrl: e.target.value })}
+                        placeholder="https://… — sin foto se muestran tus iniciales"
+                        className={`${fieldClass} mt-1`}
+                    />
+                    {error("avatarUrl")}
+                </label>
+            </div>
+
+            <label className="block">
+                <span className="text-xs text-muted-text">Bio</span>
+                <textarea
+                    value={form.bio}
+                    maxLength={300}
+                    rows={2}
+                    onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                    placeholder="A qué te dedicas y qué estás construyendo"
+                    className={`${fieldClass} mt-1 resize-none`}
+                />
+            </label>
+
+            <div>
+                <p className="section-label mb-2">Enlaces (opcionales)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {PROFILE_LINKS.map(({ key, label, placeholder }) => (
+                        <label key={key} className="block">
+                            <span className="text-xs text-muted-text">{label}</span>
+                            <input
+                                type="url"
+                                value={form.links[key]}
+                                onChange={(e) => setForm({ ...form, links: { ...form.links, [key]: e.target.value } })}
+                                placeholder={placeholder}
+                                className={`${fieldClass} mt-1`}
+                            />
+                            {error(key)}
+                        </label>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onClick={onCancel} className="btn-ghost">Cancelar</button>
+                <button type="submit" className="btn-primary">Guardar</button>
+            </div>
+        </form>
+    );
 }
 
-interface Achievement {
-    id: string;
-    title: string;
-    description: string;
-    icon: string;
-    earned: boolean;
-    earnedAt?: string;
+// ── Wallets ─────────────────────────────────────────────────────────────────
+function CopyButton({ value, label }: { value: string; label: string }) {
+    const [copied, setCopied] = useState(false);
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch { /* portapapeles no disponible */ }
+    };
+    return (
+        <button type="button" onClick={copy} aria-label={label} title={label} className="p-1.5 rounded-md text-muted-text hover:text-accent hover:bg-white/5">
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+    );
 }
 
+function WalletRow({
+    network, purpose, address,
+}: { network: string; purpose: string; address: string | null }) {
+    return (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border">
+            <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-200">{network}</p>
+                <p className="text-xs text-muted-text">{purpose}</p>
+            </div>
+            {address ? (
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-sm font-mono text-slate-200" title={address}>{abbreviateAddress(address)}</span>
+                    <CopyButton value={address} label={`Copiar dirección de ${network}`} />
+                </div>
+            ) : (
+                <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs text-slate-500">No conectada</span>
+                    <Link href="/settings" className="btn-ghost">Conectar</Link>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Estado de las wallets; se vinculan y desvinculan en Configuración. */
+function WalletsSection() {
+    const { publicKey, isLoaded } = useWallet();
+    const solana = useSolanaAddress();
+
+    return (
+        <section className="card-premium p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-accent" />
+                    Wallets
+                </h2>
+                <Link href="/settings" className="text-xs text-muted-text hover:text-accent">Gestionar en Configuración</Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <WalletRow
+                    network="Stellar"
+                    purpose="Escrow educativo"
+                    address={isLoaded ? publicKey : null}
+                />
+                <WalletRow
+                    network="Solana"
+                    purpose="Opcional, para bounties"
+                    address={solana.address}
+                />
+            </div>
+        </section>
+    );
+}
+
+// ── Página ──────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
-    const [walletAddress, setWalletAddress] = useState<string | null>(null);
-    const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { profile, loaded, save } = useProfile();
+    const { state, loaded: progressLoaded } = useLearningProgress();
+    const { publicKey } = useWallet();
+    const { address: solanaAddress } = useSolanaAddress();
     const [editing, setEditing] = useState(false);
-    const [editForm, setEditForm] = useState({ displayName: "", bio: "" });
+    // Skills con evidencia (certificación o proyecto), calculadas en el servidor (lib/skills/insights.ts)
+    const insights = useSkillInsights();
+    const skills: ExportSkill[] | null | undefined = insights.data
+        ? insights.data.skills
+              .filter((s) => s.certification || s.projects.length > 0)
+              .map((s) => ({ label: s.label, projects: s.projects, certifiedBy: s.certification?.provider ?? null }))
+        : insights.failed ? null : undefined;
 
-    useEffect(() => {
-        loadProfile();
-    }, []);
-
-    const loadProfile = () => {
-        setLoading(true);
-        
-        const savedWallet = localStorage.getItem("stellar_pubkey");
-        if (savedWallet) {
-            setWalletAddress(savedWallet);
-        }
-
-        const savedProfile = localStorage.getItem("user_profile");
-        if (savedProfile) {
-            setProfile(JSON.parse(savedProfile));
-        } else {
-            // Default profile
-            const defaultProfile: UserProfile = {
-                walletAddress: savedWallet || "No conectado",
-                displayName: "Desarrollador Xiimalab",
-                bio: "Construyendo el futuro con IA y Blockchain",
-                skills: [
-                    { name: "Python", level: 65, hours: 45, streak: 7, category: "technical" },
-                    { name: "JavaScript", level: 70, hours: 30, streak: 3, category: "technical" },
-                    { name: "React", level: 55, hours: 20, streak: 0, category: "technical" },
-                    { name: "AI/ML", level: 35, hours: 15, streak: 5, category: "analytical" },
-                ],
-                achievements: [
-                    { id: "1", title: "Primer Paso", description: "Completa tu primer hackathon", icon: "🎯", earned: false },
-                    { id: "2", title: "Stack Lleno", description: "Agrega 5 skills a tu perfil", icon: "📚", earned: true, earnedAt: "2026-03-15" },
-                    { id: "3", title: "Neuroplasticidad", description: "Alcanza 80% de plasticidad", icon: "🧠", earned: false },
-                    { id: "4", title: "Cazador de Bounties", description: "Aplica a 3 hackatones", icon: "💰", earned: false },
-                    { id: "5", title: "Escrow Master", description: "Libera tu primer staking", icon: "🔐", earned: false },
-                ],
-                stats: {
-                    hackathonsParticipated: 2,
-                    projectsCompleted: 5,
-                    totalHours: 120,
-                    streakDays: 7,
-                },
-            };
-            setProfile(defaultProfile);
-        }
-
-        setLoading(false);
-    };
-
-    const saveProfile = () => {
-        if (profile) {
-            const updated = {
-                ...profile,
-                displayName: editForm.displayName || profile.displayName,
-                bio: editForm.bio || profile.bio,
-            };
-            setProfile(updated);
-            localStorage.setItem("user_profile", JSON.stringify(updated));
-            setEditing(false);
-        }
-    };
-
-    if (loading) {
+    if (!loaded) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center" role="status">
                 <Loader2 className="w-10 h-10 text-accent animate-spin" />
             </div>
         );
     }
 
-    if (!profile) return null;
+    const activeTracks = TRACKS.filter((track) => isTrackActive(track, state));
+    const openIdeas = IDEAS.filter((idea) => idea.status !== "convertida" && idea.status !== "descartada");
 
-    const earnedAchievements = profile.achievements.filter(a => a.earned);
-    const avgSkillLevel = profile.skills.length > 0
-        ? Math.round(profile.skills.reduce((a, s) => a + s.level, 0) / profile.skills.length)
-        : 0;
+    const summary: { label: string; value: string; description: string; href: string; icon: LucideIcon }[] = [
+        { label: "Proyectos", value: String(PROJECTS.length), description: "En tu portafolio", href: "/projects", icon: FolderKanban },
+        {
+            label: "Skills demostradas",
+            value: skills === undefined ? "…" : skills === null ? "—" : String(skills.length),
+            description: skills === null ? "No se pudieron calcular" : "Con certificación o con un proyecto que las usa",
+            href: "/skills?tab=mercado",
+            icon: Sparkles,
+        },
+        {
+            label: "Tracks activos",
+            value: progressLoaded ? String(activeTracks.length) : "…",
+            description: progressLoaded && activeTracks.length === 0 ? "Elige uno en el roadmap" : "Elegidos o con hitos hechos",
+            href: "/roadmap",
+            icon: MapIcon,
+        },
+        { label: "Ideas en exploración", value: String(openIdeas.length), description: "Sin convertir ni descartar", href: "#ideas", icon: Lightbulb },
+    ];
+
+    const exportMarkdown = () => {
+        const markdown = buildProfileMarkdown({
+            profile,
+            stellarAddress: publicKey,
+            solanaAddress,
+            projects: PROJECTS,
+            skills: skills ?? null,
+            tracks: activeTracks.map((track) => ({ title: track.title, ...trackProgress(track, state.done) })),
+            date: new Date(),
+        });
+        const url = URL.createObjectURL(new Blob([markdown], { type: "text/markdown" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "xiimalab-perfil.md";
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-6xl mx-auto p-6 space-y-6">
-                
-                {/* Header */}
-                <ProfileHeader 
-                    profile={profile}
-                    editing={editing}
-                    editForm={editForm}
-                    setEditForm={setEditForm}
-                    setEditing={setEditing}
-                    onSave={saveProfile}
-                />
-
-                {/* Stats Grid */}
-                <StatsGrid profile={profile} />
-
-                {/* Main Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left - Neuro Profile & Skills */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <NeuroProfileDashboard walletAddress={walletAddress || undefined} />
-                        
-                        {/* Skills Progress */}
-                        <SkillsProgressSection skills={profile.skills} />
-                    </div>
-
-                    {/* Right - Achievements & Quick Actions */}
-                    <div className="space-y-6">
-                        <AchievementsSection achievements={profile.achievements} />
-                        <QuickLinksSection />
-                    </div>
-                </div>
-
-                {/* Recent Activity */}
-                <RecentActivitySection />
-            </div>
-        </div>
-    );
-}
-
-function ProfileHeader({ 
-    profile, 
-    editing, 
-    editForm, 
-    setEditForm, 
-    setEditing, 
-    onSave 
-}: { 
-    profile: UserProfile;
-    editing: boolean;
-    editForm: { displayName: string; bio: string };
-    setEditForm: (f: any) => void;
-    setEditing: (e: boolean) => void;
-    onSave: () => void;
-}) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-accent/20 via-purple-500/10 to-transparent border border-accent/20 rounded-2xl p-6"
-        >
-            <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center text-2xl font-bold text-white">
-                        {profile.displayName.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                        {editing ? (
-                            <div className="space-y-2">
-                                <input
-                                    type="text"
-                                    value={editForm.displayName}
-                                    onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
-                                    placeholder="Tu nombre"
-                                    className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-white text-lg font-bold focus:border-accent focus:outline-none"
-                                />
-                                <input
-                                    type="text"
-                                    value={editForm.bio}
-                                    onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                                    placeholder="Tu bio"
-                                    className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg text-slate-300 text-sm focus:border-accent focus:outline-none"
-                                />
-                            </div>
-                        ) : (
-                            <>
-                                <h1 className="text-2xl font-bold text-white">{profile.displayName}</h1>
-                                <p className="text-sm text-slate-400">{profile.bio}</p>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <Wallet className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span className="text-xs font-mono text-slate-500">
-                                        {profile.walletAddress.slice(0, 8)}...{profile.walletAddress.slice(-6)}
-                                    </span>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2">
+        <div className="min-h-screen p-6 pt-20 md:pt-6">
+            <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-6xl mx-auto space-y-6">
+                <motion.div variants={itemVariants}>
                     {editing ? (
-                        <>
-                            <button
-                                onClick={() => setEditing(false)}
-                                className="p-2 text-slate-400 hover:text-white transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={onSave}
-                                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-sm font-bold rounded-lg hover:bg-emerald-600 transition-colors"
-                            >
-                                <Save className="w-4 h-4" />
-                                Guardar
-                            </button>
-                        </>
+                        <ProfileForm
+                            profile={profile}
+                            onSave={(next) => { save(next); setEditing(false); }}
+                            onCancel={() => setEditing(false)}
+                        />
                     ) : (
-                        <button
-                            onClick={() => {
-                                setEditForm({ displayName: profile.displayName, bio: profile.bio });
-                                setEditing(true);
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-colors"
-                        >
-                            <Settings className="w-4 h-4" />
-                            Editar
-                        </button>
+                        <ProfileHeader profile={profile} onEdit={() => setEditing(true)} />
                     )}
-                </div>
-            </div>
-        </motion.div>
-    );
-}
-
-function StatsGrid({ profile }: { profile: UserProfile }) {
-    const stats = [
-        { label: "Hackatones", value: profile.stats.hackathonsParticipated, icon: Trophy, color: "text-amber-400" },
-        { label: "Proyectos", value: profile.stats.projectsCompleted, icon: Award, color: "text-purple-400" },
-        { label: "Horas", value: `${profile.stats.totalHours}h`, icon: Clock, color: "text-blue-400" },
-        { label: "Racha", value: `${profile.stats.streakDays}d`, icon: Flame, color: "text-orange-400" },
-    ];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
-        >
-            {stats.map((stat, idx) => (
-                <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 + idx * 0.05 }}
-                    className="bg-card border border-border rounded-xl p-4 text-center"
-                >
-                    <stat.icon className={`w-6 h-6 ${stat.color} mx-auto mb-2`} />
-                    <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-xs text-slate-500">{stat.label}</p>
                 </motion.div>
-            ))}
-        </motion.div>
-    );
-}
 
-function SkillsProgressSection({ skills }: { skills: SkillProgress[] }) {
-    const sorted = [...skills].sort((a, b) => b.level - a.level);
+                <motion.div variants={itemVariants}>
+                    <WalletsSection />
+                </motion.div>
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-card border border-border rounded-2xl p-5"
-        >
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-accent" />
-                    <h2 className="text-lg font-bold text-white">Progreso de Skills</h2>
+                {/* Resumen */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {summary.map(({ label, value, description, href, icon: Icon }) => (
+                        <motion.div key={label} variants={itemVariants}>
+                            <Link href={href} className="card-premium p-5 block h-full hover:!border-accent/30">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Icon className="w-4 h-4 text-accent" />
+                                    <span className="text-xs text-muted-text font-medium">{label}</span>
+                                </div>
+                                <p className="text-2xl font-bold text-slate-200 font-mono">{value}</p>
+                                <p className="text-xs text-muted-text mt-1">{description}</p>
+                            </Link>
+                        </motion.div>
+                    ))}
                 </div>
-                <a href="/skills" className="text-xs text-accent hover:text-accent-bright">
-                    Ver todas →
-                </a>
-            </div>
 
-            <div className="space-y-4">
-                {sorted.map((skill, idx) => (
-                    <div key={skill.name}>
-                        <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-slate-200">{skill.name}</span>
-                                {skill.streak > 0 && (
-                                    <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-500/10 text-orange-400 rounded text-[9px]">
-                                        🔥 {skill.streak}d
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-xs text-slate-500">{skill.hours}h</span>
-                                <span className={`text-sm font-bold ${
-                                    skill.level >= 70 ? "text-emerald-400" :
-                                    skill.level >= 40 ? "text-amber-400" : "text-slate-400"
-                                }`}>
-                                    {skill.level}%
-                                </span>
-                            </div>
+                <motion.div variants={itemVariants}>
+                    <CertificationsSection
+                        certifications={profile.certifications}
+                        onChange={(certifications) => save({ ...profile, certifications })}
+                    />
+                </motion.div>
+
+                <motion.div variants={itemVariants}>
+                    <IdeasSection />
+                </motion.div>
+
+                {/* Exportar */}
+                <motion.div variants={itemVariants}>
+                    <section className="card-premium p-5 flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-lg font-bold text-white">Exportar</h2>
+                            <p className="text-xs text-muted-text mt-1">
+                                Nombre, bio, enlaces, proyectos con stack y demo, certificaciones, skills con evidencia y tracks con su avance.
+                            </p>
                         </div>
-                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${skill.level}%` }}
-                                transition={{ delay: 0.1 + idx * 0.05, duration: 0.5 }}
-                                className={`h-full ${
-                                    skill.level >= 70 ? "bg-emerald-500" :
-                                    skill.level >= 40 ? "bg-amber-500" : "bg-slate-500"
-                                }`}
-                            />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </motion.div>
-    );
-}
-
-function AchievementsSection({ achievements }: { achievements: Achievement[] }) {
-    const earned = achievements.filter(a => a.earned);
-    const pending = achievements.filter(a => !a.earned);
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-card border border-border rounded-2xl p-5"
-        >
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <Award className="w-5 h-5 text-amber-400" />
-                    <h3 className="text-sm font-bold text-white">Logros</h3>
-                </div>
-                <span className="text-xs text-slate-500">{earned.length}/{achievements.length}</span>
-            </div>
-
-            <div className="space-y-2">
-                {earned.map((a) => (
-                    <div key={a.id} className="flex items-center gap-3 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                        <span className="text-lg">{a.icon}</span>
-                        <div className="flex-1">
-                            <p className="text-xs font-medium text-emerald-400">{a.title}</p>
-                            <p className="text-[10px] text-slate-500">{a.description}</p>
-                        </div>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    </div>
-                ))}
-                {pending.map((a) => (
-                    <div key={a.id} className="flex items-center gap-3 p-2 bg-white/5 border border-white/5 rounded-lg opacity-60">
-                        <span className="text-lg grayscale">{a.icon}</span>
-                        <div className="flex-1">
-                            <p className="text-xs font-medium text-slate-400">{a.title}</p>
-                            <p className="text-[10px] text-slate-600">{a.description}</p>
-                        </div>
-                        <span className="text-[10px] text-slate-500">Bloqueado</span>
-                    </div>
-                ))}
-            </div>
-        </motion.div>
-    );
-}
-
-function QuickLinksSection() {
-    const links = [
-        { label: "Agregar Skill", href: "/skills", icon: Plus, color: "text-blue-400" },
-        { label: "Ver Hackatones", href: "/hackathons", icon: Trophy, color: "text-amber-400" },
-        { label: "Market Match", href: "/match", icon: Target, color: "text-purple-400" },
-        { label: "Configurar Wallet", href: "/settings", icon: Wallet, color: "text-emerald-400" },
-    ];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-card border border-border rounded-2xl p-5"
-        >
-            <h3 className="text-sm font-bold text-white mb-3">Accesos Rápidos</h3>
-            <div className="space-y-2">
-                {links.map((link) => (
-                    <a
-                        key={link.label}
-                        href={link.href}
-                        className="flex items-center justify-between p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-colors group"
-                    >
-                        <div className="flex items-center gap-2">
-                            <link.icon className={`w-4 h-4 ${link.color}`} />
-                            <span className="text-xs text-slate-300 group-hover:text-white">{link.label}</span>
-                        </div>
-                        <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-accent transition-colors" />
-                    </a>
-                ))}
-            </div>
-        </motion.div>
-    );
-}
-
-function RecentActivitySection() {
-    const activities = [
-        { type: "skill", text: "Subiste Python a 65%", time: "Hace 2 horas", icon: "📈" },
-        { type: "hackathon", text: "Aplicaste a Web3 Cross-Chain Challenge", time: "Ayer", icon: "🏆" },
-        { type: "achievement", text: "Desbloqueaste Logro: Stack Lleno", time: "Hace 3 días", icon: "🎉" },
-        { type: "project", text: "Completaste Proyecto: Xiima NFT Mint", time: "Hace 1 semana", icon: "✅" },
-    ];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-card border border-border rounded-2xl p-5"
-        >
-            <div className="flex items-center gap-2 mb-4">
-                <Calendar className="w-5 h-5 text-accent" />
-                <h3 className="text-sm font-bold text-white">Actividad Reciente</h3>
-            </div>
-
-            <div className="space-y-3">
-                {activities.map((activity, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
-                        <span className="text-lg">{activity.icon}</span>
-                        <div className="flex-1">
-                            <p className="text-xs text-slate-300">{activity.text}</p>
-                            <p className="text-[10px] text-slate-500">{activity.time}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </motion.div>
+                        <button type="button" onClick={exportMarkdown} disabled={skills === undefined || !progressLoaded} className="btn-primary disabled:opacity-50">
+                            <Download className="w-4 h-4" />
+                            Exportar perfil (Markdown)
+                        </button>
+                    </section>
+                </motion.div>
+            </motion.div>
+        </div>
     );
 }
