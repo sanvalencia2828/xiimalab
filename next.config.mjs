@@ -15,6 +15,11 @@ const nextConfig = {
         ],
     },
 
+    // /aggregated se unificó con /hackathons (redirección permanente, 308)
+    async redirects() {
+        return [{ source: "/aggregated", destination: "/hackathons", permanent: true }];
+    },
+
     // Proxy SSE y rutas del backend FastAPI (puerto 8000)
     // En Vercel, NEXT_PUBLIC_API_URL apunta al backend desplegado.
     // En local, el EventSource("/stream/...") se redirige a localhost:8000.

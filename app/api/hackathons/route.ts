@@ -10,13 +10,14 @@ export const dynamic = "force-dynamic";
  * GET /api/hackathons?source=all|dorahacks|devpost|devfolio&limit=30
  *
  * Devuelve SIEMPRE un array plano de hackatones (los consumidores —
- * HackatonesClient, ProjectHackathonPanel, insights, market — esperan un array).
+ * ProjectHackathonPanel, insights, market — esperan un array).
  *
  * Orden de fuentes:
  *   1. FastAPI (si NEXT_PUBLIC_API_URL / INTERNAL_API_URL está configurado)
  *   2. Agregador en vivo: DoraHacks + Devpost + Devfolio (lib/hackathons/live.ts)
  *   3. Lista vacía si ninguna fuente responde
  *
+ * ?count=1 devuelve solo { count } con el total de abiertas.
  * Añade ?debug=1 para ver el estado y el tiempo de respuesta (ms) de cada fuente.
  * En desarrollo, o con &token=DEBUG_TOKEN, debug además salta la caché.
  */
@@ -25,6 +26,15 @@ export async function GET(request: NextRequest) {
     const source = searchParams.get("source") ?? "all";
     const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? "30") || 30, 1), 500);
     const debug = searchParams.get("debug") === "1";
+
+    // ?count=1 → total de hackatones abiertas (mismo número que la página /hackathons y el menú)
+    if (searchParams.get("count") === "1") {
+        const live = await getLiveHackathons();
+        return NextResponse.json(
+            { count: live.hackathons.length },
+            { headers: { "Cache-Control": "s-maxage=600, stale-while-revalidate=1800" } },
+        );
+    }
 
     const bySource = (list: AggregatedHackathon[]) =>
         source === "all"

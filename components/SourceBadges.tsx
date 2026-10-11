@@ -80,7 +80,7 @@ export function SourceBadges({
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block"
-              title={`View on ${config.label}`}
+              title={`Ver en ${config.label}`}
             >
               {badge}
             </a>

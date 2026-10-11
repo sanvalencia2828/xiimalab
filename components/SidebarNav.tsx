@@ -18,7 +18,6 @@ import {
   Brain,
   Target,
   Briefcase,
-  Database,
   Map,
   Menu,
   X,
@@ -34,7 +33,6 @@ const navItems = [
   { href: "/skills", icon: Brain, label: "Skills" },
   { href: "/roadmap", icon: Map, label: "Roadmap" },
   { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
-  { href: "/aggregated", icon: Database, label: "Aggregated" },
   { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
   { href: "/match", icon: BarChart3, label: "Market Match", badgeKey: "insights" },
   { href: "/profile", icon: Target, label: "Mi Perfil" },
@@ -53,17 +51,16 @@ export default function SidebarNav() {
   const [badges, setBadges] = useState<Record<string, number>>({});
   const [isOpen, setIsOpen] = useState(false);
 
-  // Fetch badge counts from Supabase on mount
+  // Badges del menú: el de Hackatones usa el mismo conteo que la página /hackathons
   useEffect(() => {
     const fetchBadges = async () => {
-      try {
-        const res = await fetch("/api/insights/priorities?days_window=30");
-        if (!res.ok) return;
-        const data = await res.json();
-        const urgent = data?.insights?.urgent_hackathons ?? 0;
-        const total = data?.insights?.total_hackathons ?? 0;
-        setBadges({ hackathons: total, insights: urgent });
-      } catch { /* ignore */ }
+      const [count, priorities] = await Promise.allSettled([
+        fetch("/api/hackathons?count=1").then((r) => (r.ok ? r.json() : null)),
+        fetch("/api/insights/priorities?days_window=30").then((r) => (r.ok ? r.json() : null)),
+      ]);
+      const hackathons = count.status === "fulfilled" ? Number(count.value?.count ?? 0) : 0;
+      const insights = priorities.status === "fulfilled" ? Number(priorities.value?.insights?.urgent_hackathons ?? 0) : 0;
+      setBadges({ hackathons, insights });
     };
     fetchBadges();
   }, []);
@@ -138,7 +135,7 @@ export default function SidebarNav() {
                   <span className="flex-1">{label}</span>
                   {badgeCount > 0 && !isActive && (
                     <span className={badgeKey === "insights" ? "badge-rose" : "badge-accent"}>
-                      {badgeCount > 99 ? "99+" : badgeCount}
+                      {badgeCount}
                     </span>
                   )}
                   {isActive && (
