@@ -39,12 +39,13 @@ export interface LearningResource {
     description: string;
 }
 
-export const CYFRIN: ResourceProvider = { id: "cyfrin", name: "Cyfrin Updraft", url: "https://updraft.cyfrin.io" };
+export const CYFRIN_UPDRAFT: ResourceProvider = { id: "cyfrin-updraft", name: "Cyfrin Updraft", url: "https://updraft.cyfrin.io" };
+export const CYFRIN: ResourceProvider = { id: "cyfrin", name: "Cyfrin", url: "https://www.cyfrin.io" };
 
 export const RESOURCES: LearningResource[] = [
     {
         id: "cyfrin-blockchain-foundations",
-        provider: CYFRIN,
+        provider: CYFRIN_UPDRAFT,
         title: "Blockchain Foundations",
         url: "https://updraft.cyfrin.io/career-tracks/blockchain-foundations",
         type: "ruta de carrera",
@@ -57,7 +58,7 @@ export const RESOURCES: LearningResource[] = [
     },
     {
         id: "cyfrin-smart-contract-security-auditor",
-        provider: CYFRIN,
+        provider: CYFRIN_UPDRAFT,
         title: "Smart Contract Security Auditor",
         url: "https://updraft.cyfrin.io/career-tracks/smart-contract-security-auditor",
         type: "ruta de carrera",
@@ -70,7 +71,7 @@ export const RESOURCES: LearningResource[] = [
     },
     {
         id: "cyfrin-defi-developer",
-        provider: CYFRIN,
+        provider: CYFRIN_UPDRAFT,
         title: "DeFi Developer",
         url: "https://updraft.cyfrin.io/career-tracks/defi-developer",
         type: "ruta de carrera",
@@ -83,7 +84,7 @@ export const RESOURCES: LearningResource[] = [
     },
     {
         id: "cyfrin-web3-wallet-security",
-        provider: CYFRIN,
+        provider: CYFRIN_UPDRAFT,
         title: "Web3 Wallet Security",
         url: "https://updraft.cyfrin.io/career-tracks/web3-wallet-security",
         type: "ruta de carrera",
@@ -96,7 +97,7 @@ export const RESOURCES: LearningResource[] = [
     },
     {
         id: "cyfrin-certifications",
-        provider: { ...CYFRIN, name: "Cyfrin" },
+        provider: CYFRIN,
         title: "Certificaciones Cyfrin",
         url: "https://www.cyfrin.io/products/certifications",
         type: "certificación",
@@ -118,12 +119,10 @@ export function trackWideResources(trackId: string): LearningResource[] {
     return RESOURCES.filter((r) => r.trackId === trackId && !r.phaseId);
 }
 
-/** Proveedores con recursos en el track, sin repetir. */
+/** Proveedores con cursos o rutas en alguna fase del track, sin repetir. */
 export function providersForTrack(trackId: string): ResourceProvider[] {
-    const byId = new Map(RESOURCES.filter((r) => r.trackId === trackId).map((r) => [r.provider.id, r.provider]));
-    // El nombre largo del proveedor ("Cyfrin Updraft") gana al de una entrada concreta
-    for (const provider of [CYFRIN]) if (byId.has(provider.id)) byId.set(provider.id, provider);
-    return Array.from(byId.values());
+    const inPhases = RESOURCES.filter((r) => r.trackId === trackId && r.phaseId);
+    return Array.from(new Map(inPhases.map((r) => [r.provider.id, r.provider])).values());
 }
 
 /** Primer recurso que enseña una skill: antes los gratuitos y los cursos o rutas que las certificaciones. */

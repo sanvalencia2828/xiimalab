@@ -8,9 +8,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ResourceList } from "@/components/learning/ResourceList";
 import { type PhaseExtras, TrackTimeline } from "@/components/learning/TrackTimeline";
 import { getLiveHackathons } from "@/lib/hackathons/live";
 import { hackathonsForPhase, projectsForPhase } from "@/lib/learning/connect";
+import { ecosystemNote, providersForTrack, resourcesForPhase, trackWideResources } from "@/lib/learning/resources";
 import { TRACKS, getTrack } from "@/lib/learning/tracks";
 import { PROJECTS } from "@/lib/projects/data";
 import type { AggregatedHackathon } from "@/lib/types";
@@ -44,10 +46,15 @@ export default async function TrackPage({ params }: PageProps) {
     const extras: Record<string, PhaseExtras> = Object.fromEntries(
         track.phases.map((phase) => [
             phase.id,
-            { hackathons: hackathonsForPhase(phase, hackathons), projects: projectsForPhase(phase, PROJECTS) },
+            {
+                hackathons: hackathonsForPhase(phase, hackathons),
+                projects: projectsForPhase(phase, PROJECTS),
+                resources: resourcesForPhase(track.id, phase.id).map((r) => ({ ...r, note: ecosystemNote(r, track.ecosystem) })),
+            },
         ]),
     );
     const position = TRACKS.findIndex((t) => t.id === track.id) + 1;
+    const certifications = trackWideResources(track.id).map((r) => ({ ...r, note: ecosystemNote(r, track.ecosystem) }));
 
     return (
         <div className="p-6 min-h-screen max-w-4xl">
@@ -67,6 +74,12 @@ export default async function TrackPage({ params }: PageProps) {
                         Ver referencia en roadmap.sh
                         <ExternalLink className="w-3 h-3" />
                     </a>
+                    {providersForTrack(track.id).map((provider) => (
+                        <a key={provider.id} href={provider.url} target="_blank" rel="noopener noreferrer" className="btn-ghost inline-flex items-center gap-1.5 text-xs">
+                            Recursos de {provider.name}
+                            <ExternalLink className="w-3 h-3" />
+                        </a>
+                    ))}
                     {track.secondaryReferences?.map((ref) => (
                         <a
                             key={ref.url}
@@ -83,6 +96,16 @@ export default async function TrackPage({ params }: PageProps) {
             </div>
 
             <TrackTimeline track={track} extras={extras} />
+
+            {certifications.length > 0 && (
+                <section className="card-premium p-5 mb-6">
+                    <h2 className="text-base font-semibold text-slate-200 mb-1">Certificaciones reconocidas</h2>
+                    <p className="text-xs text-muted-text mb-3">
+                        Si obtienes una, añádela en Mi Perfil: cuenta como la evidencia más fuerte de sus skills.
+                    </p>
+                    <ResourceList resources={certifications} />
+                </section>
+            )}
 
             <footer className="mt-6 pt-4 border-t border-border text-xs text-muted-text">
                 Referencias:{" "}

@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, Clock, ExternalLink, FolderKanban, Lightbulb, Zap } from "lucide-react";
+import { Check, Clock, ExternalLink, FolderKanban, GraduationCap, Lightbulb, Zap } from "lucide-react";
+import { type PhaseResource, ResourceList } from "@/components/learning/ResourceList";
 import { useLearningProgress } from "@/hooks/useLearningProgress";
 import { closesIn, type PhaseHackathon, type PhaseProject } from "@/lib/learning/connect";
 import { isTrackActive, phaseProgress, phaseStatus, type PhaseStatus, trackProgress } from "@/lib/learning/progress";
@@ -10,11 +11,12 @@ import type { Track } from "@/lib/learning/tracks";
 export interface PhaseExtras {
     hackathons: PhaseHackathon[];
     projects: PhaseProject[];
+    resources: PhaseResource[];
 }
 
 interface TrackTimelineProps {
     track: Track;
-    /** Hackatones abiertas y proyectos del portafolio por id de fase */
+    /** Hackatones abiertas, proyectos del portafolio y recursos reconocidos por id de fase */
     extras: Record<string, PhaseExtras>;
 }
 
@@ -71,7 +73,7 @@ export function TrackTimeline({ track, extras }: TrackTimelineProps) {
                     const status = phaseStatus(phase, state.done);
                     const style = STATUS_STYLE[loaded ? status : "pendiente"];
                     const pp = phaseProgress(phase, state.done);
-                    const extra = extras[phase.id] ?? { hackathons: [], projects: [] };
+                    const extra = extras[phase.id] ?? { hackathons: [], projects: [], resources: [] };
                     const isLast = index === track.phases.length - 1;
 
                     return (
@@ -147,6 +149,17 @@ export function TrackTimeline({ track, extras }: TrackTimelineProps) {
                                         {phase.practiceProject.idea}
                                     </p>
                                 </div>
+
+                                {/* Recursos reconocidos */}
+                                {extra.resources.length > 0 && (
+                                    <div className="mb-4">
+                                        <p className="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1.5">
+                                            <GraduationCap className="w-3 h-3" />
+                                            Recursos reconocidos
+                                        </p>
+                                        <ResourceList resources={extra.resources} />
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
                                     {/* Hackatones abiertas */}
