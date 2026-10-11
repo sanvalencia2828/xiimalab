@@ -15,9 +15,15 @@ const nextConfig = {
         ],
     },
 
-    // /aggregated se unificó con /hackathons (redirección permanente, 308)
+    // Páginas unificadas (redirección permanente, 308):
+    //   /aggregated → /hackathons
+    //   Market Match (/match, /market-match) → pestaña "Mercado" de /skills
     async redirects() {
-        return [{ source: "/aggregated", destination: "/hackathons", permanent: true }];
+        return [
+            { source: "/aggregated", destination: "/hackathons", permanent: true },
+            { source: "/match", destination: "/skills?tab=mercado", permanent: true },
+            { source: "/market-match", destination: "/skills?tab=mercado", permanent: true },
+        ];
     },
 
     // Proxy SSE y rutas del backend FastAPI (puerto 8000)

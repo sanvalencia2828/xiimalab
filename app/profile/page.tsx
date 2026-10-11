@@ -400,7 +400,7 @@ function QuickLinksSection() {
     const links = [
         { label: "Agregar Skill", href: "/skills", icon: Plus, color: "text-blue-400" },
         { label: "Ver Hackatones", href: "/hackathons", icon: Trophy, color: "text-amber-400" },
-        { label: "Market Match", href: "/match", icon: Target, color: "text-purple-400" },
+        { label: "Skills vs. mercado", href: "/skills?tab=mercado", icon: Target, color: "text-purple-400" },
         { label: "Configurar Wallet", href: "/settings", icon: Wallet, color: "text-emerald-400" },
     ];
 

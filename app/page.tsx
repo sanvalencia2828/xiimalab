@@ -15,7 +15,6 @@ import NotificationBell from "@/components/NotificationBell";
 import BestMatchHero from "@/components/BestMatchHero";
 import { loadUserSkillsAction } from "@/app/actions/userSkills";
 import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
-import type { MarketTrend } from "@/lib/types";
 
 interface Skill {
     name: string;
