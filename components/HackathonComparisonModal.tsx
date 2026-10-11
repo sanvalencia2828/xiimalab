@@ -359,7 +359,7 @@ export function HackathonComparisonModal({
                   className="btn-ghost flex items-center justify-center gap-2 text-sm !border-purple-500/30 !text-purple-400 hover:!bg-purple-500/20"
                 >
                   <BrainCircuit className="w-4 h-4" />
-                  Analizar match con IA
+                  Analizar match
                 </button>
                 {officialUrl ? (
                   <a
