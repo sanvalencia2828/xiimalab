@@ -112,7 +112,7 @@ export function TrackTimeline({ track, extras }: TrackTimelineProps) {
                                     {phase.milestones.map((milestone) => {
                                         const doneAt = state.done[milestone.id];
                                         return (
-                                            <li key={milestone.id}>
+                                            <li key={milestone.id} id={milestone.id} className="scroll-mt-24">
                                                 <label className="flex items-start gap-3 cursor-pointer group">
                                                     <input
                                                         type="checkbox"

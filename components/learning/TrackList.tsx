@@ -7,8 +7,11 @@ import { useLearningProgress } from "@/hooks/useLearningProgress";
 import { currentPhase, isTrackActive, trackProgress } from "@/lib/learning/progress";
 import type { Track } from "@/lib/learning/tracks";
 
-/** Lista de tracks con su barra de avance (hitos hechos / total). */
-export function TrackList({ tracks }: { tracks: Track[] }) {
+/**
+ * Lista de tracks con su barra de avance (hitos hechos / total).
+ * `demandRank` es la posición de cada track en el ranking de demanda actual; sin datos no se muestra el badge.
+ */
+export function TrackList({ tracks, demandRank = {} }: { tracks: Track[]; demandRank?: Record<string, number> }) {
     const { state, loaded } = useLearningProgress();
 
     return (
@@ -27,7 +30,14 @@ export function TrackList({ tracks }: { tracks: Track[] }) {
                         className="card-premium p-5 flex flex-col hover:!border-accent/30 transition-all duration-300"
                     >
                         <div className="flex items-start justify-between gap-3 mb-2">
-                            <h2 className="text-base font-semibold text-slate-200">{track.title}</h2>
+                            <h2 className="text-base font-semibold text-slate-200 flex flex-wrap items-center gap-2">
+                                {track.title}
+                                {demandRank[track.id] && (
+                                    <span className="badge-accent" title="Posición según las convocatorias abiertas ahora">
+                                        #{demandRank[track.id]} en demanda
+                                    </span>
+                                )}
+                            </h2>
                             {loaded && active && (
                                 <span className="shrink-0 px-2 py-0.5 text-[11px] rounded-md border bg-accent/10 text-accent border-accent/30">
                                     {progress.done === progress.total ? "Completado" : "En curso"}

@@ -1,11 +1,16 @@
 /**
  * app/roadmap/page.tsx — SERVER COMPONENT
- * Roadmap de aprendizaje: lista de tracks con su avance.
+ * Roadmap de aprendizaje: lista de tracks con su avance y su posición en el
+ * ranking de demanda actual (agregador en vivo); si el agregador falla, sin badge.
  */
 import type { Metadata } from "next";
 import { Map } from "lucide-react";
 import { TrackList } from "@/components/learning/TrackList";
+import { getLiveHackathons } from "@/lib/hackathons/live";
+import { rankTracks } from "@/lib/learning/demand";
 import { TRACKS, countMilestones } from "@/lib/learning/tracks";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
     title: "Roadmap de aprendizaje | Xiimalab",
@@ -13,7 +18,18 @@ export const metadata: Metadata = {
         "Tracks de aprendizaje de IA, agentes, blockchain, full stack y MLOps, con hitos verificables y hackatones abiertas para practicar cada fase.",
 };
 
-export default function RoadmapPage() {
+async function fetchDemandRank(): Promise<Record<string, number>> {
+    try {
+        const { hackathons } = await getLiveHackathons();
+        return Object.fromEntries(rankTracks(TRACKS, hackathons).map((row) => [row.trackId, row.rank]));
+    } catch (err) {
+        console.warn("[roadmap] live sources error:", err);
+        return {};
+    }
+}
+
+export default async function RoadmapPage() {
+    const demandRank = await fetchDemandRank();
     const totalMilestones = TRACKS.reduce((sum, track) => sum + countMilestones(track), 0);
 
     return (
@@ -37,7 +53,7 @@ export default function RoadmapPage() {
                 </div>
             </div>
 
-            <TrackList tracks={TRACKS} />
+            <TrackList tracks={TRACKS} demandRank={demandRank} />
 
             <footer className="mt-10 pt-4 border-t border-border text-xs text-muted-text">
                 Referencias:{" "}

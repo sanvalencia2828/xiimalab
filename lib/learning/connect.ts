@@ -44,7 +44,8 @@ function hasSkill(text: string, skill: string): boolean {
     return text.includes(skill);
 }
 
-function matched(skills: string[], labels: string[]): string[] {
+/** Skills que aparecen en un conjunto de etiquetas (tags de una hackatón o stack de un proyecto). */
+export function matchSkills(skills: string[], labels: string[]): string[] {
     const text = labels.join(" | ").toLowerCase();
     return skills.filter((skill) => hasSkill(text, skill));
 }
@@ -52,7 +53,7 @@ function matched(skills: string[], labels: string[]): string[] {
 /** Hackatones abiertas cuyas etiquetas coinciden con las skills de la fase (máximo 3). */
 export function hackathonsForPhase(phase: Phase, hackathons: HackathonLike[]): PhaseHackathon[] {
     return hackathons
-        .map((h) => ({ h, skills: matched(phase.skills, h.tags ?? []) }))
+        .map((h) => ({ h, skills: matchSkills(phase.skills, h.tags ?? []) }))
         .filter(({ skills }) => skills.length > 0)
         .sort((a, b) => b.skills.length - a.skills.length || a.h.deadline.localeCompare(b.h.deadline))
         .slice(0, MAX_HACKATHONS)
@@ -69,7 +70,7 @@ export function hackathonsForPhase(phase: Phase, hackathons: HackathonLike[]): P
 /** Proyectos del portafolio cuyo stack toca alguna skill de la fase. */
 export function projectsForPhase(phase: Phase, projects: ProjectLike[]): PhaseProject[] {
     return projects
-        .map((p) => ({ p, skills: matched(phase.skills, p.stack ?? []) }))
+        .map((p) => ({ p, skills: matchSkills(phase.skills, p.stack ?? []) }))
         .filter(({ skills }) => skills.length > 0)
         .sort((a, b) => b.skills.length - a.skills.length)
         .map(({ p, skills }) => ({ title: p.title, url: p.liveUrl ?? p.githubUrl ?? null, matchedSkills: skills }));
