@@ -117,6 +117,7 @@ export interface AggregatedHackathon extends Hackathon {
   description?:             string | null;
   participation_count_estimate?: number | null;
   prize_currency?:          string | null;        // ISO code; ausente o "USD" → se muestra con $
+  prize_unverified?:        boolean | null;       // importe declarado poco creíble: se muestra "No verificado" y no se compara
 
   // Phase 3 Scoring
   urgency_score?:           number | null;

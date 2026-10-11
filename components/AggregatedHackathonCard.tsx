@@ -81,9 +81,12 @@ export function AggregatedHackathonCard({
 
         {/* Premio + cierre + match */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4 text-xs">
-          <div className="flex items-center gap-1.5 text-muted-text">
+          <div
+            className="flex items-center gap-1.5 text-muted-text"
+            title={hackathon.prize_unverified ? `El organizador declara ${formatPrize(hackathon.prize_pool, hackathon.prize_currency)}; no se ha podido verificar` : undefined}
+          >
             <Trophy className="w-3.5 h-3.5" />
-            <span>{formatPrize(hackathon.prize_pool, hackathon.prize_currency)}</span>
+            <span>{formatPrize(hackathon.prize_pool, hackathon.prize_currency, hackathon.prize_unverified)}</span>
           </div>
           <div
             className={`flex items-center gap-1.5 font-medium ${closing.closed ? "text-slate-500" : closing.urgent ? "text-red-400" : "text-muted-text"}`}

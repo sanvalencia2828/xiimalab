@@ -197,10 +197,15 @@ export function HackathonComparisonModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-text mb-1">Premio</p>
-                    <p className={`text-lg font-semibold flex items-center gap-2 ${hackathon.prize_pool > 0 ? "text-slate-200" : "text-slate-400"}`}>
+                    <p className={`text-lg font-semibold flex items-center gap-2 ${hackathon.prize_pool > 0 && !hackathon.prize_unverified ? "text-slate-200" : "text-slate-400"}`}>
                       <Trophy className="w-4 h-4 text-yellow-500 shrink-0" />
-                      {formatPrize(hackathon.prize_pool, hackathon.prize_currency)}
+                      {formatPrize(hackathon.prize_pool, hackathon.prize_currency, hackathon.prize_unverified)}
                     </p>
+                    {hackathon.prize_unverified && (
+                      <p className="text-xs text-muted-text mt-1">
+                        El organizador declara {formatPrize(hackathon.prize_pool, hackathon.prize_currency)}; no se ha podido verificar.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs text-muted-text mb-1">Cierre</p>

@@ -13,6 +13,7 @@ export interface Opportunity {
     tags?: string[] | null;
     prize_pool?: number | null;
     prize_currency?: string | null;
+    prize_unverified?: boolean | null;
     deadline: string; // "YYYY-MM-DD"
 }
 
@@ -28,7 +29,7 @@ export interface TrackDemand {
     rank: number;
     /** Convocatorias abiertas que coinciden con las skills del track */
     opportunities: number;
-    /** Suma de premios en USD de esas convocatorias (las de otra moneda no suman) */
+    /** Suma de premios en USD de esas convocatorias (las de otra moneda y los no verificados no suman) */
     prizeUsd: number;
     /** Cuántas cierran en los próximos URGENCY_WINDOW_DAYS días */
     closingSoon: number;
@@ -62,7 +63,7 @@ export function rankTracks(tracks: Track[], opportunities: Opportunity[], now: D
             title: track.title,
             opportunities: matching.length,
             prizeUsd: matching.reduce(
-                (sum, o) => (isUsdPrize(o.prize_pool, o.prize_currency) ? sum + (o.prize_pool ?? 0) : sum),
+                (sum, o) => (isUsdPrize(o.prize_pool, o.prize_currency, o.prize_unverified) ? sum + (o.prize_pool ?? 0) : sum),
                 0,
             ),
             closingSoon: matching.filter((o) => {

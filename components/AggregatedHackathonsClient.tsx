@@ -36,9 +36,9 @@ const MIN_PRIZES = [
 const fieldClass =
   "w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
 
-/** Importe comparable: solo premios en USD; el resto va al final al ordenar y no pasa el premio mínimo. */
+/** Importe comparable: solo premios en USD y verificados; el resto va al final al ordenar y no pasa el premio mínimo. */
 function usdPrize(h: AggregatedHackathon): number {
-  return isUsdPrize(h.prize_pool, h.prize_currency) ? h.prize_pool : -1;
+  return isUsdPrize(h.prize_pool, h.prize_currency, h.prize_unverified) ? h.prize_pool : -1;
 }
 
 export function AggregatedHackathonsClient({ hackathons }: AggregatedHackathonsClientProps) {
