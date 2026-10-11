@@ -2,6 +2,7 @@ name: Snapshots de convocatorias
 
 # Guarda en Supabase las hackatones y bounties abiertos (scripts/snapshot.ts).
 # Secretos del repositorio: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.
+# Si faltan, el job termina bien con "Supabase no configurado, se omite".
 
 on:
   schedule:

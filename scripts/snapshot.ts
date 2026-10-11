@@ -6,7 +6,8 @@
  * hackathon_snapshots y bounty_snapshots; first_seen_at se conserva y
  * last_seen_at se actualiza.
  *
- *   npm run snapshot              guarda en Supabase
+ *   npm run snapshot              guarda en Supabase; sin las variables termina bien con
+ *                                 "Supabase no configurado, se omite"
  *   npm run snapshot -- --dry-run consulta las fuentes y cuenta, sin guardar
  *
  * Variables (GitHub Actions las recibe como secretos; en local, de .env):
@@ -22,12 +23,11 @@ import { bountyRow, hackathonRow, type SnapshotRow, uniqueById } from "@/lib/sna
 const BATCH_SIZE = 500;
 const dryRun = process.argv.includes("--dry-run");
 
-function supabaseClient(): SupabaseClient {
+/** Cliente con la service role key, o null si faltan las variables (o SUPABASE_URL es el valor de ejemplo). */
+function supabaseClient(): SupabaseClient | null {
     const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-    if (!url || url.includes("<") || !key) {
-        throw new Error("Faltan SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_URL es el valor de ejemplo).");
-    }
+    if (!url || url.includes("<") || !key) return null;
     return createClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -48,6 +48,13 @@ async function save(client: SupabaseClient, table: string, rows: SnapshotRow[], 
 async function main(): Promise<void> {
     const startedAt = new Date().toISOString();
 
+    // Sin Supabase no hay dónde guardar: el job termina bien, sin consultar las fuentes
+    const client = dryRun ? null : supabaseClient();
+    if (!dryRun && !client) {
+        console.log("Supabase no configurado, se omite (faltan SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY).");
+        return;
+    }
+
     // force: sin la caché de Next, que no existe fuera del servidor
     const [live, superteam] = await Promise.all([getLiveHackathons({ force: true }), getSuperteamBounties({ force: true })]);
     const hackathons = uniqueById(live.hackathons.map((h) => hackathonRow(h, startedAt)));
@@ -58,12 +65,11 @@ async function main(): Promise<void> {
     }
     console.log(`  superteam: ${superteam.sources.superteam.ok ? `${superteam.bounties.length} abiertos` : `falló (${superteam.sources.superteam.error})`}`);
 
-    if (dryRun) {
+    if (!client) {
         console.log(`[dry-run] Se guardarían ${hackathons.length} filas en hackathon_snapshots y ${bounties.length} en bounty_snapshots.`);
         return;
     }
 
-    const client = supabaseClient();
     // Una fuente que no responde no borra nada: sus filas simplemente no se actualizan en esta ejecución
     if (hackathons.length > 0) {
         const added = await save(client, "hackathon_snapshots", hackathons, startedAt);
