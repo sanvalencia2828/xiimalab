@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Clock, TrendingUp, ExternalLink, Tag, Eye, BrainCircuit } from "lucide-react";
 import AIMatchModal from "@/components/AIMatchModal";
+import { recordHackathonAction } from "@/lib/hackathons/actions";
 import { describeClosing, formatPrize } from "@/lib/hackathons/format";
 import type { AggregatedHackathon } from "@/lib/types";
 import { SourceBadges } from "./SourceBadges";
@@ -135,7 +136,10 @@ export function AggregatedHackathonCard({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowAIMatch(true)}
+              onClick={() => {
+                recordHackathonAction({ id: hackathon.id, title: hackathon.title, matchScore: match }, "analyze");
+                setShowAIMatch(true);
+              }}
               className="btn-ghost !border-purple-500/30 !text-purple-400 hover:!bg-purple-500/20"
             >
               <BrainCircuit className="w-3 h-3" />
@@ -146,7 +150,10 @@ export function AggregatedHackathonCard({
                 href={officialUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => trackApply(hackathon.id)}
+                onClick={() => {
+                  recordHackathonAction({ id: hackathon.id, title: hackathon.title, matchScore: match }, "apply");
+                  trackApply(hackathon.id);
+                }}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border bg-accent/10 text-accent border-accent/30 hover:bg-accent/20 transition-all"
               >
                 Ir a la hackatón

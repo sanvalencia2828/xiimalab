@@ -4,12 +4,14 @@
  * Calcula el Dashboard del Estudiante a partir de datos reales:
  *   • el avance de los tracks (hitos marcados, con su fecha),
  *   • los proyectos del portafolio y su avance medido en GitHub,
- *   • las hackatones abiertas del agregador en vivo.
+ *   • las hackatones abiertas del agregador en vivo,
+ *   • la primera acción del usuario sobre una hackatón con match alto.
  *
  * Si GitHub o el agregador fallan, la sección afectada llega vacía o marcada
  * como no disponible; nunca se rellena con valores de ejemplo.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+import { MATCH_ACHIEVEMENT_SCORE, type HackathonAction } from "@/lib/hackathons/actions";
 import { getLiveHackathons, type LiveResult, type LiveSource } from "@/lib/hackathons/live";
 import { rankTracks } from "@/lib/learning/demand";
 import {
@@ -32,7 +34,6 @@ const MAX_PROJECT_SKILLS = 5;
 /** Un proyecto es evidencia de una fase si su stack cubre al menos esta parte de sus skills (y 2 como mínimo). */
 const EVIDENCE_MIN_COVERAGE = 0.75;
 const ACHIEVEMENT_TRACK_PERCENT = 50;
-const ACHIEVEMENT_MATCH_SCORE = 70;
 
 const SOURCE_NAMES: Record<LiveSource, string> = { devpost: "Devpost", dorahacks: "DoraHacks", devfolio: "Devfolio" };
 
@@ -215,14 +216,14 @@ function achievements(
     state: LearningState,
     projects: PortfolioProject[],
     hackathons: AggregatedHackathon[] | null,
+    matchAction: HackathonAction | null,
 ): AchievementRow[] {
     const dates = Object.values(state.done).sort();
     const halfway = TRACKS.map((track) => ({ track, progress: trackProgress(track, state.done) }))
         .filter(({ progress }) => progress.percent >= ACHIEVEMENT_TRACK_PERCENT)
         .sort((a, b) => b.progress.percent - a.progress.percent)[0];
-    const topMatch = hackathons
-        ?.filter((h) => h.match_score > ACHIEVEMENT_MATCH_SCORE)
-        .sort((a, b) => b.match_score - a.match_score)[0];
+    const highMatches = hackathons?.filter((h) => h.match_score > MATCH_ACHIEVEMENT_SCORE).length ?? null;
+    const howToMatch = `Se desbloquea al analizar el match o abrir "Ir a la hackatón" de una con más del ${MATCH_ACHIEVEMENT_SCORE} % de match`;
     const finished = projects.find((p) => {
         const roadmap = measured(p)?.roadmap;
         return roadmap && roadmap.total > 0 && roadmap.done === roadmap.total;
@@ -247,14 +248,16 @@ function achievements(
         },
         {
             id: "match-70",
-            title: `Hackatón con match > ${ACHIEVEMENT_MATCH_SCORE} %`,
-            unlocked: Boolean(topMatch),
-            detail: topMatch
-                ? `${topMatch.title} · ${topMatch.match_score} %`
-                : hackathons
-                  ? `Se desbloquea cuando una hackatón abierta supere el ${ACHIEVEMENT_MATCH_SCORE} % de match; ahora ninguna lo hace`
-                  : "No se pudo consultar el agregador de hackatones",
-            date: null,
+            title: `Hackatón con match > ${MATCH_ACHIEVEMENT_SCORE} %`,
+            unlocked: Boolean(matchAction),
+            detail: matchAction
+                ? `${matchAction.kind === "analyze" ? "Analizaste el match de" : "Abriste"} ${matchAction.title} · ${matchAction.matchScore} %`
+                : highMatches === null
+                  ? howToMatch
+                  : highMatches === 0
+                    ? `${howToMatch}; hoy ninguna abierta lo supera`
+                    : `${howToMatch}; hoy hay ${highMatches} ${highMatches === 1 ? "abierta" : "abiertas"}`,
+            date: matchAction?.at ?? null,
         },
         {
             id: "roadmap-100",
@@ -268,7 +271,11 @@ function achievements(
     ];
 }
 
-export async function buildDashboard(state: LearningState, now: Date = new Date()): Promise<DashboardData> {
+export async function buildDashboard(
+    state: LearningState,
+    matchAction: HackathonAction | null = null,
+    now: Date = new Date(),
+): Promise<DashboardData> {
     const [live, projects] = await Promise.all([loadHackathons(), loadProjects()]);
     const hackathons = live?.hackathons ?? [];
 
@@ -313,7 +320,7 @@ export async function buildDashboard(state: LearningState, now: Date = new Date(
         skills: skillMap(state, activeIds, projects, hackathons),
         practicePhases: currentPhases.map((phase) => phase.title),
         practice: practice(currentPhases, projects, hackathons),
-        achievements: achievements(state, projects, live ? hackathons : null),
+        achievements: achievements(state, projects, live ? hackathons : null, matchAction),
         ranking: {
             rows: rankTracks(TRACKS, hackathons, now).map((row) => ({
                 ...row,

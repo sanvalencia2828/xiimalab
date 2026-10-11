@@ -6,6 +6,7 @@ import { CalendarCheck, Layers, Loader2, Sparkles, Target } from "lucide-react";
 import { getDashboardAction } from "@/app/actions/dashboard";
 import { useLearningProgress } from "@/hooks/useLearningProgress";
 import type { DashboardData } from "@/lib/dashboard/types";
+import { readHackathonAction } from "@/lib/hackathons/actions";
 import {
     AchievementsSection, DemandRanking, PracticeSection, ProjectsSection, SkillsMap, TracksSection, WalletCard,
 } from "./Sections";
@@ -71,11 +72,11 @@ export default function DashboardClient() {
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
 
-    // El avance vive en el navegador: se envía al servidor, que devuelve el dashboard ya calculado
+    // El avance y la acción sobre una hackatón viven en el navegador: se envían al servidor, que devuelve el dashboard ya calculado
     useEffect(() => {
         if (!loaded) return;
         let cancelled = false;
-        getDashboardAction(state)
+        getDashboardAction(state, readHackathonAction())
             .then((next) => {
                 if (cancelled) return;
                 setData(next);

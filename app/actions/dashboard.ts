@@ -2,6 +2,7 @@
 
 import { buildDashboard } from "@/lib/dashboard/build";
 import type { DashboardData } from "@/lib/dashboard/types";
+import { parseHackathonAction } from "@/lib/hackathons/actions";
 import { parseLearningState, type LearningState } from "@/lib/learning/progress";
 import { TRACKS } from "@/lib/learning/tracks";
 
@@ -17,14 +18,15 @@ function known(map: Record<string, string>, ids: Set<string>): Record<string, st
 
 /**
  * Dashboard del Estudiante calculado en el servidor.
- * El avance de los tracks vive en el navegador, así que el cliente lo envía
- * aquí; se valida contra los hitos de lib/learning/tracks.ts antes de usarlo.
+ * El avance de los tracks y la primera acción sobre una hackatón con match alto
+ * viven en el navegador, así que el cliente los envía aquí; se validan antes de
+ * usarlos (el avance, contra los hitos de lib/learning/tracks.ts).
  */
-export async function getDashboardAction(rawState: unknown): Promise<DashboardData> {
+export async function getDashboardAction(rawState: unknown, rawMatchAction: unknown = null): Promise<DashboardData> {
     const parsed = parseLearningState(JSON.stringify(rawState ?? null) ?? null);
     const state: LearningState = {
         done: known(parsed.done, MILESTONE_IDS),
         started: known(parsed.started, TRACK_IDS),
     };
-    return buildDashboard(state);
+    return buildDashboard(state, parseHackathonAction(rawMatchAction));
 }
