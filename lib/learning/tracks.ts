@@ -56,6 +56,8 @@ export interface Track {
     /** Roadmap equivalente en roadmap.sh (solo enlace) */
     referenceUrl: string;
     secondaryReferences?: TrackReference[];
+    /** Cadena o tecnología con la que el track hace la práctica (para contrastar con los recursos externos) */
+    ecosystem?: string;
     phases: Phase[];
 }
 
@@ -237,6 +239,7 @@ export const TRACKS: Track[] = [
         title: "Blockchain",
         description: "De enviar tu primera transacción en testnet a publicar una dApp con contratos probados y un despliegue cuidado.",
         referenceUrl: "https://roadmap.sh/blockchain",
+        ecosystem: "Stellar",
         phases: [
             {
                 id: "fundamentos",
