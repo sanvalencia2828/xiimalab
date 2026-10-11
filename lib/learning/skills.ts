@@ -54,9 +54,12 @@ export function skillLabel(skill: string): string {
     return LABELS[skill] ?? skill.charAt(0).toUpperCase() + skill.slice(1);
 }
 
-// Tecnologías del stack que implican una skill sin nombrarla
+// Tecnologías del stack de un proyecto o de una idea que implican una skill sin nombrarla
 const STACK_ALIASES: Record<string, string[]> = {
     openai: ["ai", "llm"],
+    "github actions": ["devops"],
+    cripto: ["web3"],
+    crypto: ["web3"],
     postgis: ["data"],
     postgresql: ["data"],
     supabase: ["data"],
@@ -72,7 +75,7 @@ export function findSkills(skills: string[], labels: string[]): string[] {
     return matchSkills(canonicalSkills(skills), labels);
 }
 
-/** Skills de un proyecto derivadas de su stack, de mayor a menor peso. */
+/** Skills de un proyecto o de una idea derivadas de su stack, de mayor a menor peso. */
 export function skillsFromStack(stack: string[]): string[] {
     const found = new Set(findSkills(SKILLS, stack));
     for (const item of stack) {

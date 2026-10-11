@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import NeuroProfileDashboard from "@/components/NeuroProfileDashboard";
 import PriorityBoard from "@/components/PriorityBoard";
+import { IdeasSection } from "@/components/ideas/IdeasSection";
 
 interface SkillProgress {
     name: string;
@@ -157,6 +158,9 @@ export default function ProfilePage() {
                         <QuickLinksSection />
                     </div>
                 </div>
+
+                {/* Ideas en exploración */}
+                <IdeasSection />
 
                 {/* Recent Activity */}
                 <RecentActivitySection />

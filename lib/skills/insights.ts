@@ -118,3 +118,18 @@ export async function getSkillInsights(state: LearningState): Promise<SkillInsig
         hackathonsAvailable: live !== null,
     };
 }
+
+/**
+ * Para cada conjunto de skills (etiquetas de match.ts), cuántas hackatones
+ * abiertas piden al menos una. Devuelve null si el agregador no respondió.
+ */
+export async function countOpenHackathonsFor(skillSets: Record<string, string[]>): Promise<Record<string, number> | null> {
+    const live = await loadHackathons();
+    if (!live) return null;
+    return Object.fromEntries(
+        Object.entries(skillSets).map(([id, skills]) => [
+            id,
+            live.hackathons.filter((h) => findSkills(skills, h.tags ?? []).length > 0).length,
+        ]),
+    );
+}
