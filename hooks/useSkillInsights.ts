@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSkillInsightsAction } from "@/app/actions/skills";
 import { useLearningProgress } from "@/hooks/useLearningProgress";
+import { useMilestoneEvidence } from "@/hooks/useMilestoneEvidence";
 import { useProfile } from "@/hooks/useProfile";
 import type { SkillInsights } from "@/lib/skills/types";
 
@@ -34,6 +35,7 @@ export function readDeclaredSkillNames(): string[] {
 export function useSkillInsights(declared?: string[]): SkillInsightsState {
     const { state, loaded: progressLoaded } = useLearningProgress();
     const { profile, loaded: profileLoaded } = useProfile();
+    const { evidence, loaded: evidenceLoaded } = useMilestoneEvidence();
     const [data, setData] = useState<SkillInsights | null>(null);
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
@@ -41,10 +43,10 @@ export function useSkillInsights(declared?: string[]): SkillInsightsState {
     const declaredKey = declared?.join("\n");
 
     useEffect(() => {
-        if (!progressLoaded || !profileLoaded) return;
+        if (!progressLoaded || !profileLoaded || !evidenceLoaded) return;
         let cancelled = false;
         const names = declaredKey === undefined ? readDeclaredSkillNames() : declaredKey.split("\n").filter(Boolean);
-        getSkillInsightsAction(state, { certifications: profile.certifications, declared: names })
+        getSkillInsightsAction(state, { certifications: profile.certifications, declared: names, milestoneEvidence: evidence })
             .then((next) => {
                 if (cancelled) return;
                 setData(next);
@@ -56,7 +58,7 @@ export function useSkillInsights(declared?: string[]): SkillInsightsState {
         return () => {
             cancelled = true;
         };
-    }, [progressLoaded, profileLoaded, state, profile.certifications, declaredKey, attempt]);
+    }, [progressLoaded, profileLoaded, evidenceLoaded, state, profile.certifications, evidence, declaredKey, attempt]);
 
     const retry = useCallback(() => {
         setFailed(false);

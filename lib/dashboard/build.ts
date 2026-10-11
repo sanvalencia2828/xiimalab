@@ -5,7 +5,8 @@
  *   • el avance de los tracks (hitos marcados, con su fecha),
  *   • los proyectos del portafolio y su avance medido en GitHub,
  *   • las hackatones abiertas del agregador en vivo,
- *   • la primera acción del usuario sobre una hackatón con match alto.
+ *   • la primera acción del usuario sobre una hackatón con match alto,
+ *   • la evidencia hito → proyecto que el usuario registró en los tracks.
  *
  * Si GitHub o el agregador fallan, la sección afectada llega vacía o marcada
  * como no disponible; nunca se rellena con valores de ejemplo.
@@ -14,6 +15,7 @@
 import { MATCH_ACHIEVEMENT_SCORE, type HackathonAction } from "@/lib/hackathons/actions";
 import { getLiveHackathons, type LiveResult, type LiveSource } from "@/lib/hackathons/live";
 import { rankTracks } from "@/lib/learning/demand";
+import { type MilestoneEvidence, withEvidence } from "@/lib/learning/evidence";
 import { reinforceLink } from "@/lib/learning/resources";
 import {
     currentPhase, isTrackActive, lastCompletedAt, type LearningState, trackProgress,
@@ -288,9 +290,12 @@ export async function buildDashboard(
     state: LearningState,
     matchAction: HackathonAction | null = null,
     certifications: Certification[] = [],
+    evidence: MilestoneEvidence = {},
     now: Date = new Date(),
 ): Promise<DashboardData> {
-    const [live, projects] = await Promise.all([loadHackathons(), loadProjects()]);
+    const [live, portfolio] = await Promise.all([loadHackathons(), loadProjects()]);
+    // Un proyecto registrado como evidencia de un hito demuestra también las skills de su fase
+    const projects = withEvidence(portfolio, evidence, state);
     const hackathons = live?.hackathons ?? [];
 
     const active = TRACKS.filter((track) => isTrackActive(track, state));

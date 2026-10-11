@@ -29,10 +29,12 @@ function read(): EvidenceMap {
  */
 export function useMilestoneEvidence() {
     const [evidence, setEvidence] = useState<EvidenceMap>({});
+    const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
         const sync = () => setEvidence(read());
         sync();
+        setLoaded(true);
         window.addEventListener("storage", sync);
         window.addEventListener(CHANGE_EVENT, sync);
         return () => {
@@ -65,5 +67,5 @@ export function useMilestoneEvidence() {
         [update],
     );
 
-    return { evidence, record, remove };
+    return { evidence, loaded, record, remove };
 }

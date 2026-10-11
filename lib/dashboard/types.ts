@@ -14,7 +14,7 @@ export interface DashboardSummary {
     activeTracks: number;
     /** Hitos marcados en los últimos 7 días */
     milestonesThisWeek: number;
-    /** Skills con evidencia: un proyecto que las usa o una certificación */
+    /** Skills con evidencia: un proyecto que las usa (por su stack o por un hito aplicado en él) o una certificación */
     demonstratedSkills: number;
 }
 
@@ -63,7 +63,7 @@ export interface ProjectRow {
 export interface SkillRow {
     key: string;
     label: string;
-    /** Proyectos que la usan */
+    /** Proyectos que la usan o en los que se aplicó un hito que la cubre */
     projects: string[];
     /** Certificación que la acredita: evidencia más fuerte que un proyecto */
     certification: { provider: string; url: string } | null;

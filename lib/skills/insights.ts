@@ -15,12 +15,14 @@
 import { liveSourceNames, loadHackathons, loadProjects, whereToLearn, type PortfolioProject } from "@/lib/dashboard/build";
 import { formatPrize, isUsdPrize } from "@/lib/hackathons/format";
 import { buildTagOptions } from "@/lib/hackathons/tags";
+import { type MilestoneEvidence, parseMilestoneEvidence, withEvidence } from "@/lib/learning/evidence";
 import { isTrackActive, type LearningState } from "@/lib/learning/progress";
 import { reinforceLink } from "@/lib/learning/resources";
 import { canonicalSkills, findSkills, SKILLS, skillLabel, skillsFromStack } from "@/lib/learning/skills";
 import { TRACKS } from "@/lib/learning/tracks";
 import { highDemandThreshold } from "@/lib/market/relevance";
 import { certificationFor, parseCertifications, type Certification } from "@/lib/profile/certifications";
+import { PROJECTS } from "@/lib/projects/data";
 import type { AggregatedHackathon } from "@/lib/types";
 import type { EvidenceLevel, SkillInsight, SkillInsights, SkillRecommendation } from "./types";
 
@@ -31,9 +33,11 @@ export interface SkillEvidence {
     certifications: Certification[];
     /** Skills declaradas, ya normalizadas a etiquetas de match.ts */
     declared: string[];
+    /** Hito → proyecto en el que se aplicó */
+    milestones: MilestoneEvidence;
 }
 
-export const NO_EVIDENCE: SkillEvidence = { certifications: [], declared: [] };
+export const NO_EVIDENCE: SkillEvidence = { certifications: [], declared: [], milestones: {} };
 
 /** Valida lo que envía el cliente: certificaciones completas y skills declaradas reconocibles. */
 export function parseSkillEvidence(raw: unknown): SkillEvidence {
@@ -41,7 +45,11 @@ export function parseSkillEvidence(raw: unknown): SkillEvidence {
     const names = Array.isArray(obj.declared)
         ? obj.declared.filter((n): n is string => typeof n === "string").slice(0, 200)
         : [];
-    return { certifications: parseCertifications(obj.certifications), declared: skillsFromStack(names) };
+    return {
+        certifications: parseCertifications(obj.certifications),
+        declared: skillsFromStack(names),
+        milestones: parseMilestoneEvidence(obj.milestoneEvidence, PROJECTS.map((p) => p.title)),
+    };
 }
 
 function evidenceLevel(certified: boolean, projects: number, milestones: number, declared: boolean): EvidenceLevel {
@@ -140,8 +148,9 @@ export function computeSkillInsights(
 }
 
 export async function getSkillInsights(state: LearningState, evidence: SkillEvidence = NO_EVIDENCE): Promise<SkillInsights> {
-    const [live, projects] = await Promise.all([loadHackathons(), loadProjects()]);
+    const [live, portfolio] = await Promise.all([loadHackathons(), loadProjects()]);
     const hackathons = live?.hackathons ?? [];
+    const projects = withEvidence(portfolio, evidence.milestones, state);
     return {
         ...computeSkillInsights(state, projects, hackathons, evidence),
         total: hackathons.length,

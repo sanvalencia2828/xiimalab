@@ -7,7 +7,8 @@
 /**
  * Nivel de una skill según su evidencia más fuerte:
  *   certified    → una certificación verificable la acredita
- *   demonstrated → al menos un proyecto del portafolio la usa
+ *   demonstrated → al menos un proyecto del portafolio la usa, o se registró
+ *                  como evidencia de un hito de una fase que la cubre
  *   learning     → hay hitos marcados en una fase que la cubre
  *   declared     → está en tu lista de /skills, sin evidencia todavía
  *   none         → ni declarada ni con evidencia
@@ -27,7 +28,7 @@ export const EVIDENCE_LEVEL_LABELS: Record<EvidenceLevel, string> = {
 
 export const EVIDENCE_LEVEL_HELP: Record<EvidenceLevel, string> = {
     certified: "Una certificación con URL de verificación la acredita.",
-    demonstrated: "Al menos un proyecto de tu portafolio la usa.",
+    demonstrated: "Al menos un proyecto de tu portafolio la usa, o aplicaste en él un hito que la cubre.",
     learning: "Has marcado hitos en una fase de un track que la cubre.",
     declared: "La añadiste a tu lista, pero todavía no hay evidencia.",
     none: "Ni está en tu lista ni hay evidencia.",
@@ -51,6 +52,8 @@ export interface SkillEvidenceInput {
     certifications: unknown;
     /** Nombres de las skills de la lista de /skills, tal como los escribió el usuario */
     declared: unknown;
+    /** Evidencia hito → proyecto registrada en los tracks */
+    milestoneEvidence?: unknown;
 }
 
 export interface SkillInsight {
