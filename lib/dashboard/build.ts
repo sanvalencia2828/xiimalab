@@ -37,7 +37,7 @@ const ACHIEVEMENT_TRACK_PERCENT = 50;
 
 const SOURCE_NAMES: Record<LiveSource, string> = { devpost: "Devpost", dorahacks: "DoraHacks", devfolio: "Devfolio" };
 
-interface PortfolioProject {
+export interface PortfolioProject {
     title: string;
     /** "Rastreador · Londrina Radar Comercial" → "Rastreador" */
     name: string;
@@ -46,7 +46,7 @@ interface PortfolioProject {
     progress: ProjectProgress | null;
 }
 
-async function loadHackathons(): Promise<LiveResult | null> {
+export async function loadHackathons(): Promise<LiveResult | null> {
     try {
         const live = await getLiveHackathons();
         return live.hackathons.length > 0 ? live : null;
@@ -56,7 +56,12 @@ async function loadHackathons(): Promise<LiveResult | null> {
     }
 }
 
-async function loadProjects(): Promise<PortfolioProject[]> {
+/** Nombres visibles de las fuentes que respondieron. */
+export function liveSourceNames(live: LiveResult): string[] {
+    return (Object.keys(live.sources) as LiveSource[]).filter((s) => live.sources[s].ok).map((s) => SOURCE_NAMES[s]);
+}
+
+export async function loadProjects(): Promise<PortfolioProject[]> {
     return Promise.all(
         PROJECTS.map(async (p) => {
             const repo = repoFromUrl(p.githubUrl);
@@ -130,7 +135,7 @@ function nextMilestones(active: Track[], state: LearningState, projects: Portfol
 }
 
 /** Dónde se aprende una skill: la primera fase que la cubre y aún tiene hitos pendientes (antes en tracks activos). */
-function whereToLearn(
+export function whereToLearn(
     skill: string,
     state: LearningState,
     activeIds: Set<string>,
@@ -328,9 +333,7 @@ export async function buildDashboard(
                 percent: progressOf.get(row.trackId)?.percent ?? 0,
             })),
             total: hackathons.length,
-            sources: live
-                ? (Object.keys(live.sources) as LiveSource[]).filter((s) => live.sources[s].ok).map((s) => SOURCE_NAMES[s])
-                : [],
+            sources: live ? liveSourceNames(live) : [],
             fetchedAt: live?.fetched_at ?? null,
         },
         hackathonsAvailable: live !== null,

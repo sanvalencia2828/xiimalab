@@ -3,12 +3,22 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Brain, Target, TrendingUp, Plus, X, Search, Sparkles,
-    ChevronRight, Trophy, Clock, Zap, Award, BarChart3,
-    CheckCircle2, Circle, Loader2, Star, ArrowUpRight,
+    Brain, Target, TrendingUp, Plus, X, Search,
+    Zap, BarChart3, CheckCircle2, Circle,
     Code2, Server, Database
 } from "lucide-react";
 import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
+import { MarketTab } from "@/components/skills/MarketTab";
+
+type TabId = "profile" | "market" | "roles";
+
+// La pestaña activa va en la URL (?tab=mercado) para poder enlazarla
+const TAB_PARAM: Record<TabId, string> = { profile: "perfil", market: "mercado", roles: "roles" };
+
+function tabFromUrl(): TabId {
+    const value = new URLSearchParams(window.location.search).get("tab");
+    return (Object.keys(TAB_PARAM) as TabId[]).find((id) => TAB_PARAM[id] === value) ?? "profile";
+}
 
 interface Skill {
     id: string;
@@ -110,13 +120,19 @@ export default function SkillsPage() {
     const [marketSkills, setMarketSkills] = useState<MarketSkill[]>([]);
     const [skillRelevance, setSkillRelevance] = useState<SkillRelevance[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<"profile" | "market" | "roles">("profile");
+    const [activeTab, setActiveTabState] = useState<TabId>("profile");
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
+        setActiveTabState(tabFromUrl());
         loadData();
     }, []);
+
+    const setActiveTab = (tab: TabId) => {
+        setActiveTabState(tab);
+        window.history.replaceState(null, "", tab === "profile" ? "/skills" : `/skills?tab=${TAB_PARAM[tab]}`);
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -237,23 +253,7 @@ export default function SkillsPage() {
                             onUpdateLevel={updateSkillLevel}
                         />
                     )}
-                    {activeTab === "market" && (
-                        <MarketTab
-                            userSkills={skills}
-                            marketSkills={marketSkills}
-                            onAddSkill={(name) => {
-                                const market = marketSkills.find(m => m.label.toLowerCase() === name.toLowerCase());
-                                addSkill({
-                                    name,
-                                    level: 30,
-                                    category: "technical",
-                                    marketDemand: market?.market_demand || 50,
-                                    yearsExperience: 0,
-                                    lastUsed: new Date().toISOString().slice(0, 7),
-                                });
-                            }}
-                        />
-                    )}
+                    {activeTab === "market" && <MarketTab />}
                     {activeTab === "roles" && (
                         <RolesTab
                             skills={skills}
@@ -312,10 +312,10 @@ function Header({ onAddSkill }: { onAddSkill: () => void }) {
     );
 }
 
-function Tabs({ active, setActive }: { active: string; setActive: (t: "profile" | "market" | "roles") => void }) {
-    const tabs = [
+function Tabs({ active, setActive }: { active: TabId; setActive: (t: TabId) => void }) {
+    const tabs: { id: TabId; label: string; icon: typeof Brain }[] = [
         { id: "profile", label: "Mi Perfil", icon: Brain },
-        { id: "market", label: "vs Mercado", icon: BarChart3 },
+        { id: "market", label: "Mercado", icon: BarChart3 },
         { id: "roles", label: "Roles", icon: Target },
     ];
 
@@ -324,7 +324,7 @@ function Tabs({ active, setActive }: { active: string; setActive: (t: "profile" 
             {tabs.map((tab) => (
                 <button
                     key={tab.id}
-                    onClick={() => setActive(tab.id as "profile" | "market" | "roles")}
+                    onClick={() => setActive(tab.id)}
                     className={`btn-ghost ${
                         active === tab.id
                             ? "!bg-accent/20 !text-accent"
@@ -491,133 +491,6 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
             <p className={`stat-number ${color}`}>{value}</p>
             <p className="section-label mt-1">{label}</p>
         </div>
-    );
-}
-
-function MarketTab({
-    userSkills,
-    marketSkills,
-    onAddSkill,
-}: {
-    userSkills: Skill[];
-    marketSkills: MarketSkill[];
-    onAddSkill: (name: string) => void;
-}) {
-    const userSkillNames = userSkills.map(s => s.name.toLowerCase());
-    
-    const matched = marketSkills.filter(m => 
-        userSkillNames.some(u => m.label.toLowerCase().includes(u) || u.includes(m.label.toLowerCase()))
-    );
-    
-    const notMatched = marketSkills.filter(m => 
-        !userSkillNames.some(u => m.label.toLowerCase().includes(u) || u.includes(m.label.toLowerCase()))
-    );
-
-    return (
-        <motion.div
-            key="market"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-6"
-        >
-            {/* Header Stats */}
-            <div className="grid grid-cols-4 gap-4">
-                <div className="card-premium border-emerald-500/30 p-4 text-center">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-                    <p className="stat-number text-emerald-400">{matched.length}</p>
-                    <p className="section-label mt-1">Skills en Mercado</p>
-                </div>
-                <div className="card-premium border-amber-500/30 p-4 text-center">
-                    <ArrowUpRight className="w-6 h-6 text-amber-400 mx-auto mb-2" />
-                    <p className="stat-number text-amber-400">{notMatched.length}</p>
-                    <p className="section-label mt-1">Para Desarrollar</p>
-                </div>
-                <div className="card-premium p-4 text-center">
-                    <Trophy className="w-6 h-6 text-accent mx-auto mb-2" />
-                    <p className="stat-number text-accent">
-                        {marketSkills.length > 0 
-                            ? Math.round(matched.length / marketSkills.length * 100) 
-                            : 0}%
-                    </p>
-                    <p className="section-label mt-1">Cobertura</p>
-                </div>
-                <div className="card-premium p-4 text-center">
-                    <TrendingUp className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                    <p className="stat-number text-purple-400">
-                        {userSkills.length}
-                    </p>
-                    <p className="section-label mt-1">Tus Skills</p>
-                </div>
-            </div>
-
-            {/* Comparison Chart */}
-            <div className="card-premium p-5">
-                <h3 className="text-sm font-bold text-slate-200 mb-4">Comparativa: Tú vs Mercado</h3>
-                <div className="space-y-4">
-                    {marketSkills.slice(0, 10).map((market, idx) => {
-                        const userSkill = userSkills.find(u => 
-                            u.name.toLowerCase() === market.label.toLowerCase() ||
-                            market.label.toLowerCase().includes(u.name.toLowerCase())
-                        );
-                        const hasSkill = !!userSkill;
-
-                        return (
-                            <div key={market.label} className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                    <span className={`text-sm ${hasSkill ? "text-slate-200" : "text-slate-500"}`}>
-                                        {market.label}
-                                    </span>
-                                    <div className="flex items-center gap-3">
-                                        {userSkill && (
-                                            <span className="text-xs text-emerald-400">Tú: {userSkill.level}%</span>
-                                        )}
-                                        <span className="text-xs text-accent">Mercado: {market.market_demand}%</span>
-                                    </div>
-                                </div>
-                                <div className="progress-track h-3">
-                                    {userSkill && (
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${userSkill.level}%` }}
-                                            transition={{ delay: idx * 0.05 }}
-                                            className="progress-fill"
-                                            style={{ background: "#10b981" }}
-                                        />
-                                    )}
-                                    <div
-                                        className="progress-fill opacity-30"
-                                        style={{ width: `${market.market_demand}%`, background: market.color || "#0ea5e9" }}
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Skills to Add */}
-            {notMatched.length > 0 && (
-                <div className="card-premium p-5">
-                    <h3 className="text-sm font-bold text-slate-200 mb-4">Skills para Agregar</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {notMatched.slice(0, 12).map((skill) => (
-                            <motion.button
-                                key={skill.label}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => onAddSkill(skill.label)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-accent/10 border border-white/10 hover:border-accent/30 rounded-lg transition-all group"
-                            >
-                                <Plus className="w-3.5 h-3.5 text-slate-500 group-hover:text-accent" />
-                                <span className="text-xs text-slate-300 group-hover:text-white">{skill.label}</span>
-                                <span className="text-[10px] text-emerald-400">{skill.market_demand}%</span>
-                            </motion.button>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </motion.div>
     );
 }
 

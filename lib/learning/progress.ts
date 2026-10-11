@@ -6,7 +6,7 @@
  * un mapa hito → fecha en que se marcó. El estado de una fase se deriva de sus
  * hitos: pendiente (ninguno), en curso (alguno) o hecho (todos).
  */
-import type { Milestone, Phase, Track } from "./tracks";
+import { TRACKS, type Milestone, type Phase, type Track } from "./tracks";
 
 /** id del hito → fecha ISO en que se marcó como hecho */
 export type DoneMap = Record<string, string>;
@@ -90,4 +90,20 @@ export function parseLearningState(raw: string | null): LearningState {
     } catch {
         return EMPTY_LEARNING_STATE;
     }
+}
+
+/**
+ * Estado recibido del cliente: conserva solo hitos y tracks que existen en
+ * lib/learning/tracks.ts, con una fecha válida.
+ */
+export function sanitizeLearningState(raw: unknown): LearningState {
+    const parsed = parseLearningState(JSON.stringify(raw ?? null) ?? null);
+    const known = (map: Record<string, string>, ids: Set<string>): Record<string, string> =>
+        Object.fromEntries(
+            Object.entries(map).filter(([id, date]) => ids.has(id) && !Number.isNaN(new Date(date).getTime())),
+        );
+    return {
+        done: known(parsed.done, new Set(TRACKS.flatMap((t) => t.phases.flatMap((p) => p.milestones.map((m) => m.id))))),
+        started: known(parsed.started, new Set(TRACKS.map((t) => t.id))),
+    };
 }
