@@ -40,6 +40,12 @@ export interface SkillCertification {
     url: string;
 }
 
+/** Enlace a un recurso reconocido que enseña la skill ("Refuerza Blockchain: ruta gratuita en Cyfrin Updraft"). */
+export interface SkillResourceLink {
+    text: string;
+    url: string;
+}
+
 /** Lo que el cliente aporta al cálculo, además del avance de los tracks. */
 export interface SkillEvidenceInput {
     certifications: unknown;
@@ -69,12 +75,16 @@ export interface SkillInsight {
     track: { id: string; title: string } | null;
     /** Primer hito pendiente de la fase que la cubre */
     milestone: { text: string; href: string } | null;
+    /** Recurso reconocido para reforzarla, si existe */
+    resource: SkillResourceLink | null;
 }
 
 export interface SkillRecommendation {
     text: string;
     href: string;
     linkLabel: string;
+    /** Recurso reconocido para la skill recomendada, si existe */
+    resource: SkillResourceLink | null;
 }
 
 export interface SkillInsights {

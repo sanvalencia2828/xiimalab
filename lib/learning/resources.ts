@@ -148,3 +148,9 @@ export function resourceSummary(resource: LearningResource): string {
     const free = resource.free ? (noun === "curso" ? " gratuito" : " gratuita") : "";
     return `${noun}${free} en ${resource.provider.name}`;
 }
+
+/** Enlace para reforzar una skill con un recurso reconocido, o null si no hay ninguno. */
+export function reinforceLink(skill: string, label: string): { text: string; url: string } | null {
+    const resource = resourceForSkill(skill);
+    return resource ? { text: `Refuerza ${label}: ${resourceSummary(resource)}`, url: resource.url } : null;
+}

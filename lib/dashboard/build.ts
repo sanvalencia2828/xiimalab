@@ -14,6 +14,7 @@
 import { MATCH_ACHIEVEMENT_SCORE, type HackathonAction } from "@/lib/hackathons/actions";
 import { getLiveHackathons, type LiveResult, type LiveSource } from "@/lib/hackathons/live";
 import { rankTracks } from "@/lib/learning/demand";
+import { reinforceLink } from "@/lib/learning/resources";
 import {
     currentPhase, isTrackActive, lastCompletedAt, type LearningState, trackProgress,
 } from "@/lib/learning/progress";
@@ -181,6 +182,7 @@ function skillMap(
             milestone: where?.milestone
                 ? { id: where.milestone.id, text: where.milestone.text, href: `/roadmap/${where.track.id}#${where.milestone.id}` }
                 : null,
+            resource: reinforceLink(skill, skillLabel(skill)),
         };
         (used.length > 0 || certification ? strong : toReinforce).push(row);
     }

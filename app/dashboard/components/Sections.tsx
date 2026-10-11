@@ -235,6 +235,12 @@ function SkillItem({ skill, reinforce }: { skill: SkillRow; reinforce: boolean }
                     <span>Hito que la cubre: {skill.milestone.text}</span>
                 </Link>
             )}
+            {reinforce && skill.resource && (
+                <a href={skill.resource.url} target="_blank" rel="noopener noreferrer" className="mt-1.5 flex items-start gap-1.5 text-xs text-accent hover:underline">
+                    <ExternalLink className="w-3 h-3 mt-0.5 shrink-0" />
+                    <span>{skill.resource.text}</span>
+                </a>
+            )}
         </li>
     );
 }

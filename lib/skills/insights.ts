@@ -16,6 +16,7 @@ import { liveSourceNames, loadHackathons, loadProjects, whereToLearn, type Portf
 import { formatPrize, isUsdPrize } from "@/lib/hackathons/format";
 import { buildTagOptions } from "@/lib/hackathons/tags";
 import { isTrackActive, type LearningState } from "@/lib/learning/progress";
+import { reinforceLink } from "@/lib/learning/resources";
 import { canonicalSkills, findSkills, SKILLS, skillLabel, skillsFromStack } from "@/lib/learning/skills";
 import { TRACKS } from "@/lib/learning/tracks";
 import { highDemandThreshold } from "@/lib/market/relevance";
@@ -67,6 +68,7 @@ function recommend(skills: SkillInsight[]): SkillRecommendation | null {
             text: `Refuerza ${gap.label}: ${plural(gap.demand, "convocatoria", "convocatorias")}${prizes}, ${learning}ningún proyecto ni certificación la demuestra.`,
             href: gap.milestone?.href ?? (gap.track ? `/roadmap/${gap.track.id}` : "/roadmap"),
             linkLabel: gap.milestone ? `Empieza por: ${gap.milestone.text}` : "Ver el roadmap",
+            resource: gap.resource,
         };
     }
     const best = skills.find((s) => s.demand > 0 && (s.projects.length > 0 || s.certification));
@@ -78,6 +80,7 @@ function recommend(skills: SkillInsight[]): SkillRecommendation | null {
             text: `Aprovecha ${best.label}: ${plural(best.demand, "convocatoria abierta la pide", "convocatorias abiertas la piden")} y ${proof}.`,
             href: "/hackathons",
             linkLabel: "Ver hackatones abiertas",
+            resource: null,
         };
     }
     return null;
@@ -123,6 +126,7 @@ export function computeSkillInsights(
             milestone: where?.milestone
                 ? { text: where.milestone.text, href: `/roadmap/${where.track.id}#${where.milestone.id}` }
                 : null,
+            resource: reinforceLink(skill, skillLabel(skill)),
         };
     })
         .filter((s) => s.demand > 0 || s.level !== "none")

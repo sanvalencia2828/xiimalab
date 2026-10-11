@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Lightbulb, Loader2, TrendingUp } from "lucide-react";
+import { ArrowRight, ExternalLink, Lightbulb, Loader2, TrendingUp } from "lucide-react";
 import { EvidenceChip } from "@/components/skills/EvidenceChip";
 import type { SkillInsightsState } from "@/hooks/useSkillInsights";
 import { formatPrize } from "@/lib/hackathons/format";
@@ -84,6 +84,12 @@ export function MarketTab({ insights }: { insights: SkillInsightsState }) {
                             <ArrowRight className="w-3 h-3 mt-0.5 shrink-0" />
                             <span>{data.recommendation.linkLabel}</span>
                         </Link>
+                        {data.recommendation.resource && (
+                            <a href={data.recommendation.resource.url} target="_blank" rel="noopener noreferrer" className="mt-1.5 flex items-start gap-1.5 text-xs text-accent hover:underline">
+                                <ExternalLink className="w-3 h-3 mt-0.5 shrink-0" />
+                                <span>{data.recommendation.resource.text}</span>
+                            </a>
+                        )}
                     </div>
                 </div>
             )}

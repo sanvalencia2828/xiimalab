@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Brain, Target, TrendingUp, Plus, X, Search,
-    Zap, BarChart3, CheckCircle2, Circle,
+    Zap, BarChart3, CheckCircle2, Circle, ArrowUpRight,
     Code2, Server, Database
 } from "lucide-react";
 import { getSkillRelevanceAction, SkillRelevance } from "@/app/actions/market";
 import { EvidenceChip } from "@/components/skills/EvidenceChip";
+import { EvidenceLegend } from "@/components/skills/EvidenceLegend";
 import { MarketTab } from "@/components/skills/MarketTab";
 import { useSkillInsights } from "@/hooks/useSkillInsights";
 import { skillsFromStack } from "@/lib/learning/skills";
@@ -242,6 +243,8 @@ export default function SkillsPage() {
 
                 <Tabs active={activeTab} setActive={setActiveTab} />
 
+                {activeTab !== "roles" && <EvidenceLegend />}
+
                 <AnimatePresence mode="wait">
                     {activeTab === "profile" && (
                         <ProfileTab
@@ -366,6 +369,10 @@ function ProfileTab({
     onUpdateLevel: (id: string, level: number) => void;
 }) {
     const sortedSkills = [...skills].sort((a, b) => b.level - a.level);
+    // Skills con evidencia que no están en la lista: se muestran igual, para que una certificación o un proyecto no pasen desapercibidos
+    const listed = new Set(skills.flatMap((s) => skillsFromStack([s.name])));
+    const unlisted = (insights ?? []).filter((i) => !listed.has(i.key) && i.level !== "none" && i.level !== "declared");
+    const toReinforce = (insights ?? []).filter((i) => i.highDemand && i.level !== "certified" && i.level !== "demonstrated" && i.resource);
     const avgLevel = skills.length > 0 ? Math.round(skills.reduce((a, s) => a + s.level, 0) / skills.length) : 0;
 
     return (
@@ -404,6 +411,52 @@ function ProfileTab({
                         </div>
                     )}
                 </div>
+
+                {unlisted.length > 0 && (
+                    <div className="card-premium p-5">
+                        <h3 className="text-sm font-bold text-slate-200 mb-1">Con evidencia, fuera de tu lista</h3>
+                        <p className="text-xs text-muted-text mb-4">Skills que acreditan tus certificaciones, proyectos o hitos aunque no las hayas añadido.</p>
+                        <ul className="space-y-2">
+                            {unlisted.map((insight) => (
+                                <li key={insight.key} className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
+                                    <span className="flex flex-wrap items-center gap-2">
+                                        <span className="text-sm font-medium text-slate-200">{insight.label}</span>
+                                        <EvidenceChip level={insight.level} certification={insight.certification} />
+                                    </span>
+                                    <span className="text-xs text-muted-text">
+                                        {insight.projects.length > 0
+                                            ? insight.projects.join(", ")
+                                            : insight.certification
+                                              ? insight.certification.name
+                                              : `${insight.milestonesDone} ${insight.milestonesDone === 1 ? "hito marcado" : "hitos marcados"}`}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {toReinforce.length > 0 && (
+                    <div className="card-premium p-5">
+                        <h3 className="text-sm font-bold text-slate-200 mb-1">Por reforzar</h3>
+                        <p className="text-xs text-muted-text mb-4">Skills con demanda alta que todavía no demuestras, con un recurso reconocido para empezar.</p>
+                        <ul className="space-y-2">
+                            {toReinforce.map((insight) => (
+                                <li key={insight.key}>
+                                    <a
+                                        href={insight.resource?.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-start gap-2 p-3 bg-white/5 rounded-xl border border-white/5 hover:border-accent/30 text-sm text-accent"
+                                    >
+                                        <ArrowUpRight className="w-4 h-4 shrink-0 mt-0.5" />
+                                        <span>{insight.resource?.text}</span>
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
 
             {/* Stats y Missing Skills */}

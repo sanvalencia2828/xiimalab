@@ -4,6 +4,7 @@
  * el servidor (lib/dashboard/build.ts); el cliente solo los pinta.
  */
 import type { TrackDemand } from "@/lib/learning/demand";
+import type { SkillResourceLink } from "@/lib/skills/types";
 
 export interface DashboardSummary {
     /** Hitos hechos / total, solo de los tracks activos */
@@ -71,6 +72,8 @@ export interface SkillRow {
     track: { id: string; title: string; active: boolean } | null;
     /** Primer hito pendiente de la fase que la cubre */
     milestone: { id: string; text: string; href: string } | null;
+    /** Recurso reconocido para reforzarla, si existe */
+    resource: SkillResourceLink | null;
 }
 
 export interface PracticeRow {
