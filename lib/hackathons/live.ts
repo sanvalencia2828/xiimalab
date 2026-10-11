@@ -180,12 +180,14 @@ export function parseDoraHacks(raw: unknown): AggregatedHackathon | null {
     const tags = uniq([...splitList(raw.tags), ...splitList(raw.ecosystem)]).slice(0, 8);
     const owner = isObj(raw.owner) ? str(raw.owner.name) : "";
     const venue = str(raw.venue_form).toLowerCase();
+    const prize_pool = Math.round(num(raw.bonus_price ?? raw.prize_pool ?? raw.prize));
 
     return base(
         {
             id: `dorahacks-${id || title.toLowerCase().replace(/\W+/g, "-")}`,
             title,
-            prize_pool: Math.round(num(raw.bonus_price ?? raw.prize_pool ?? raw.prize)),
+            prize_pool,
+            prize_currency: prize_pool > 0 ? str(raw.bonus_token).toUpperCase() || null : null,
             tags,
             deadline,
             source_url: `https://dorahacks.io/hackathon/${uname || id}`,

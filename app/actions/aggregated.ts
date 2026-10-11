@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import type { AggregatedHackathon } from "@/lib/types";
 import { getApiBase, safeFetch } from "@/lib/api";
 import { getLiveHackathons } from "@/lib/hackathons/live";
+import { isUsdPrize } from "@/lib/hackathons/format";
 
 // ── Sort & filter helpers ───────────────────────────────────────────────────
 function daysUntil(deadline: string) {
@@ -13,11 +14,13 @@ function daysUntil(deadline: string) {
 function scoreHackathon(h: AggregatedHackathon, sortBy: string) {
     const days = daysUntil(h.deadline ?? "");
     const urgency = days <= 0 ? 0 : Math.max(0, 100 - (days / 90) * 80);
-    const prizeScore = Math.min(100, (Math.log10(Math.max(h.prize_pool ?? 1000, 1000)) / 6) * 100);
+    // Solo los premios en USD se comparan por importe; otras monedas y sin moneda no puntúan
+    const usdPrize = isUsdPrize(h.prize_pool, h.prize_currency) ? h.prize_pool : 0;
+    const prizeScore = Math.min(100, (Math.log10(Math.max(usdPrize, 1000)) / 6) * 100);
     const value = (h.match_score ?? 50) * 0.6 + prizeScore * 0.4;
     switch (sortBy) {
         case "urgency":          return urgency;
-        case "prize":            return h.prize_pool ?? 0;
+        case "prize":            return usdPrize > 0 ? usdPrize : -1; // no USD → al final
         case "match":            return h.match_score ?? 0;
         case "value":            return value;
         case "personalized_score":

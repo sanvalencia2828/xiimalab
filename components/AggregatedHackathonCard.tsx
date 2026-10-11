@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Clock, TrendingUp, ExternalLink, Zap, Tag, Eye, Send, CheckCircle2, Loader2, BrainCircuit } from "lucide-react";
 import AIMatchModal from "@/components/AIMatchModal";
+import { formatPrize } from "@/lib/hackathons/format";
 
 type ApplyState = "idle" | "loading" | "applied";
 
@@ -129,7 +130,7 @@ export function AggregatedHackathonCard({
           {/* Prize */}
           <div className="flex items-center gap-1.5 text-muted-text">
             <Trophy className="w-3.5 h-3.5" />
-            <span>${(hackathon.prize_pool / 1000).toFixed(0)}k</span>
+            <span>{formatPrize(hackathon.prize_pool, hackathon.prize_currency)}</span>
           </div>
 
           {/* Days Left */}

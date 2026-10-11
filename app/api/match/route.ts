@@ -4,7 +4,8 @@
  * (lib/match/ai.ts). Ya no pasa por FastAPI.
  *
  *   • Sin ANTHROPIC_API_KEY → estimación por etiquetas (model_used: "heuristic-fallback").
- *   • Con API key → análisis con IA, 10 por IP y hora, caché de 24 h por hackatón + skills.
+ *   • Con API key → análisis con IA, caché de 24 h por hackatón + skills y 10 llamadas al
+ *     modelo por IP y hora (las respuestas servidas desde caché no cuentan).
  *   • Si la IA falla o su respuesta no valida → error JSON { error }, nunca un resultado inventado.
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -23,6 +24,12 @@ export const maxDuration = 30;
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
+
+class RateLimitExceeded extends Error {
+    constructor(readonly retryAfterS: number) {
+        super("rate limit");
+    }
+}
 
 function clientIp(req: NextRequest): string {
     return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
@@ -49,18 +56,21 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(heuristicMatch(input));
     }
 
-    const limit = consume(`match:${clientIp(req)}`, RATE_LIMIT, RATE_WINDOW_MS);
-    if (!limit.allowed) {
-        const minutes = Math.max(1, Math.ceil(limit.retryAfterS / 60));
-        return NextResponse.json(
-            { error: `Has llegado al límite de ${RATE_LIMIT} análisis por hora. Vuelve a intentarlo en ${minutes} min.` },
-            { status: 429, headers: { "Retry-After": String(limit.retryAfterS) } },
-        );
-    }
-
     try {
-        return NextResponse.json(await getAiMatch(input));
+        // El límite solo se consume cuando hay que llamar al modelo: las respuestas en caché no cuentan
+        const result = await getAiMatch(input, () => {
+            const limit = consume(`match:${clientIp(req)}`, RATE_LIMIT, RATE_WINDOW_MS);
+            if (!limit.allowed) throw new RateLimitExceeded(limit.retryAfterS);
+        });
+        return NextResponse.json(result);
     } catch (err) {
+        if (err instanceof RateLimitExceeded) {
+            const minutes = Math.max(1, Math.ceil(err.retryAfterS / 60));
+            return NextResponse.json(
+                { error: `Has llegado al límite de ${RATE_LIMIT} análisis por hora. Vuelve a intentarlo en ${minutes} min.` },
+                { status: 429, headers: { "Retry-After": String(err.retryAfterS) } },
+            );
+        }
         if (err instanceof MatchAnalysisError) {
             return NextResponse.json({ error: err.message }, { status: err.status });
         }

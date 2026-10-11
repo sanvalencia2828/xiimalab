@@ -8,6 +8,7 @@ import type { AggregatedHackathon } from "@/lib/types";
 import { SourceBadges } from "./SourceBadges";
 import { ConnectorOutreach } from "./ConnectorOutreach";
 import AIMatchModal from "./AIMatchModal";
+import { formatPrize } from "@/lib/hackathons/format";
 
 interface HackathonComparisonModalProps {
   hackathon: AggregatedHackathon | null;
@@ -36,14 +37,6 @@ const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "
 
 function sourceLabel(source: string): string {
   return SOURCE_LABELS[source.toLowerCase()] ?? source;
-}
-
-/** "$5.000" · "5.000 EUR" · "No especificado" */
-function formatPrize(amount: number | null | undefined, currency?: string | null): string {
-  if (!amount || amount <= 0) return "No especificado";
-  const grouped = Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  const code = currency?.trim().toUpperCase();
-  return !code || code === "USD" || code === "$" ? `$${grouped}` : `${grouped} ${code}`;
 }
 
 /** Fecha local a partir de "YYYY-MM-DD…" (sin desfase por zona horaria). */

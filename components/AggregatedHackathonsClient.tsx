@@ -136,7 +136,7 @@ export function AggregatedHackathonsClient() {
                 <option value="personalized_score">My Match (Personalized)</option>
               )}
               <option value="urgency">Most Urgent</option>
-              <option value="value">Highest Prize</option>
+              <option value="prize">Highest Prize</option>
               <option value="match">Best Match</option>
             </select>
           </div>

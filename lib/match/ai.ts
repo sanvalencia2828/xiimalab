@@ -178,14 +178,21 @@ async function analyze(input: MatchInput): Promise<MatchAnalysis> {
     return validated.data;
 }
 
-const cachedAnalyze = unstable_cache(analyze, ["ai-match", MATCH_MODEL], {
-    revalidate: CACHE_TTL_S,
-    tags: ["ai-match"],
-});
-
-/** Análisis con IA (24 h de caché por hackatón + skills). Lanza MatchAnalysisError. */
-export async function getAiMatch(input: MatchInput): Promise<MatchResult> {
-    const analysis = await cachedAnalyze(input);
+/**
+ * Análisis con IA (24 h de caché por hackatón + skills). Lanza MatchAnalysisError.
+ * `beforeModelCall` solo se ejecuta cuando no hay respuesta en caché y se va a
+ * llamar al modelo; si lanza, el análisis no se hace y el error se propaga.
+ */
+export async function getAiMatch(input: MatchInput, beforeModelCall?: () => void): Promise<MatchResult> {
+    const run = unstable_cache(
+        async () => {
+            beforeModelCall?.();
+            return analyze(input);
+        },
+        ["ai-match", MATCH_MODEL, JSON.stringify(input)],
+        { revalidate: CACHE_TTL_S, tags: ["ai-match"] },
+    );
+    const analysis = await run();
     return { ...analysis, model_used: MATCH_MODEL };
 }
 
