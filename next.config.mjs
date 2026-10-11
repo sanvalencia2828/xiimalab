@@ -25,11 +25,13 @@ const nextConfig = {
     // Páginas unificadas (redirección permanente, 308):
     //   /aggregated → /hackathons
     //   Market Match (/match, /market-match) → pestaña "Mercado" de /skills
+    //   /portfolio → /projects (el backend de portfolio sigue en services/api)
     async redirects() {
         return [
             { source: "/aggregated", destination: "/hackathons", permanent: true },
             { source: "/match", destination: "/skills?tab=mercado", permanent: true },
             { source: "/market-match", destination: "/skills?tab=mercado", permanent: true },
+            { source: "/portfolio", destination: "/projects", permanent: true },
         ];
     },
 
