@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   Zap,
-  BarChart3,
   Settings,
   Cpu,
   ChevronRight,
@@ -17,8 +16,8 @@ import {
   CheckCircle2,
   Brain,
   Target,
-  Briefcase,
   Map,
+  Coins,
   Menu,
   X,
 } from "lucide-react";
@@ -27,17 +26,15 @@ import { useWallet } from "@/lib/WalletContext";
 // -------------------------------------------------------
 // NAV ITEMS CONFIG
 // -------------------------------------------------------
-const navItems = [
+const navItems: { href: string; icon: typeof Zap; label: string; badgeKey?: string }[] = [
   { href: "/", icon: LayoutDashboard, label: "Inicio" },
-  { href: "/dashboard", icon: Cpu, label: "Dashboard Estudiante" },
+  { href: "/dashboard", icon: Cpu, label: "Dashboard" },
   { href: "/skills", icon: Brain, label: "Skills" },
   { href: "/roadmap", icon: Map, label: "Roadmap" },
   { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
-  { href: "/portfolio", icon: Briefcase, label: "Portfolio" },
-  { href: "/match", icon: BarChart3, label: "Market Match", badgeKey: "insights" },
-  { href: "/profile", icon: Target, label: "Mi Perfil" },
-  // { href: "/ecommerce", ... }  // [DELETED] ecommerce page eliminada
+  { href: "/bounties", icon: Coins, label: "Bounties" },
   { href: "/projects", icon: FolderKanban, label: "Proyectos" },
+  { href: "/profile", icon: Target, label: "Mi Perfil" },
   { href: "/settings", icon: Settings, label: "Configuración" },
 ];
 
@@ -51,18 +48,12 @@ export default function SidebarNav() {
   const [badges, setBadges] = useState<Record<string, number>>({});
   const [isOpen, setIsOpen] = useState(false);
 
-  // Badges del menú: el de Hackatones usa el mismo conteo que la página /hackathons
+  // Badge de Hackatones: el mismo conteo que la página /hackathons
   useEffect(() => {
-    const fetchBadges = async () => {
-      const [count, priorities] = await Promise.allSettled([
-        fetch("/api/hackathons?count=1").then((r) => (r.ok ? r.json() : null)),
-        fetch("/api/insights/priorities?days_window=30").then((r) => (r.ok ? r.json() : null)),
-      ]);
-      const hackathons = count.status === "fulfilled" ? Number(count.value?.count ?? 0) : 0;
-      const insights = priorities.status === "fulfilled" ? Number(priorities.value?.insights?.urgent_hackathons ?? 0) : 0;
-      setBadges({ hackathons, insights });
-    };
-    fetchBadges();
+    fetch("/api/hackathons?count=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setBadges({ hackathons: Number(data?.count ?? 0) }))
+      .catch(() => { /* sin conteo no se muestra el badge */ });
   }, []);
 
   return (
@@ -134,9 +125,7 @@ export default function SidebarNav() {
                   <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-accent" : "group-hover:text-slate-200"}`} />
                   <span className="flex-1">{label}</span>
                   {badgeCount > 0 && !isActive && (
-                    <span className={badgeKey === "insights" ? "badge-rose" : "badge-accent"}>
-                      {badgeCount}
-                    </span>
+                    <span className="badge-accent">{badgeCount}</span>
                   )}
                   {isActive && (
                     <motion.div
