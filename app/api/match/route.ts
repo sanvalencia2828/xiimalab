@@ -1,48 +1,70 @@
 /**
  * POST /api/match
- * Proxy to FastAPI /api/v1/match/evaluate — falls back to heuristic scoring
- * when FastAPI is unavailable (Vercel production without Docker).
+ * Análisis de match perfil × hackatón, directo contra la API de Anthropic
+ * (lib/match/ai.ts). Ya no pasa por FastAPI.
+ *
+ *   • Sin ANTHROPIC_API_KEY → estimación por etiquetas (model_used: "heuristic-fallback").
+ *   • Con API key → análisis con IA, 10 por IP y hora, caché de 24 h por hackatón + skills.
+ *   • Si la IA falla o su respuesta no valida → error JSON { error }, nunca un resultado inventado.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { getApiBase } from "@/lib/api";
+import {
+    MatchAnalysisError,
+    MatchRequestSchema,
+    getAiMatch,
+    heuristicMatch,
+    isAiMatchConfigured,
+    normalizeMatchInput,
+} from "@/lib/match/ai";
+import { consume } from "@/lib/match/rateLimit";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 60 * 60 * 1000;
+
+function clientIp(req: NextRequest): string {
+    return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+}
 
 export async function POST(req: NextRequest) {
-    const body = await req.json();
-    const apiBase = getApiBase();
-
-    // ── Try FastAPI first ──────────────────────────────────
-    if (apiBase) {
-        try {
-            const res = await fetch(`${apiBase}/api/v1/match/evaluate`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-                signal: AbortSignal.timeout(12000),
-            });
-            if (res.ok) return NextResponse.json(await res.json());
-        } catch { /* fall through to heuristic */ }
+    let body: unknown;
+    try {
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: "El cuerpo de la petición no es JSON válido." }, { status: 400 });
     }
 
-    // ── Heuristic fallback (no FastAPI) ───────────────────
-    const profile  = body.user_profile  ?? {};
-    const hackathon = body.hackathon_data ?? {};
+    const parsed = MatchRequestSchema.safeParse(body);
+    if (!parsed.success) {
+        return NextResponse.json(
+            { error: "Faltan datos para el análisis: se necesitan tus skills y el título de la hackatón." },
+            { status: 400 },
+        );
+    }
+    const input = normalizeMatchInput(parsed.data);
 
-    const userSkills  = (profile.skills  ?? []).map((s: string) => s.toLowerCase());
-    const hackTags    = (hackathon.tags   ?? []).map((t: string) => t.toLowerCase());
+    if (!isAiMatchConfigured()) {
+        return NextResponse.json(heuristicMatch(input));
+    }
 
-    const overlap     = hackTags.filter((t: string) => userSkills.includes(t));
-    const missing     = hackTags.filter((t: string) => !userSkills.includes(t));
-    const baseScore   = Math.min(95, 40 + overlap.length * 15 + (hackathon.prize_pool > 20000 ? 10 : 0));
+    const limit = consume(`match:${clientIp(req)}`, RATE_LIMIT, RATE_WINDOW_MS);
+    if (!limit.allowed) {
+        const minutes = Math.max(1, Math.ceil(limit.retryAfterS / 60));
+        return NextResponse.json(
+            { error: `Has llegado al límite de ${RATE_LIMIT} análisis por hora. Vuelve a intentarlo en ${minutes} min.` },
+            { status: 429, headers: { "Retry-After": String(limit.retryAfterS) } },
+        );
+    }
 
-    return NextResponse.json({
-        match_score:     baseScore,
-        matching_skills: overlap,
-        missing_skills:  missing.slice(0, 4),
-        recommendation:  overlap.length > 0
-            ? `Destaca tu experiencia en ${overlap.slice(0, 2).join(" y ")} al aplicar.`
-            : "Revisa los requisitos del hackatón y prepara un proyecto demo.",
-        model_used: "heuristic-fallback",
-    });
+    try {
+        return NextResponse.json(await getAiMatch(input));
+    } catch (err) {
+        if (err instanceof MatchAnalysisError) {
+            return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        console.error("[/api/match] Error inesperado:", err);
+        return NextResponse.json({ error: "No se pudo completar el análisis." }, { status: 500 });
+    }
 }

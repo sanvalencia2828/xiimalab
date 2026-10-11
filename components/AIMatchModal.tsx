@@ -27,8 +27,9 @@ interface UserProfile {
 }
 
 const MAX_SKILL_CHIPS = 5;
-// /api/match responde con este modelo cuando no hay motor de IA disponible (sin backend o sin API key)
+// /api/match responde con este modelo cuando el servidor no tiene ANTHROPIC_API_KEY
 const HEURISTIC_MODEL = "heuristic-fallback";
+const REQUEST_TIMEOUT_MS = 30_000;
 
 function skillNames(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
@@ -130,10 +131,10 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
                         deadline: hackathonDeadline,
                     },
                 }),
-                signal: AbortSignal.timeout(15000),
+                signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
             });
-            if (!res.ok) throw new Error(`El servidor respondió con HTTP ${res.status}`);
-            const data = (await res.json()) as Partial<MatchResult>;
+            const data = (await res.json().catch(() => ({}))) as Partial<MatchResult> & { error?: string };
+            if (!res.ok) throw new Error(data.error || `El servidor respondió con HTTP ${res.status}`);
             if (typeof data.match_score !== "number") throw new Error("La respuesta no incluye un porcentaje de match");
             setResult({
                 match_score: Math.round(data.match_score),
@@ -146,7 +147,7 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
         } catch (err) {
             const timedOut = err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError");
             setErrorMessage(
-                timedOut ? "El análisis tardó más de 15 segundos."
+                timedOut ? `El análisis tardó más de ${REQUEST_TIMEOUT_MS / 1000} segundos.`
                 : err instanceof TypeError ? "No se pudo conectar con el servidor. Revisa tu conexión."
                 : err instanceof Error ? err.message
                 : "Error desconocido",
@@ -277,7 +278,7 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
                                     <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
                                         <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                                         <p className="text-xs text-slate-300 leading-relaxed">
-                                            El motor de IA no está configurado (falta el backend o su API key). Este resultado es una estimación por coincidencia entre tus skills y las etiquetas, no un análisis de IA.
+                                            El motor de IA no está configurado (falta la API key en el servidor). Este resultado es una estimación por coincidencia entre tus skills y las etiquetas, no un análisis de IA.
                                         </p>
                                     </div>
                                 )}
