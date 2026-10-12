@@ -9,7 +9,10 @@ import {
     DEFAULT_RULES,
     STATUS_ORDER,
     evaluateAcquisition,
+    money,
+    parseAmount,
     parseRules,
+    serializeRules,
     type AcquisitionRules,
     type AcquisitionStatus,
 } from "@/lib/markets/acquisition";
@@ -27,22 +30,24 @@ interface Props {
 
 type SortBy = "relevance" | "earnings" | "m1" | "status";
 
-const STORAGE_KEY = "xiimalab.assets.rules.v1";
+const STORAGE_KEY = "xiimalab.assets.rules.v2";
 
 const STATUS_STYLE: Record<AcquisitionStatus, string> = {
     "en-zona": "bg-success/15 text-success border-success/30",
+    "bajo-rango": "bg-accent/10 text-accent border-accent/25",
     "esperar-resultados": "bg-warning/15 text-warning border-warning/30",
-    "fuera-de-zona": "bg-accent/10 text-accent border-accent/25",
-    "sin-objetivo": "bg-slate-700/30 text-slate-400 border-slate-600/30",
+    "sobre-rango": "bg-danger/10 text-danger border-danger/25",
+    "sin-rango": "bg-slate-700/30 text-slate-400 border-slate-600/30",
     "no-operable": "bg-slate-700/30 text-slate-500 border-slate-600/30",
-    "sin-datos": "bg-danger/10 text-danger border-danger/25",
+    "sin-datos": "bg-slate-800/40 text-slate-500 border-slate-700/40",
 };
 
 const STATUS_LABEL: Record<AcquisitionStatus, string> = {
     "en-zona": "En tu zona",
+    "bajo-rango": "Bajo tu mínimo",
     "esperar-resultados": "Esperar resultados",
-    "fuera-de-zona": "Fuera de zona",
-    "sin-objetivo": "Sin objetivo",
+    "sobre-rango": "Sobre tu máximo",
+    "sin-rango": "Sin rango",
     "no-operable": "No operable",
     "sin-datos": "Sin datos",
 };
@@ -79,16 +84,23 @@ export function AssetsClient({ rows, demand, ok, fetchedAt }: Props) {
     }, []);
     useEffect(() => {
         if (!loaded) return;
-        try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rules)); } catch { /* sin almacenamiento */ }
+        try { window.localStorage.setItem(STORAGE_KEY, serializeRules(rules)); } catch { /* sin almacenamiento */ }
     }, [rules, loaded]);
 
-    const setTarget = (ticker: string, value: string) => {
-        const n = Number(value.replace(",", "."));
+    // Edita un extremo del rango. Vaciar un campo borra el rango de ese activo;
+    // si el mínimo queda por encima del máximo se intercambian.
+    const setRange = (ticker: string, field: "min" | "max", value: string) => {
+        const v = parseAmount(value);
         setRules((r) => {
-            const targets = { ...r.targets };
-            if (value.trim() === "" || !Number.isFinite(n) || n <= 0) delete targets[ticker];
-            else targets[ticker] = n;
-            return { ...r, targets };
+            const ranges = { ...r.ranges };
+            const cur = ranges[ticker];
+            if (v === null) delete ranges[ticker];
+            else if (!cur) ranges[ticker] = { min: v, max: v };
+            else {
+                const next = { ...cur, [field]: v };
+                ranges[ticker] = next.min <= next.max ? next : { min: next.max, max: next.min };
+            }
+            return { ...r, ranges };
         });
     };
 
@@ -99,7 +111,7 @@ export function AssetsClient({ rows, demand, ok, fetchedAt }: Props) {
 
     const counts = useMemo(() => {
         const c: Record<AcquisitionStatus, number> = {
-            "en-zona": 0, "esperar-resultados": 0, "fuera-de-zona": 0, "sin-objetivo": 0, "no-operable": 0, "sin-datos": 0,
+            "en-zona": 0, "bajo-rango": 0, "sobre-rango": 0, "esperar-resultados": 0, "sin-rango": 0, "no-operable": 0, "sin-datos": 0,
         };
         evaluated.forEach((e) => { c[e.acq.status]++; });
         return c;
@@ -197,11 +209,17 @@ export function AssetsClient({ rows, demand, ok, fetchedAt }: Props) {
                     <span className="px-2.5 py-1 rounded-full border bg-success/15 text-success border-success/30">
                         {counts["en-zona"]} en tu zona
                     </span>
+                    <span className="px-2.5 py-1 rounded-full border bg-accent/10 text-accent border-accent/25">
+                        {counts["bajo-rango"]} bajo tu mínimo
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full border bg-danger/10 text-danger border-danger/25">
+                        {counts["sobre-rango"]} sobre tu máximo
+                    </span>
                     <span className="px-2.5 py-1 rounded-full border bg-warning/15 text-warning border-warning/30">
                         {soonEarnings} con resultados en 14 días
                     </span>
                     <span className="px-2.5 py-1 rounded-full border bg-slate-700/30 text-slate-400 border-slate-600/30">
-                        {counts["sin-objetivo"]} sin objetivo
+                        {counts["sin-rango"]} sin rango
                     </span>
                 </div>
             </div>
@@ -237,7 +255,7 @@ export function AssetsClient({ rows, demand, ok, fetchedAt }: Props) {
                             <th className="px-3 py-3 font-medium text-right">1m</th>
                             <th className="px-3 py-3 font-medium text-right">Año</th>
                             <th className="px-3 py-3 font-medium">Próx. resultados</th>
-                            <th className="px-3 py-3 font-medium">Tu objetivo</th>
+                            <th className="px-3 py-3 font-medium">Tu rango (mín – máx)</th>
                             <th className="px-4 py-3 font-medium">Estado</th>
                         </tr>
                     </thead>
@@ -287,17 +305,36 @@ export function AssetsClient({ rows, demand, ok, fetchedAt }: Props) {
                                     )}
                                 </td>
                                 <td className="px-3 py-3">
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        placeholder="USD"
-                                        defaultValue={rules.targets[row.ticker] ?? ""}
-                                        key={`${row.ticker}-${loaded}`}
-                                        onBlur={(e) => setTarget(row.ticker, e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                                        className="w-24 px-2 py-1 bg-slate-800/50 border border-slate-700/50 rounded-md text-slate-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                        aria-label={`Precio objetivo de ${row.ticker}`}
-                                    />
+                                    <div className="flex items-center gap-1.5">
+                                        {(["min", "max"] as const).map((field, k) => (
+                                            <span key={field} className="flex items-center gap-1.5">
+                                                {k === 1 && <span className="text-muted-text">–</span>}
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    placeholder={field === "min" ? "mín" : "máx"}
+                                                    defaultValue={rules.ranges[row.ticker]?.[field] ?? ""}
+                                                    key={`${row.ticker}-${field}-${loaded}-${rules.ranges[row.ticker]?.[field] ?? ""}`}
+                                                    onBlur={(e) => setRange(row.ticker, field, e.target.value)}
+                                                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                                    className="w-20 px-2 py-1 bg-slate-800/50 border border-slate-700/50 rounded-md text-slate-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                                    aria-label={`${field === "min" ? "Mínimo" : "Máximo"} de ${row.ticker}`}
+                                                />
+                                            </span>
+                                        ))}
+                                    </div>
+                                    {acq.positionPct !== null && rules.ranges[row.ticker] && (
+                                        <div
+                                            className="relative mt-2 h-1.5 w-[172px] rounded-full bg-muted/40"
+                                            title={`${usd(row.price)} en tu rango ${money(rules.ranges[row.ticker].min)}–${money(rules.ranges[row.ticker].max)}`}
+                                        >
+                                            <div className="absolute inset-y-0 left-0 right-0 rounded-full bg-success/25" />
+                                            <div
+                                                className={`absolute -top-[3px] h-3 w-1 rounded-sm ${acq.positionPct < 0 || acq.positionPct > 100 ? "bg-danger" : "bg-white"}`}
+                                                style={{ left: `calc(${Math.min(100, Math.max(0, acq.positionPct))}% - 2px)` }}
+                                            />
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-4 py-3">
                                     <span className={`inline-block text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLE[acq.status]}`}>
@@ -321,8 +358,8 @@ export function AssetsClient({ rows, demand, ok, fetchedAt }: Props) {
             <p className="flex items-start gap-2 text-xs text-muted-text">
                 <Info className="w-3.5 h-3.5 mt-px shrink-0" />
                 <span>
-                    El estado solo compara el activo con las reglas y precios objetivo que tú defines; no es una recomendación de
-                    inversión y Xiimalab no compra ni vende nada. Los objetivos se guardan en este navegador. Datos de Backpack Exchange
+                    El estado solo compara el precio con tu rango (mínimo–máximo) y las reglas que tú defines; no es una recomendación
+                    de inversión y Xiimalab no compra ni vende nada. Los rangos que edites se guardan en este navegador. Datos de Backpack Exchange
                     {fetchedAt ? `, actualizados ${new Date(fetchedAt).toLocaleString("es")}` : ""}.
                 </span>
             </p>
