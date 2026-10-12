@@ -400,6 +400,7 @@ export function HackathonComparisonModal({
       {isOpen && showAIMatch && (
         <AIMatchModal
           hackathonTitle={hackathon.title}
+          hackathonDescription={hackathon.description}
           hackathonTags={tags}
           hackathonPrize={hackathon.prize_pool ?? 0}
           hackathonDeadline={hackathon.deadline ?? ""}

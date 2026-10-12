@@ -16,6 +16,7 @@ interface MatchResult {
 
 interface Props {
     hackathonTitle: string;
+    hackathonDescription?: string | null;
     hackathonTags: string[];
     hackathonPrize: number;
     hackathonDeadline: string;
@@ -102,7 +103,7 @@ function SkillChips({ skills, tone }: { skills: string[]; tone: "neutral" | "goo
     );
 }
 
-export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonPrize, hackathonDeadline, onClose }: Props) {
+export default function AIMatchModal({ hackathonTitle, hackathonDescription, hackathonTags, hackathonPrize, hackathonDeadline, onClose }: Props) {
     const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
     const [result, setResult] = useState<MatchResult | null>(null);
     const [errorMessage, setErrorMessage] = useState("");
@@ -126,6 +127,7 @@ export default function AIMatchModal({ hackathonTitle, hackathonTags, hackathonP
                     user_profile: { skills: profile.skills },
                     hackathon_data: {
                         title: hackathonTitle,
+                        description: (hackathonDescription ?? "").slice(0, 500),
                         tags: hackathonTags,
                         prize_pool: hackathonPrize,
                         deadline: hackathonDeadline,

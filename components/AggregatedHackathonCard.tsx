@@ -166,6 +166,7 @@ export function AggregatedHackathonCard({
         {showAIMatch && (
           <AIMatchModal
             hackathonTitle={hackathon.title}
+            hackathonDescription={hackathon.description}
             hackathonTags={hackathon.tags ?? []}
             hackathonPrize={hackathon.prize_pool ?? 0}
             hackathonDeadline={hackathon.deadline ?? ""}

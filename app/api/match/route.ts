@@ -19,7 +19,9 @@ import {
 } from "@/lib/match/ai";
 import { consume } from "@/lib/match/rateLimit";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// La llamada al modelo tiene 20 s de timeout y no se reintenta (lib/match/ai.ts)
 export const maxDuration = 30;
 
 const RATE_LIMIT = 10;
