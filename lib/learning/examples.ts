@@ -21,7 +21,7 @@ import { unstable_cache } from "next/cache";
 import { z } from "zod";
 import { getClient, isAiMatchConfigured, MATCH_MODEL } from "@/lib/match/ai";
 import { repoFromUrl } from "@/lib/projects/progress";
-import type { Milestone, Phase, Track } from "./tracks";
+import type { Effort, Milestone, Phase, Track } from "./tracks";
 
 const CACHE_TTL_S = 7 * 24 * 60 * 60;
 const README_TIMEOUT_MS = 8000;
@@ -32,8 +32,6 @@ const MAX_TOKENS = 4096;
 const STEPS = 3;
 /** Tras un fallo de la IA no se vuelve a llamar durante este tiempo: una cuenta sin crédito fallaría en cada fase. */
 const FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
-
-export type Effort = "S" | "M" | "L";
 
 export interface ApplicationExample {
     /** true si es el proyecto práctico de la fase, no una mejora pensada para este proyecto */
@@ -162,7 +160,7 @@ export function generalExample(phase: Phase): ApplicationExample {
     return {
         general: true,
         title: phase.title,
-        what: phase.practiceProject.idea,
+        what: phase.practicaGeneral.idea,
         steps: phase.milestones.slice(0, STEPS).map((milestone) => milestone.text),
         milestones: [],
         effort: null,

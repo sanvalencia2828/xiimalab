@@ -7,7 +7,7 @@
  * fase, y solo mientras el hito siga marcado como hecho.
  */
 import { projectName } from "./applications";
-import type { LearningState } from "./progress";
+import { type LearningState, migrateMilestoneKeys } from "./progress";
 import { canonicalSkills } from "./skills";
 import { TRACKS } from "./tracks";
 
@@ -21,14 +21,20 @@ const PHASE_SKILLS = new Map<string, string[]>(
     }),
 );
 
+/** Evidencia guardada con ids antiguos → ids actuales; un hito fusionado conserva el proyecto del primero de sus orígenes. */
+export function migrateEvidence(evidence: MilestoneEvidence): MilestoneEvidence {
+    return migrateMilestoneKeys(evidence, (projects) => projects[0]);
+}
+
 /** Evidencia recibida del cliente: solo hitos que existen y proyectos del portafolio. */
 export function parseMilestoneEvidence(raw: unknown, projectTitles: string[]): MilestoneEvidence {
     if (!raw || typeof raw !== "object") return {};
     const names = new Set(projectTitles.map(projectName));
+    const strings = Object.fromEntries(
+        Object.entries(raw as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    );
     return Object.fromEntries(
-        Object.entries(raw as Record<string, unknown>).filter(
-            (entry): entry is [string, string] => PHASE_SKILLS.has(entry[0]) && typeof entry[1] === "string" && names.has(entry[1]),
-        ),
+        Object.entries(migrateEvidence(strings)).filter(([id, project]) => PHASE_SKILLS.has(id) && names.has(project)),
     );
 }
 

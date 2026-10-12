@@ -9,8 +9,12 @@
  *   • Mejora: skills de la fase que el proyecto no tiene pero encajan con su
  *     tipo (un proyecto con API → tool use; con ETL → MLOps…). Ver FITS.
  *
- * Una fase solo aplica si hay de dónde partir (afinidad, o el track ya la
- * practica con ese proyecto) y además algo que ganar o una coincidencia
+ *   • Necesidad real: la fase declara en `resuelve` que atiende algo que el
+ *     proyecto tiene pendiente (fijado a mano en tracks.ts). Basta para que
+ *     aplique, aunque el stack no coincida.
+ *
+ * Sin necesidad real, una fase solo aplica si hay de dónde partir (afinidad, o una
+ * práctica escrita para ese proyecto) y además algo que ganar o una coincidencia
  * amplia (al menos 2 skills y la mitad de las de la fase). Se muestran como mucho MAX_PHASES por proyecto y MAX_PER_TRACK por
  * track; si encajan menos, salen menos: no se rellenan con tracks que no encajan.
  * ─────────────────────────────────────────────────────────────────────────────
@@ -25,6 +29,7 @@ const BROAD_AFFINITY = 2;
 const BROAD_COVERAGE = 0.5;
 const IMPROVEMENT_WEIGHT = 1.5;
 const PRACTICE_BONUS = 2;
+const NEED_BONUS = 3;
 
 export interface ProjectLike {
     title: string;
@@ -97,8 +102,10 @@ export interface PhaseApplication {
     affinity: string[];
     /** Skills de la fase que el proyecto ganaría y encajan con su tipo */
     improvement: string[];
-    /** El track ya propone practicar esta fase con este proyecto */
+    /** La fase tiene una práctica escrita para este proyecto, o su texto general se apoya en él */
     practice: boolean;
+    /** Necesidades reales del proyecto que la fase atiende */
+    needs: string[];
     /** Por qué aplica, en una línea */
     reason: string;
     score: number;
@@ -124,21 +131,26 @@ export function phaseApplication(project: ProjectLike, track: Track, phase: Phas
         .map((skill) => ({ skill, kind: FITS[skill]?.find((k) => kinds.includes(k)) }))
         .filter((gain): gain is { skill: string; kind: ProjectKind } => gain.kind !== undefined);
     const improvement = gains.map((gain) => gain.skill);
-    const practice = phase.practiceProject.portfolioTitle === project.title;
+    const name = projectName(project.title);
+    const practice =
+        phase.practicaGeneral.portfolioTitle === project.title || phase.practicas.some((p) => p.project === name);
 
-    const grounded = affinity.length > 0 || practice;
+    const needs = (phase.resuelve ?? []).filter((need) => need.projects.includes(name)).map((need) => need.need);
+
+    const grounded = affinity.length > 0 || practice || needs.length > 0;
     const broad = affinity.length >= BROAD_AFFINITY && affinity.length / skills.length >= BROAD_COVERAGE;
-    const worthwhile = improvement.length > 0 || practice || broad;
+    const worthwhile = improvement.length > 0 || practice || broad || needs.length > 0;
     if (!grounded || !worthwhile) return null;
 
     const reasons: string[] = [];
-    if (affinity.length > 0) reasons.push(`Ya usa ${list(affinity)}`);
+    if (needs.length > 0) reasons.push(`Lo tiene pendiente: ${needs.join(" y ").toLowerCase()}`);
+    if (affinity.length > 0) reasons.push(`${needs.length > 0 ? "ya" : "Ya"} usa ${list(affinity)}`);
     if (gains.length > 0) reasons.push(`${KIND_LABELS[gains[0].kind]}, así que puede ganar ${list(improvement)}`);
-    if (practice) reasons.push("el track ya practica esta fase con él");
+    if (practice) reasons.push("la fase tiene una práctica escrita para él");
 
     return {
         projectTitle: project.title,
-        projectName: projectName(project.title),
+        projectName: name,
         trackId: track.id,
         trackTitle: track.title,
         phaseId: phase.id,
@@ -146,8 +158,13 @@ export function phaseApplication(project: ProjectLike, track: Track, phase: Phas
         affinity,
         improvement,
         practice,
+        needs,
         reason: reasons.join("; "),
-        score: affinity.length + improvement.length * IMPROVEMENT_WEIGHT + (practice ? PRACTICE_BONUS : 0),
+        score:
+            affinity.length +
+            improvement.length * IMPROVEMENT_WEIGHT +
+            (practice ? PRACTICE_BONUS : 0) +
+            needs.length * NEED_BONUS,
     };
 }
 
@@ -167,11 +184,6 @@ export function applicationsForProject(project: ProjectLike, tracks: Track[]): P
         picked.push(application);
     }
     return picked;
-}
-
-/** Proyectos a los que aplica cada fase de un track (según las fases elegidas para cada proyecto). */
-export function applicationsForTrack(track: Track, projects: ProjectLike[], tracks: Track[]): PhaseApplication[] {
-    return projects.flatMap((project) => applicationsForProject(project, tracks).filter((a) => a.trackId === track.id));
 }
 
 /** Línea Markdown para el ROADMAP.md del proyecto. */

@@ -15,6 +15,7 @@
 import { MATCH_ACHIEVEMENT_SCORE, type HackathonAction } from "@/lib/hackathons/actions";
 import { getLiveHackathons, type LiveResult, type LiveSource } from "@/lib/hackathons/live";
 import { rankTracks } from "@/lib/learning/demand";
+import { compareImpact, resolvedProjects } from "@/lib/learning/impact";
 import { type MilestoneEvidence, withEvidence } from "@/lib/learning/evidence";
 import { reinforceLink } from "@/lib/learning/resources";
 import {
@@ -113,27 +114,31 @@ function evidenceFor(phase: Phase, projects: PortfolioProject[]): string[] {
         .map((p) => p.name);
 }
 
-/** Los primeros hitos pendientes, repartidos entre los tracks activos. */
+/**
+ * Los primeros hitos pendientes de los tracks activos, primero los de las fases
+ * de más impacto. Dentro de un track se respeta su orden: solo compite el
+ * siguiente hito pendiente de cada uno. Las fases opcionales no entran.
+ */
 function nextMilestones(active: Track[], state: LearningState, projects: PortfolioProject[]): NextMilestoneRow[] {
     const queues = active.map((track) =>
-        track.phases.flatMap((phase) =>
-            phase.milestones.filter((m) => !state.done[m.id]).map((milestone) => ({ track, phase, milestone })),
-        ),
+        track.phases
+            .filter((phase) => !phase.optional)
+            .flatMap((phase) => phase.milestones.filter((m) => !state.done[m.id]).map((milestone) => ({ track, phase, milestone }))),
     );
     const rows: NextMilestoneRow[] = [];
-    for (let i = 0; rows.length < NEXT_MILESTONES && queues.some((q) => q.length > i); i++) {
-        for (const queue of queues) {
-            const item = queue[i];
-            if (!item || rows.length >= NEXT_MILESTONES) continue;
-            rows.push({
-                id: item.milestone.id,
-                text: item.milestone.text,
-                trackId: item.track.id,
-                trackTitle: item.track.title,
-                phaseTitle: item.phase.title,
-                evidence: evidenceFor(item.phase, projects),
-            });
-        }
+    while (rows.length < NEXT_MILESTONES) {
+        const heads = queues.filter((queue) => queue.length > 0).sort((a, b) => compareImpact(a[0], b[0], PROJECTS));
+        const item = heads[0]?.shift();
+        if (!item) break;
+        rows.push({
+            id: item.milestone.id,
+            text: item.milestone.text,
+            trackId: item.track.id,
+            trackTitle: item.track.title,
+            phaseTitle: item.phase.title,
+            evidence: evidenceFor(item.phase, projects),
+            resolves: resolvedProjects(item.phase).length,
+        });
     }
     return rows;
 }

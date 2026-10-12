@@ -1,8 +1,10 @@
 /**
  * app/roadmap/[track]/page.tsx — SERVER COMPONENT
- * Un track: fases como timeline vertical con hitos marcables. En el servidor
- * se cruza cada fase con las hackatones abiertas (agregador en vivo) y con
- * los proyectos del portafolio; si el agregador falla, la fase se muestra sin ellas.
+ * Un track: fases como timeline vertical con hitos marcables, ordenadas por
+ * impacto (proyectos con una necesidad real que cada fase resuelve). En el servidor
+ * se cruza cada fase con las hackatones abiertas (agregador en vivo); si el
+ * agregador falla, la fase se muestra sin ellas. Los proyectos prácticos de cada
+ * fase los pone TrackTimeline.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -11,10 +13,9 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { ResourceList } from "@/components/learning/ResourceList";
 import { type PhaseExtras, TrackTimeline } from "@/components/learning/TrackTimeline";
 import { getLiveHackathons } from "@/lib/hackathons/live";
-import { hackathonsForPhase, projectsForPhase } from "@/lib/learning/connect";
+import { hackathonsForPhase } from "@/lib/learning/connect";
 import { ecosystemNote, providersForTrack, resourcesForPhase, trackWideResources } from "@/lib/learning/resources";
 import { TRACKS, getTrack } from "@/lib/learning/tracks";
-import { PROJECTS } from "@/lib/projects/data";
 import type { AggregatedHackathon } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,6 @@ export default async function TrackPage({ params }: PageProps) {
             phase.id,
             {
                 hackathons: hackathonsForPhase(phase, hackathons),
-                projects: projectsForPhase(phase, PROJECTS),
                 resources: resourcesForPhase(track.id, phase.id).map((r) => ({ ...r, note: ecosystemNote(r, track.ecosystem) })),
             },
         ]),

@@ -66,7 +66,7 @@ export const RESOURCES: LearningResource[] = [
         ecosystem: "EVM/Solidity",
         skills: ["smart contract", "blockchain"],
         trackId: "blockchain",
-        phaseId: "primer-contrato",
+        phaseId: "contratos-seguridad",
         description: "Escribir contratos pensando en cómo se rompen: útil para los tests que deben fallar de esta fase.",
     },
     {
@@ -92,7 +92,7 @@ export const RESOURCES: LearningResource[] = [
         ecosystem: "EVM/Solidity",
         skills: ["web3", "blockchain"],
         trackId: "blockchain",
-        phaseId: "seguridad-mainnet",
+        phaseId: "contratos-seguridad",
         description: "Custodia de claves y cuentas multifirma, lo que necesitas antes de desplegar con fondos reales.",
     },
     {

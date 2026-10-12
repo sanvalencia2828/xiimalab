@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PROJECTS } from "@/lib/projects/data";
 import {
-    applicationsForProject, applicationsForTrack, asRoadmapTask, MAX_PHASES, phaseApplication, type ProjectLike, projectKinds,
+    applicationsForProject, asRoadmapTask, MAX_PHASES, phaseApplication, type ProjectLike, projectKinds,
 } from "./applications";
 import { TRACKS, getTrack, type Phase, type Track } from "./tracks";
 
@@ -40,11 +40,21 @@ describe("phaseApplication", () => {
         expect(application?.reason).toContain("expone una API");
     });
 
-    it("un proyecto con ETL gana MLOps", () => {
+    it("un proyecto con ETL gana el pipeline de datos de MLOps", () => {
         const { track, phase: pipeline } = phase("mlops", "pipeline");
         const application = phaseApplication(project("Rastreador"), track, pipeline);
-        expect(application?.improvement).toContain("ml");
+        expect(application?.improvement).toContain("devops");
         expect(application?.reason).toContain("ETL");
+        expect(application?.needs).toEqual(["Pipeline de datos programado"]);
+    });
+
+    it("una necesidad real basta para que la fase aplique, aunque el stack no coincida", () => {
+        // Regen-Buddy (HTML, JavaScript, OpenAI) no comparte stack con Full Stack, pero no tiene tests, CI ni licencia
+        const { track, phase: calidad } = phase("full-stack", "calidad");
+        const application = phaseApplication(project("Regen-Buddy"), track, calidad);
+        expect(application?.affinity).toEqual([]);
+        expect(application?.needs).toEqual(["Tests y CI", "Repo presentable (README, LICENSE, ROADMAP)"]);
+        expect(application?.reason).toContain("Lo tiene pendiente");
     });
 
     it("no aplica sin punto de partida, aunque la mejora encaje con el tipo", () => {
@@ -54,10 +64,12 @@ describe("phaseApplication", () => {
     });
 
     it("no fuerza una fase por compartir solo lenguaje y framework", () => {
-        // dApp completa pide web3 y smart contracts; RedimensionAI solo comparte Next.js y TypeScript
+        // La dApp pide web3 y blockchain; AURA solo comparte Next.js y TypeScript
         const { track, phase: dapp } = phase("blockchain", "dapp");
-        expect(phaseApplication(project("RedimensionAI"), track, dapp)).toBeNull();
+        expect(phaseApplication(project("AURA"), track, dapp)).toBeNull();
         expect(phaseApplication(project("Pulsar Radar"), track, dapp)).not.toBeNull();
+        // RedimensionAI ya conecta una wallet: ahí sí aplica
+        expect(phaseApplication(project("RedimensionAI"), track, dapp)?.needs).toEqual(["Autenticación y wallet"]);
     });
 });
 
@@ -80,25 +92,16 @@ describe("applicationsForProject", () => {
     });
 
     it("no propone Blockchain a proyectos sin relación con una cadena", () => {
-        for (const title of ["AURA", "RedimensionAI", "Regen-Buddy", "Rastreador"]) {
+        for (const title of ["AURA", "Regen-Buddy", "Rastreador"]) {
             expect(picked(title).some((key) => key.startsWith("blockchain/"))).toBe(false);
         }
         expect(picked("Pulsar Radar")).toContain("blockchain/tokens-defi");
+        expect(picked("RedimensionAI")).toContain("blockchain/dapp");
     });
 
     it("no propone nada a un proyecto que no encaja con ningún track", () => {
         const custom: ProjectLike = { title: "Recetario", description: "Recetas de cocina en papel", stack: ["LaTeX"] };
         expect(applicationsForProject(custom, TRACKS)).toEqual([]);
-    });
-});
-
-describe("applicationsForTrack", () => {
-    it("solo incluye las fases elegidas para cada proyecto", () => {
-        const track = getTrack("mlops");
-        if (!track) throw new Error("falta el track mlops");
-        const applications = applicationsForTrack(track, PROJECTS, TRACKS);
-        expect(applications.every((a) => a.trackId === "mlops")).toBe(true);
-        expect(applications.some((a) => a.projectName === "Rastreador" && a.phaseId === "pipeline")).toBe(true);
     });
 });
 

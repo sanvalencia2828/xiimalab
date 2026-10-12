@@ -4,6 +4,10 @@
  * Lista de proyectos, compartida entre la página /projects (cliente) y la
  * acción de avance (servidor). El servidor resuelve las URLs de GitHub y de la
  * demo desde aquí; nunca las acepta del cliente.
+ *
+ * `stack` es lo que el repositorio usa hoy (comprobado en su código y sus
+ * dependencias); lo que aún no usa va en `planned`. Las skills demostradas y
+ * las fases aplicables salen solo de `stack`.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import type { ProjectCardProps } from "@/components/ProjectCard";
@@ -13,7 +17,7 @@ export const PROJECTS: ProjectCardProps[] = [
         title: "Xiimalab",
         description: "AI & Blockchain Intelligence Hub — hackathon matching, ML recommendations y staking de habilidades",
         status: "in-development",
-        stack: ["Next.js", "TypeScript", "FastAPI", "Docker", "Supabase", "Python", "Anthropic API", "Salidas estructuradas"],
+        stack: ["Next.js", "TypeScript", "FastAPI", "Docker", "Supabase", "Python", "Anthropic API", "Salidas estructuradas", "Stellar"],
         metrics: { pages: 12, apis: "20+", score: "84%" },
         accentColor: "#34d399",
         liveUrl: "https://xiimalab.vercel.app",
@@ -23,7 +27,8 @@ export const PROJECTS: ProjectCardProps[] = [
         title: "AURA",
         description: "Motor de resize de imágenes con IA — optimiza y redimensiona para redes sociales con engagement analytics",
         status: "active",
-        stack: ["TypeScript", "Next.js", "AI/ML", "OpenCV"],
+        stack: ["TypeScript", "Next.js", "NextAuth", "sharp"],
+        planned: ["AI/ML", "OpenCV"],
         metrics: { accuracy: "94%", latency: "<80ms", platforms: 6 },
         accentColor: "#7dd3fc",
         githubUrl: "https://github.com/sanvalencia2828/Aura",
@@ -32,7 +37,8 @@ export const PROJECTS: ProjectCardProps[] = [
         title: "RedimensionAI",
         description: "Social Media Image Optimizer — vibecoding, redimensionado inteligente para múltiples plataformas",
         status: "completed",
-        stack: ["TypeScript", "Next.js", "Vercel", "AI"],
+        stack: ["TypeScript", "Next.js", "Vercel", "Web3 (wagmi)", "Tesseract.js"],
+        planned: ["AI"],
         metrics: { uptime: "99.9%", boost: "3x", plataformas: 8 },
         accentColor: "#a78bfa",
         liveUrl: "https://redimension-ai-rho.vercel.app",

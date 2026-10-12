@@ -129,6 +129,9 @@ export function TracksSection({
                             </Link>
                             <p className="text-xs text-muted-text mt-0.5">
                                 {m.trackTitle} · {m.phaseTitle}
+                                {m.resolves > 0 && (
+                                    <span className="text-accent"> · Resuelve {m.resolves} de tus proyectos</span>
+                                )}
                             </p>
                             {m.evidence.length > 0 && (
                                 <p className="text-xs mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">

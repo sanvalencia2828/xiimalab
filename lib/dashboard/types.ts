@@ -38,6 +38,8 @@ export interface NextMilestoneRow {
     phaseTitle: string;
     /** Proyectos cuyo stack cubre las skills de la fase del hito */
     evidence: string[];
+    /** Proyectos con una necesidad real que la fase del hito resuelve */
+    resolves: number;
 }
 
 export interface SkillChip {

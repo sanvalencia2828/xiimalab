@@ -61,7 +61,7 @@ describe("generalExample", () => {
     it("usa el proyecto práctico de la fase y se marca como sugerencia general", () => {
         const example = generalExample(phase);
         expect(example.general).toBe(true);
-        expect(example.what).toBe(phase.practiceProject.idea);
+        expect(example.what).toBe(phase.practicaGeneral.idea);
         expect(example.steps).toHaveLength(3);
         expect(example.milestones).toEqual([]);
         expect(example.effort).toBeNull();

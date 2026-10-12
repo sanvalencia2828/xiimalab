@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { migrateEvidence } from "@/lib/learning/evidence";
 
 const STORAGE_KEY = "xiimalab_milestone_evidence";
 const CHANGE_EVENT = "xiimalab:milestone-evidence";
@@ -12,9 +13,11 @@ function read(): EvidenceMap {
     try {
         const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
         if (!parsed || typeof parsed !== "object") return {};
-        return Object.fromEntries(
-            Object.entries(parsed as Record<string, unknown>).filter(
-                (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== "",
+        return migrateEvidence(
+            Object.fromEntries(
+                Object.entries(parsed as Record<string, unknown>).filter(
+                    (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== "",
+                ),
             ),
         );
     } catch {

@@ -19,7 +19,10 @@ export interface ProjectCardProps {
     title: string;
     description: string;
     status: ProjectStatus;
+    /** Lo que el repositorio usa hoy */
     stack: string[];
+    /** Lo que se quiere añadir y el repositorio aún no usa: se muestra como "Planeado", no como stack */
+    planned?: string[];
     dockerActive?: boolean;
     metrics?: Record<string, string | number>;
     url?: string;
@@ -89,6 +92,7 @@ export default function ProjectCard({
     description,
     status: initialStatus,
     stack,
+    planned,
     dockerActive = false,
     metrics,
     url,
@@ -189,6 +193,17 @@ export default function ProjectCard({
                     </span>
                 ))}
             </div>
+
+            {planned && planned.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mb-4 -mt-2">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-text">Planeado</span>
+                    {planned.map((tech) => (
+                        <span key={tech} className="text-xs px-2.5 py-1 rounded-md border border-dashed border-slate-600/50 text-slate-400">
+                            {tech}
+                        </span>
+                    ))}
+                </div>
+            )}
 
             {metrics && (
                 <div className="pt-4 border-t border-white/[0.06] grid grid-cols-3 gap-2 mb-4">
