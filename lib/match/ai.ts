@@ -8,8 +8,11 @@
  *     trata como datos, no como instrucciones (ver buildMatchPrompt).
  *   • La respuesta del modelo es JSON validado contra MatchSchema; si no
  *     valida, se lanza MatchAnalysisError (nunca se inventa un resultado).
- *   • Caché de 24 h por hackatón + skills (unstable_cache): los errores no
- *     se guardan, así que un fallo se puede reintentar.
+ *   • La respuesta llega en streaming (streamAiMatch): mientras el modelo
+ *     escribe el JSON, cada campo ya legible se entrega con onPartial.
+ *   • Caché de 24 h por hackatón + skills (unstable_cache), con lectura
+ *     (readCachedMatch) y escritura (storeMatch) separadas, porque un stream
+ *     no se puede envolver: solo se guarda el resultado ya validado.
  *   • Sin ANTHROPIC_API_KEY el llamador usa heuristicMatch().
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -17,6 +20,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { unstable_cache } from "next/cache";
 import { z } from "zod";
+import { parsePartialJson } from "./partialJson";
+import { type MatchPartial, toMatchPartial } from "./sse";
 
 /** Modelo del análisis. Cámbialo aquí. */
 export const MATCH_MODEL = "claude-haiku-5-5";
@@ -148,47 +153,57 @@ export function isAiMatchConfigured(): boolean {
     return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
 }
 
-async function analyze(input: MatchInput): Promise<MatchAnalysis> {
-    let response;
+/** Error de la llamada al modelo → mensaje legible para quien usa el modal. */
+function toMatchError(err: unknown): MatchAnalysisError {
+    if (err instanceof MatchAnalysisError) return err;
+    if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
+        console.error("[match] ANTHROPIC_API_KEY rechazada:", err.message);
+        return new MatchAnalysisError("La API key del motor de IA no es válida. Revisa ANTHROPIC_API_KEY.", 503);
+    }
+    if (err instanceof Anthropic.RateLimitError) {
+        return new MatchAnalysisError("El motor de IA está saturado ahora mismo. Inténtalo en unos minutos.", 503);
+    }
+    if (err instanceof Anthropic.APIConnectionTimeoutError) {
+        return new MatchAnalysisError("El motor de IA tardó demasiado en responder. Inténtalo de nuevo.", 504);
+    }
+    if (err instanceof Anthropic.APIConnectionError) {
+        return new MatchAnalysisError("No se pudo conectar con el motor de IA.", 504);
+    }
+    if (err instanceof Anthropic.BadRequestError && /credit balance/i.test(err.message)) {
+        console.error("[match] La cuenta de Anthropic no tiene crédito:", err.message);
+        return new MatchAnalysisError("La cuenta del motor de IA no tiene crédito disponible.", 503);
+    }
+    if (err instanceof Anthropic.APIError) {
+        console.error("[match] Error de la API de Anthropic:", err.status, err.message);
+        return new MatchAnalysisError("El motor de IA devolvió un error.");
+    }
+    if (err instanceof Anthropic.AnthropicError) {
+        // El SDK no pudo leer la salida estructurada: el modelo devolvió un JSON incompleto o inválido
+        console.error("[match] Respuesta no válida:", err.message);
+        return new MatchAnalysisError("La IA devolvió una respuesta que no se pudo validar.");
+    }
+    console.error("[match] Error inesperado:", err instanceof Error ? err.message : err);
+    return new MatchAnalysisError("No se pudo completar el análisis.");
+}
+
+/** El cliente cerró la conexión y la llamada al modelo se abortó: no es un fallo del análisis. */
+export class MatchAborted extends Error {
+    constructor() {
+        super("análisis abortado");
+        this.name = "MatchAborted";
+    }
+}
+
+/** Valida el texto completo que devolvió el modelo. Lanza MatchAnalysisError si no es el JSON esperado. */
+export function parseMatchOutput(text: string): MatchAnalysis {
+    let json: unknown;
     try {
-        response = await getClient().messages.parse({
-            model: MATCH_MODEL,
-            max_tokens: MAX_TOKENS,
-            system: SYSTEM_PROMPT,
-            messages: [{ role: "user", content: buildMatchPrompt(input) }],
-            output_config: { effort: "low", format: zodOutputFormat(OutputSchema) },
-        });
-    } catch (err) {
-        if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-            console.error("[match] ANTHROPIC_API_KEY rechazada:", err.message);
-            throw new MatchAnalysisError("La API key del motor de IA no es válida. Revisa ANTHROPIC_API_KEY.", 503);
-        }
-        if (err instanceof Anthropic.RateLimitError) {
-            throw new MatchAnalysisError("El motor de IA está saturado ahora mismo. Inténtalo en unos minutos.", 503);
-        }
-        if (err instanceof Anthropic.APIConnectionError) {
-            throw new MatchAnalysisError("No se pudo conectar con el motor de IA o tardó demasiado.", 504);
-        }
-        if (err instanceof Anthropic.BadRequestError && /credit balance/i.test(err.message)) {
-            console.error("[match] La cuenta de Anthropic no tiene crédito:", err.message);
-            throw new MatchAnalysisError("La cuenta del motor de IA no tiene crédito disponible.", 503);
-        }
-        if (err instanceof Anthropic.APIError) {
-            console.error("[match] Error de la API de Anthropic:", err.status, err.message);
-            throw new MatchAnalysisError("El motor de IA devolvió un error.");
-        }
-        // Incluye la respuesta que no es JSON válido o no cumple MatchSchema
-        console.error("[match] Respuesta no válida:", err instanceof Error ? err.message : err);
+        json = JSON.parse(text);
+    } catch {
+        console.error("[match] La respuesta no es JSON válido");
         throw new MatchAnalysisError("La IA devolvió una respuesta que no se pudo validar.");
     }
-
-    if (response.stop_reason === "refusal") {
-        throw new MatchAnalysisError("La IA declinó analizar esta hackatón.");
-    }
-    if (response.stop_reason === "max_tokens" || !response.parsed_output) {
-        throw new MatchAnalysisError("La IA devolvió una respuesta incompleta que no se pudo validar.");
-    }
-    const validated = MatchSchema.safeParse(response.parsed_output);
+    const validated = MatchSchema.safeParse(json);
     if (!validated.success) {
         console.error("[match] La respuesta no cumple el esquema:", validated.error.message);
         throw new MatchAnalysisError("La IA devolvió una respuesta que no se pudo validar.");
@@ -196,22 +211,102 @@ async function analyze(input: MatchInput): Promise<MatchAnalysis> {
     return validated.data;
 }
 
+export interface StreamOptions {
+    /** Al abortarse (el cliente cerró la conexión) se corta la llamada al modelo y se lanza MatchAborted */
+    signal?: AbortSignal;
+    /** Campos del análisis ya legibles, cada vez que cambian */
+    onPartial?: (partial: MatchPartial) => void;
+}
+
 /**
- * Análisis con IA (24 h de caché por hackatón + skills). Lanza MatchAnalysisError.
- * `beforeModelCall` solo se ejecuta cuando no hay respuesta en caché y se va a
- * llamar al modelo; si lanza, el análisis no se hace y el error se propaga.
+ * Análisis con IA en streaming, sin caché. Devuelve el resultado completo ya
+ * validado; lanza MatchAnalysisError si la llamada falla o la respuesta no
+ * valida, y MatchAborted si se abortó.
  */
-export async function getAiMatch(input: MatchInput, beforeModelCall?: () => void): Promise<MatchResult> {
-    const run = unstable_cache(
+export async function streamAiMatch(input: MatchInput, { signal, onPartial }: StreamOptions = {}): Promise<MatchAnalysis> {
+    let message: Anthropic.Message;
+    try {
+        const stream = getClient().messages.stream(
+            {
+                model: MATCH_MODEL,
+                max_tokens: MAX_TOKENS,
+                system: SYSTEM_PROMPT,
+                messages: [{ role: "user", content: buildMatchPrompt(input) }],
+                output_config: { effort: "low", format: zodOutputFormat(OutputSchema) },
+            },
+            { signal },
+        );
+        let sent = "";
+        stream.on("text", (_delta, snapshot) => {
+            const partial = toMatchPartial(parsePartialJson(snapshot));
+            const serialized = JSON.stringify(partial);
+            if (serialized === sent || serialized === "{}") return;
+            sent = serialized;
+            onPartial?.(partial);
+        });
+        message = await stream.finalMessage();
+    } catch (err) {
+        if (signal?.aborted || err instanceof Anthropic.APIUserAbortError) throw new MatchAborted();
+        throw toMatchError(err);
+    }
+
+    if (message.stop_reason === "refusal") {
+        throw new MatchAnalysisError("La IA declinó analizar esta hackatón.");
+    }
+    if (message.stop_reason === "max_tokens") {
+        throw new MatchAnalysisError("La IA devolvió una respuesta incompleta que no se pudo validar.");
+    }
+    const text = message.content.map((block) => (block.type === "text" ? block.text : "")).join("");
+    return parseMatchOutput(text);
+}
+
+// ── Caché ───────────────────────────────────────────────────────────────────
+/** No hay análisis guardado: se lanza dentro de unstable_cache para que no guarde nada. */
+class CacheMiss extends Error {}
+
+// Análisis validados a punto de guardarse, por clave de caché
+const toStore = new Map<string, MatchAnalysis>();
+
+/**
+ * Entrada de caché de un análisis. unstable_cache incluye el código de la
+ * función en la clave, así que leer y guardar tienen que usar la misma: al
+ * leer no hay nada en `toStore` y lanza CacheMiss; al guardar devuelve el
+ * análisis que storeMatch dejó ahí.
+ */
+function cachedAnalysis(input: MatchInput): () => Promise<MatchAnalysis> {
+    const key = JSON.stringify(input);
+    return unstable_cache(
         async () => {
-            beforeModelCall?.();
-            return analyze(input);
+            const analysis = toStore.get(key);
+            if (!analysis) throw new CacheMiss();
+            return analysis;
         },
-        ["ai-match", MATCH_MODEL, JSON.stringify(input)],
+        ["ai-match", MATCH_MODEL, key],
         { revalidate: CACHE_TTL_S, tags: ["ai-match"] },
     );
-    const analysis = await run();
-    return { ...analysis, model_used: MATCH_MODEL };
+}
+
+/** Análisis guardado para esta hackatón + skills (24 h), o null. No llama al modelo. */
+export async function readCachedMatch(input: MatchInput): Promise<MatchResult | null> {
+    try {
+        return { ...(await cachedAnalysis(input)()), model_used: MATCH_MODEL };
+    } catch (err) {
+        if (err instanceof CacheMiss) return null;
+        throw err;
+    }
+}
+
+/** Guarda un análisis ya validado. Si la caché falla, el análisis se entrega igual. */
+export async function storeMatch(input: MatchInput, analysis: MatchAnalysis): Promise<void> {
+    const key = JSON.stringify(input);
+    toStore.set(key, analysis);
+    try {
+        await cachedAnalysis(input)();
+    } catch (err) {
+        console.warn("[match] No se pudo guardar el análisis en caché:", err instanceof Error ? err.message : err);
+    } finally {
+        toStore.delete(key);
+    }
 }
 
 /** Estimación por coincidencia de etiquetas, para cuando no hay API key. */

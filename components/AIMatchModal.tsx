@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { BrainCircuit, X, CheckCircle2, AlertCircle, Sparkles, Loader2, TrendingUp, Info, UserCircle2 } from "lucide-react";
+import { createSseReader, type MatchPartial } from "@/lib/match/sse";
 
 interface MatchResult {
     match_score: number;
@@ -30,7 +31,8 @@ interface UserProfile {
 const MAX_SKILL_CHIPS = 5;
 // /api/match responde con este modelo cuando el servidor no tiene ANTHROPIC_API_KEY
 const HEURISTIC_MODEL = "heuristic-fallback";
-const REQUEST_TIMEOUT_MS = 30_000;
+// Sin recibir nada durante este tiempo (ni un evento del stream), el análisis se da por colgado
+const IDLE_TIMEOUT_MS = 30_000;
 
 function skillNames(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
@@ -104,8 +106,11 @@ function SkillChips({ skills, tone }: { skills: string[]; tone: "neutral" | "goo
 }
 
 export default function AIMatchModal({ hackathonTitle, hackathonDescription, hackathonTags, hackathonPrize, hackathonDeadline, onClose }: Props) {
-    const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+    // "streaming": ya llegó algún campo del análisis y el modelo sigue escribiendo
+    const [status, setStatus] = useState<"idle" | "loading" | "streaming" | "done" | "error">("idle");
     const [result, setResult] = useState<MatchResult | null>(null);
+    const [partial, setPartial] = useState<MatchPartial>({});
+    const abortRef = useRef<AbortController | null>(null);
     const [errorMessage, setErrorMessage] = useState("");
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [mounted, setMounted] = useState(false);
@@ -113,12 +118,31 @@ export default function AIMatchModal({ hackathonTitle, hackathonDescription, hac
     useEffect(() => {
         setProfile(getUserProfile());
         setMounted(true);
+        // Al cerrar el modal se corta el stream, y con él la llamada al modelo en el servidor
+        return () => abortRef.current?.abort();
     }, []);
 
     const runAnalysis = async () => {
         if (!profile) return;
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        let idle = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const touch = () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                idle = true;
+                controller.abort();
+            }, IDLE_TIMEOUT_MS);
+        };
+
         setStatus("loading");
         setErrorMessage("");
+        setResult(null);
+        setPartial({});
+        touch();
         try {
             const res = await fetch("/api/match", {
                 method: "POST",
@@ -133,34 +157,70 @@ export default function AIMatchModal({ hackathonTitle, hackathonDescription, hac
                         deadline: hackathonDeadline,
                     },
                 }),
-                signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+                signal: controller.signal,
             });
-            const data = (await res.json().catch(() => ({}))) as Partial<MatchResult> & { error?: string };
-            if (!res.ok) throw new Error(data.error || `El servidor respondió con HTTP ${res.status}`);
-            if (typeof data.match_score !== "number") throw new Error("La respuesta no incluye un porcentaje de match");
-            setResult({
-                match_score: Math.round(data.match_score),
-                matching_skills: data.matching_skills ?? [],
-                missing_skills: data.missing_skills ?? [],
-                recommendation: data.recommendation ?? "",
-                model_used: data.model_used,
+
+            // JSON: resultado en caché, estimación sin IA o un error anterior al stream
+            if (!res.body || !res.headers.get("content-type")?.includes("text/event-stream")) {
+                const data = (await res.json().catch(() => ({}))) as Partial<MatchResult> & { error?: string };
+                if (!res.ok) throw new Error(data.error || `El servidor respondió con HTTP ${res.status}`);
+                if (typeof data.match_score !== "number") throw new Error("La respuesta no incluye un porcentaje de match");
+                setResult({
+                    match_score: Math.round(data.match_score),
+                    matching_skills: data.matching_skills ?? [],
+                    missing_skills: data.missing_skills ?? [],
+                    recommendation: data.recommendation ?? "",
+                    model_used: data.model_used,
+                });
+                setStatus("done");
+                return;
+            }
+
+            // Stream SSE leído del body (EventSource no admite POST)
+            const outcome: { result: MatchResult | null; error: string } = { result: null, error: "" };
+            const read = createSseReader((event) => {
+                if (event.event === "partial") {
+                    setPartial(event.data);
+                    setStatus("streaming");
+                } else if (event.event === "done") {
+                    outcome.result = event.data;
+                } else if (event.event === "error") {
+                    outcome.error = event.data.message;
+                }
             });
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                touch();
+                read(decoder.decode(value, { stream: true }));
+            }
+            if (outcome.error) throw new Error(outcome.error);
+            if (!outcome.result) throw new Error("El análisis se interrumpió antes de terminar.");
+            setResult(outcome.result);
             setStatus("done");
         } catch (err) {
-            const timedOut = err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError");
+            // Modal cerrado o análisis relanzado: no hay nada que mostrar
+            if (controller.signal.aborted && !idle) return;
             setErrorMessage(
-                timedOut ? `El análisis tardó más de ${REQUEST_TIMEOUT_MS / 1000} segundos.`
+                idle ? `El análisis lleva más de ${IDLE_TIMEOUT_MS / 1000} segundos sin responder.`
                 : err instanceof TypeError ? "No se pudo conectar con el servidor. Revisa tu conexión."
                 : err instanceof Error ? err.message
                 : "Error desconocido",
             );
             setStatus("error");
+        } finally {
+            clearTimeout(timer);
         }
     };
 
     if (!mounted) return null;
 
     const isHeuristic = result?.model_used === HEURISTIC_MODEL;
+    const streaming = status === "streaming";
+    // Mientras llega el stream se pinta lo recibido; al terminar, el resultado validado
+    const view: MatchPartial = result ?? partial;
     const profileSkills = profile?.skills ?? [];
 
     // Portal: las tarjetas que abren este modal tienen transform, y eso descoloca un `fixed` anidado
@@ -274,8 +334,15 @@ export default function AIMatchModal({ hackathonTitle, hackathonDescription, hac
                             </div>
                         )}
 
-                        {status === "done" && result && (
+                        {(streaming || (status === "done" && result)) && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                                {streaming && (
+                                    <p className="flex items-center gap-2 text-xs text-slate-400" role="status">
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                                        Analizando…
+                                    </p>
+                                )}
+
                                 {isHeuristic && (
                                     <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
                                         <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -285,56 +352,64 @@ export default function AIMatchModal({ hackathonTitle, hackathonDescription, hac
                                     </div>
                                 )}
 
-                                {/* Porcentaje */}
-                                <div className="flex items-center gap-5">
-                                    <ScoreRing score={result.match_score} />
-                                    <div>
-                                        <p className="text-xs text-slate-500 mb-0.5">Compatibilidad</p>
-                                        <p className="text-lg font-bold text-white">
-                                            {result.match_score >= 75 ? "🔥 Excelente fit"
-                                             : result.match_score >= 50 ? "👍 Buen match"
-                                             : "⚠️ Match parcial"}
-                                        </p>
-                                        <p className="text-[10px] text-slate-600 mt-0.5">
-                                            {isHeuristic ? "Estimación sin IA" : "Análisis con IA"}
-                                        </p>
+                                {/* Porcentaje: lo primero que llega */}
+                                {view.match_score !== undefined && (
+                                    <div className="flex items-center gap-5">
+                                        <ScoreRing score={view.match_score} />
+                                        <div>
+                                            <p className="text-xs text-slate-500 mb-0.5">Compatibilidad</p>
+                                            <p className="text-lg font-bold text-white">
+                                                {view.match_score >= 75 ? "🔥 Excelente fit"
+                                                 : view.match_score >= 50 ? "👍 Buen match"
+                                                 : "⚠️ Match parcial"}
+                                            </p>
+                                            <p className="text-[10px] text-slate-600 mt-0.5">
+                                                {isHeuristic ? "Estimación sin IA" : "Análisis con IA"}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {/* Puntos fuertes */}
-                                <div>
-                                    <p className="text-xs font-semibold text-emerald-400 mb-1.5 flex items-center gap-1">
-                                        <CheckCircle2 className="w-3 h-3" /> Puntos fuertes
-                                    </p>
-                                    {result.matching_skills.length > 0
-                                        ? <SkillChips skills={result.matching_skills} tone="good" />
-                                        : <p className="text-xs text-slate-500">Ninguna de tus skills coincide directamente con esta hackatón.</p>}
-                                </div>
+                                {view.matching_skills && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-emerald-400 mb-1.5 flex items-center gap-1">
+                                            <CheckCircle2 className="w-3 h-3" /> Puntos fuertes
+                                        </p>
+                                        {view.matching_skills.length > 0
+                                            ? <SkillChips skills={view.matching_skills} tone="good" />
+                                            : !streaming && <p className="text-xs text-slate-500">Ninguna de tus skills coincide directamente con esta hackatón.</p>}
+                                    </div>
+                                )}
 
                                 {/* Carencias */}
-                                <div>
-                                    <p className="text-xs font-semibold text-amber-400 mb-1.5 flex items-center gap-1">
-                                        <TrendingUp className="w-3 h-3" /> Carencias
-                                    </p>
-                                    {result.missing_skills.length > 0
-                                        ? <SkillChips skills={result.missing_skills} tone="gap" />
-                                        : <p className="text-xs text-slate-500">No se detectaron carencias relevantes.</p>}
-                                </div>
+                                {view.missing_skills && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-amber-400 mb-1.5 flex items-center gap-1">
+                                            <TrendingUp className="w-3 h-3" /> Carencias
+                                        </p>
+                                        {view.missing_skills.length > 0
+                                            ? <SkillChips skills={view.missing_skills} tone="gap" />
+                                            : !streaming && <p className="text-xs text-slate-500">No se detectaron carencias relevantes.</p>}
+                                    </div>
+                                )}
 
-                                {/* Recomendación */}
-                                {result.recommendation && (
+                                {/* Recomendación: lo último que llega */}
+                                {view.recommendation && (
                                     <div className="p-3 rounded-xl bg-accent/5 border border-accent/15">
                                         <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Recomendación</p>
                                         <p className="text-xs text-slate-300 leading-relaxed">
-                                            💡 {result.recommendation}
+                                            💡 {view.recommendation}
                                         </p>
                                     </div>
                                 )}
 
-                                <button onClick={runAnalysis}
-                                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors underline">
-                                    Analizar de nuevo
-                                </button>
+                                {status === "done" && (
+                                    <button onClick={runAnalysis}
+                                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors underline">
+                                        Analizar de nuevo
+                                    </button>
+                                )}
                             </motion.div>
                         )}
                     </div>
