@@ -30,6 +30,7 @@ export interface AcquisitionRules {
 
 /** Rangos definidos por el usuario (2026-10-12). Se pueden editar desde /activos. */
 export const DEFAULT_RANGES: Record<string, PriceRange> = {
+    // IA
     NVDA: { min: 211, max: 244 },
     AMD: { min: 421, max: 709 },
     MSFT: { min: 346, max: 581 },
@@ -42,6 +43,21 @@ export const DEFAULT_RANGES: Record<string, PriceRange> = {
     ARM: { min: 198, max: 488 },
     PLTR: { min: 112, max: 215 },
     SNDK: { min: 881, max: 2612 },
+    // Blockchain
+    COIN: { min: 132, max: 229 },
+    CRCL: { min: 43, max: 146 },
+    HOOD: { min: 69, max: 134 },
+    GLXY: { min: 17, max: 26 },
+    MSTR: { min: 88, max: 200 },
+    XYZ: { min: 70, max: 85 },
+    // Dev y cloud
+    NET: { min: 321, max: 384 },
+    MDB: { min: 272, max: 528 },
+    DDOG: { min: 198, max: 307 },
+    GTLB: { min: 44, max: 59 },
+    SNOW: { min: 286, max: 373 },
+    CRWD: { min: 173, max: 856 },
+    ORCL: { min: 112, max: 261 },
 };
 
 export const DEFAULT_RULES: AcquisitionRules = {

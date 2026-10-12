@@ -10,6 +10,7 @@ import {
     type AcquisitionInput,
     type PriceRange,
 } from "./acquisition";
+import { WATCHLIST } from "./watchlist";
 
 const NOW = new Date("2026-10-12T18:00:00Z");
 const asset = (over: Partial<AcquisitionInput> = {}): AcquisitionInput => ({
@@ -82,6 +83,22 @@ describe("evaluateAcquisition con rango", () => {
 
     it("un rango inválido (máx < mín) cuenta como sin rango", () => {
         expect(evaluateAcquisition(asset(), rules({ NVDA: { min: 244, max: 211 } }), NOW).status).toBe("sin-rango");
+    });
+});
+
+describe("DEFAULT_RANGES", () => {
+    it("cada ticker con rango existe en la watchlist", () => {
+        const tickers = new Set(WATCHLIST.map((s) => s.ticker));
+        for (const ticker of Object.keys(DEFAULT_RANGES)) {
+            expect(tickers.has(ticker), ticker).toBe(true);
+        }
+    });
+
+    it("en todos los rangos min > 0 y min < max", () => {
+        for (const [ticker, { min, max }] of Object.entries(DEFAULT_RANGES)) {
+            expect(min, ticker).toBeGreaterThan(0);
+            expect(min, ticker).toBeLessThan(max);
+        }
     });
 });
 
