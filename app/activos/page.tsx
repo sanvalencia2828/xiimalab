@@ -9,6 +9,8 @@ import type { Metadata } from "next";
 import { LineChart, Zap } from "lucide-react";
 import { AssetsClient, type AssetRow } from "@/components/AssetsClient";
 import { getMarketAssets } from "@/lib/markets/backpack";
+import { getTotalHoursPlan } from "@/lib/markets/tradingview";
+import { TotalHoursPlan } from "@/components/TotalHoursPlan";
 import { stockRelevance, themeDemand, WATCHLIST, type OpportunityText, type ThemeDemand } from "@/lib/markets/watchlist";
 import { getLiveHackathons } from "@/lib/hackathons/live";
 import { getSuperteamBounties } from "@/lib/bounties/superteam";
@@ -36,9 +38,10 @@ async function fetchOpportunities(): Promise<OpportunityText[]> {
 }
 
 export default async function ActivosPage() {
-    const [market, opportunities] = await Promise.all([
+    const [market, opportunities, hoursPlan] = await Promise.all([
         getMarketAssets().catch(() => null),
         fetchOpportunities().catch(() => [] as OpportunityText[]),
+        getTotalHoursPlan(),
     ]);
     const demand: ThemeDemand[] = themeDemand(opportunities);
 
@@ -76,6 +79,10 @@ export default async function ActivosPage() {
                         </span>
                     </div>
                 </div>
+            </div>
+
+            <div className="mb-6">
+                <TotalHoursPlan plan={hoursPlan} />
             </div>
 
             <AssetsClient
