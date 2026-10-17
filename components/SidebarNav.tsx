@@ -19,6 +19,7 @@ import {
   Map,
   Coins,
   LineChart,
+  Landmark,
   Menu,
   X,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const navItems: { href: string; icon: typeof Zap; label: string; badgeKey?: stri
   { href: "/hackathons", icon: Zap, label: "Hackatones", badgeKey: "hackathons" },
   { href: "/bounties", icon: Coins, label: "Bounties" },
   { href: "/activos", icon: LineChart, label: "Activos" },
+  { href: "/lend", icon: Landmark, label: "Lend" },
   { href: "/projects", icon: FolderKanban, label: "Proyectos" },
   { href: "/profile", icon: Target, label: "Mi Perfil" },
   { href: "/settings", icon: Settings, label: "Configuración" },
